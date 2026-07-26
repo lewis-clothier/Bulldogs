@@ -133,6 +133,15 @@
     syncProductImage(product);
   };
 
+  const applyView = (product, view) => {
+    const side = view === "back" ? "back" : "front";
+    const media = product.querySelector(".product__media--swap");
+    media?.classList.toggle("is-showing-back", side === "back");
+    product.querySelectorAll("[data-view]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.getAttribute("data-view") === side);
+    });
+  };
+
   const params = new URLSearchParams(window.location.search);
   const storedColour = sessionStorage.getItem("bulldogs-shop-colour");
   if (storedColour) sessionStorage.removeItem("bulldogs-shop-colour");
@@ -154,10 +163,17 @@
 
   document.querySelectorAll(".product").forEach((product) => {
     applyColour(product, urlColour === "blue" || urlColour === "orange" ? urlColour : "orange");
+    applyView(product, "front");
 
     product.querySelectorAll("[data-colour]").forEach((btn) => {
       btn.addEventListener("click", () => {
         applyColour(product, btn.getAttribute("data-colour"));
+      });
+    });
+
+    product.querySelectorAll("[data-view]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyView(product, btn.getAttribute("data-view"));
       });
     });
 

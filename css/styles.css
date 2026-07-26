@@ -142,40 +142,18 @@ ul {
 
 .drop-tease__item {
   display: block;
-}
-
-.drop-tease__swap {
-  position: relative;
-  display: block;
-  overflow: hidden;
   transition: transform 0.45s var(--ease);
 }
 
-.drop-tease__swap img {
+.drop-tease__item img {
   width: 100%;
   height: auto;
   display: block;
 }
 
-.drop-tease__back {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  opacity: 0;
-  transition: opacity 0.35s var(--ease);
-  pointer-events: none;
-}
-
-.drop-tease__item:hover .drop-tease__swap,
-.drop-tease__item:focus-visible .drop-tease__swap {
+.drop-tease__item:hover,
+.drop-tease__item:focus-visible {
   transform: scale(1.04);
-}
-
-.drop-tease__item:hover .drop-tease__back,
-.drop-tease__item:focus-visible .drop-tease__back {
-  opacity: 1;
 }
 
 @media (max-width: 520px) {
@@ -185,12 +163,8 @@ ul {
 }
 
 @media (hover: none) {
-  .drop-tease__item:hover .drop-tease__swap {
+  .drop-tease__item:hover {
     transform: none;
-  }
-
-  .drop-tease__item:hover .drop-tease__back {
-    opacity: 0;
   }
 }
 
@@ -204,7 +178,7 @@ ul {
 }
 
 .section:has(.about-grid) {
-  padding-block: 8rem;
+  padding: 3rem 0 6rem;
 }
 
 .section:has(.drop-layout) {
@@ -1469,7 +1443,8 @@ ul {
 }
 
 .product__media--swap:hover .product__img--back,
-.product__media--swap:focus-within .product__img--back {
+.product__media--swap:focus-within .product__img--back,
+.product__media--swap.is-showing-back .product__img--back {
   opacity: 1;
 }
 
@@ -1481,6 +1456,42 @@ ul {
   .product__media--swap:hover .product__img--back {
     opacity: 0;
   }
+
+  .product__media--swap.is-showing-back .product__img--back {
+    opacity: 1;
+  }
+}
+
+.product__view {
+  margin: 0.35rem 0 0.15rem;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-toggle__btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bone-muted);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.view-toggle__btn:hover {
+  color: var(--bone);
+  border-color: color-mix(in srgb, var(--bone) 35%, transparent);
+}
+
+.view-toggle__btn.is-active {
+  color: var(--bone);
+  border-color: var(--accent);
 }
 
 .product__body {
