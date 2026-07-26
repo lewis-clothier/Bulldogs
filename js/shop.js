@@ -177,6 +177,39 @@
       });
     });
 
+    const media = product.querySelector(".product__media--swap");
+    if (media) {
+      const SWIPE_MIN = 40;
+      let swipePointer = null;
+      let swipeStartX = 0;
+      let swipeStartY = 0;
+
+      media.addEventListener("pointerdown", (e) => {
+        if (e.button != null && e.button !== 0) return;
+        swipePointer = e.pointerId;
+        swipeStartX = e.clientX;
+        swipeStartY = e.clientY;
+        media.setPointerCapture?.(e.pointerId);
+      });
+
+      const endSwipe = (e) => {
+        if (swipePointer == null || e.pointerId !== swipePointer) return;
+        swipePointer = null;
+        const dx = e.clientX - swipeStartX;
+        const dy = e.clientY - swipeStartY;
+        if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy)) return;
+
+        const showingBack = media.classList.contains("is-showing-back");
+        if (dx < 0 && !showingBack) applyView(product, "back");
+        else if (dx > 0 && showingBack) applyView(product, "front");
+      };
+
+      media.addEventListener("pointerup", endSwipe);
+      media.addEventListener("pointercancel", () => {
+        swipePointer = null;
+      });
+    }
+
     const addBtn = product.querySelector("[data-add]");
     if (!addBtn) return;
 

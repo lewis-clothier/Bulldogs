@@ -495,6 +495,14 @@ ul {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hero__carousel.is-dragging {
+  cursor: grabbing;
 }
 
 .hero__track {
@@ -503,6 +511,10 @@ ul {
   width: max-content;
   will-change: transform;
   animation: hero-marquee 45s linear infinite;
+}
+
+.hero__track.is-dragging {
+  animation: none !important;
 }
 
 .hero__set {
@@ -524,6 +536,9 @@ ul {
   max-width: none;
   object-fit: contain;
   object-position: center center;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 .hero__scrub {
@@ -1431,6 +1446,14 @@ ul {
 
 .product__media--swap {
   position: relative;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.product__media--swap:active {
+  cursor: grabbing;
 }
 
 .product__media img,
@@ -1439,6 +1462,8 @@ ul {
   height: 100%;
   object-fit: cover;
   transition: transform 0.5s var(--ease), opacity 0.35s var(--ease);
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .product__media--contain img,

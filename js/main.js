@@ -83,6 +83,85 @@
       window.addEventListener("resize", onParallaxScroll, { passive: true });
       updateParallax();
     }
+
+    const carousel = document.querySelector(".hero__carousel");
+    const track = carousel?.querySelector(".hero__track");
+    if (carousel && track) {
+      const getTranslateX = () => {
+        const { transform } = getComputedStyle(track);
+        if (!transform || transform === "none") return 0;
+        return new DOMMatrixReadOnly(transform).m41;
+      };
+
+      const loopWidth = () => track.scrollWidth / 2;
+
+      const wrapX = (x) => {
+        const w = loopWidth();
+        if (w <= 0) return 0;
+        let wrapped = x % w;
+        if (wrapped > 0) wrapped -= w;
+        return wrapped;
+      };
+
+      const durationSec = () => {
+        const raw = getComputedStyle(track).animationDuration || "45s";
+        const n = parseFloat(raw);
+        return Number.isFinite(n) && n > 0 ? n : 45;
+      };
+
+      let dragging = false;
+      let pointerId = null;
+      let startX = 0;
+      let originX = 0;
+      let moved = false;
+      let dragDuration = 45;
+
+      const onPointerDown = (e) => {
+        if (e.button != null && e.button !== 0) return;
+        dragging = true;
+        moved = false;
+        pointerId = e.pointerId;
+        startX = e.clientX;
+        dragDuration = durationSec();
+        originX = getTranslateX();
+        track.classList.add("is-dragging");
+        carousel.classList.add("is-dragging");
+        track.style.transform = `translate3d(${originX}px, 0, 0)`;
+        carousel.setPointerCapture?.(e.pointerId);
+      };
+
+      const onPointerMove = (e) => {
+        if (!dragging || e.pointerId !== pointerId) return;
+        const dx = e.clientX - startX;
+        if (Math.abs(dx) > 3) moved = true;
+        if (moved) e.preventDefault();
+        const x = wrapX(originX + dx);
+        track.style.transform = `translate3d(${x}px, 0, 0)`;
+      };
+
+      const endDrag = (e) => {
+        if (!dragging || (e && e.pointerId !== pointerId)) return;
+        dragging = false;
+        pointerId = null;
+
+        const x = wrapX(getTranslateX());
+        const w = loopWidth();
+        const progress = w > 0 ? Math.min(1, Math.max(0, -x / w)) : 0;
+        const delay = -progress * dragDuration;
+
+        track.style.transform = `translate3d(${x}px, 0, 0)`;
+        track.style.animationDelay = `${delay}s`;
+        void track.offsetWidth;
+        track.style.transform = "";
+        track.classList.remove("is-dragging");
+        carousel.classList.remove("is-dragging");
+      };
+
+      carousel.addEventListener("pointerdown", onPointerDown);
+      carousel.addEventListener("pointermove", onPointerMove, { passive: false });
+      carousel.addEventListener("pointerup", endDrag);
+      carousel.addEventListener("pointercancel", endDrag);
+    }
   }
 
   if (contactForm) {
