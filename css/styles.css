@@ -1863,6 +1863,18 @@ ul {
   min-height: 1.25rem;
 }
 
+.form-status.is-error {
+  color: #c45c4a;
+}
+
+.field--honey {
+  position: absolute;
+  left: -9999px;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .social-list {
   display: flex;
   flex-direction: column;
