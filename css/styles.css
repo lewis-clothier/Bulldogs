@@ -583,7 +583,7 @@ ul {
 
 @media (max-width: 700px) {
   .hero {
-    min-height: clamp(16rem, 48vw, 24rem);
+    min-height: clamp(24rem, 68vh, 34rem);
     max-height: none;
     padding: calc(var(--nav-h) + 0.75rem) 0 1rem;
   }
