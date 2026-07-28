@@ -87,13 +87,15 @@
     const carousel = document.querySelector(".hero__carousel");
     const track = carousel?.querySelector(".hero__track");
     if (carousel && track) {
+      const repeatCount = 3;
+
       const getTranslateX = () => {
         const { transform } = getComputedStyle(track);
         if (!transform || transform === "none") return 0;
         return new DOMMatrixReadOnly(transform).m41;
       };
 
-      const loopWidth = () => track.scrollWidth / 2;
+      const loopWidth = () => track.scrollWidth / repeatCount;
 
       const wrapX = (x) => {
         const w = loopWidth();
