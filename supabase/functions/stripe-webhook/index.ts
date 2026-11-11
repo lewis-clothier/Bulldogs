@@ -12,33 +12,48 @@ function paymentIntentId(value: string | { id: string } | null | undefined): str
   return typeof value === "string" ? value : value.id;
 }
 
+async function markBooking(bookingId: string, status: "paid" | "expired" | "cancelled", extra: Record<string, unknown> = {}) {
+  const { data, error } = await db
+    .from("bookings")
+    .update({ status, expires_at: null, ...extra })
+    .eq("id", bookingId)
+    .neq("status", "paid")
+    .select("id");
+  if (error) throw error;
+  const registrationPatch: Record<string, unknown> = { status, expires_at: null };
+  if (extra.paid_at) registrationPatch.paid_at = extra.paid_at;
+  if (extra.stripe_payment_intent_id) registrationPatch.stripe_payment_intent_id = extra.stripe_payment_intent_id;
+  await db.from("registrations").update(registrationPatch).eq("booking_id", bookingId).neq("status", "paid");
+  return data?.length ?? 0;
+}
+
 async function markPaid(session: Stripe.Checkout.Session) {
   const paidAt = new Date().toISOString();
   const intent = paymentIntentId(session.payment_intent);
+  const kind = session.metadata?.kind;
+  const bookingId = session.metadata?.booking_id;
+  const registrationId = session.metadata?.registration_id;
+  const orderId = session.metadata?.order_id;
 
-  if (session.metadata?.kind === "event_registration") {
-    const id = session.metadata.registration_id;
-    const { data, error } = await db
-      .from("registrations")
-      .update({
-        status: "paid",
-        paid_at: paidAt,
-        expires_at: null,
-        stripe_checkout_session_id: session.id,
-        stripe_payment_intent_id: intent,
-      })
-      .eq("id", id)
-      .neq("status", "paid")
-      .select("id");
-    if (error) throw error;
-    // An empty result means Stripe is retrying an event already handled, so don't email twice.
-    if (data.length) await sendRegistrationEmails(id);
+  if (kind === "event_registration" || bookingId || registrationId) {
+    let id = bookingId;
+    if (!id && registrationId) {
+      const { data } = await db.from("registrations").select("booking_id").eq("id", registrationId).maybeSingle();
+      id = data?.booking_id ?? registrationId;
+    }
+    if (!id) return;
+    const updated = await markBooking(id, "paid", {
+      paid_at: paidAt,
+      stripe_checkout_session_id: session.id,
+      stripe_payment_intent_id: intent,
+    });
+    if (updated) await sendRegistrationEmails(id);
     return;
   }
 
-  if (session.metadata?.kind === "merch_order") {
-    const id = session.metadata.order_id;
-    // Older Stripe API versions put shipping_details on the session itself.
+  if (kind === "merch_order" || orderId) {
+    const id = orderId;
+    if (!id) return;
     const shipping: ShippingDetails =
       session.collected_information?.shipping_details ??
       (session as unknown as { shipping_details?: ShippingDetails }).shipping_details;
@@ -66,32 +81,50 @@ async function markPaid(session: Stripe.Checkout.Session) {
 }
 
 async function markUnpaid(session: Stripe.Checkout.Session, status: "expired" | "cancelled") {
-  if (session.metadata?.kind === "event_registration") {
-    const { error } = await db
-      .from("registrations")
-      .update({ status, expires_at: null })
-      .eq("id", session.metadata.registration_id)
-      .eq("status", "pending");
-    if (error) throw error;
-  } else if (session.metadata?.kind === "merch_order") {
-    const { error } = await db
+  const bookingId = session.metadata?.booking_id;
+  const registrationId = session.metadata?.registration_id;
+  const orderId = session.metadata?.order_id;
+
+  if (session.metadata?.kind === "event_registration" || bookingId || registrationId) {
+    let id = bookingId;
+    if (!id && registrationId) {
+      const { data } = await db.from("registrations").select("booking_id").eq("id", registrationId).maybeSingle();
+      id = data?.booking_id ?? undefined;
+    }
+    if (id) await markBooking(id, status);
+    return;
+  }
+
+  if ((session.metadata?.kind === "merch_order" || orderId) && orderId) {
+    const { data, error } = await db
       .from("orders")
       .update({ status })
-      .eq("id", session.metadata.order_id)
-      .eq("status", "pending");
+      .eq("id", orderId)
+      .eq("status", "pending")
+      .select("id");
     if (error) throw error;
+    if (data.length) await db.rpc("release_shop_order_stock", { p_order_id: orderId });
   }
 }
 
 async function markRefunded(charge: Stripe.Charge) {
-  // Partial refunds leave the booking or order as it is.
   if (!charge.refunded) return;
   const intent = paymentIntentId(charge.payment_intent);
   if (!intent) return;
 
-  for (const table of ["registrations", "orders"]) {
-    const { error } = await db.from(table).update({ status: "refunded" }).eq("stripe_payment_intent_id", intent);
-    if (error) throw error;
+  const { data: booking } = await db.from("bookings").update({ status: "refunded" }).eq("stripe_payment_intent_id", intent).select("id");
+  if (booking?.length) {
+    await db.from("registrations").update({ status: "refunded" }).eq("booking_id", booking[0].id);
+  }
+
+  const { data: order } = await db.from("orders").select("id, status").eq("stripe_payment_intent_id", intent).maybeSingle();
+  if (order && order.status !== "fulfilled") {
+    await db.from("orders").update({ status: "refunded" }).eq("id", order.id);
+    if (order.status === "paid" || order.status === "pending") {
+      await db.rpc("release_shop_order_stock", { p_order_id: order.id });
+    }
+  } else if (order?.status === "fulfilled") {
+    await db.from("orders").update({ status: "refunded" }).eq("id", order.id);
   }
 }
 
@@ -132,7 +165,6 @@ Deno.serve(async (req) => {
         break;
     }
   } catch (err) {
-    // A non-2xx response makes Stripe retry the event later.
     console.error(`Failed to handle ${event.type} (${event.id})`, err);
     return new Response("Webhook handler failed", { status: 500 });
   }

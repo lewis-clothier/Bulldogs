@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Floodlight pages — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" href="../assets/logo.png" type="image/png" />
+    <style>
+      :root {
+        --charcoal: #1e1e23;
+        --navy: #2a384f;
+        --steel: #3c739d;
+        --sky: #5598d3;
+        --orange: #e8541a;
+        --bone: #f5f5f0;
+        --green: #4cc38a;
+        --muted: rgba(245, 245, 240, 0.62);
+        --line: rgba(245, 245, 240, 0.1);
+        --glass: rgba(23, 27, 36, 0.72);
+        --card: #171b23;
+        --display: "Bebas Neue", Impact, sans-serif;
+        --body: "Outfit", "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      img { display: block; max-width: 100%; }
+      a { color: inherit; text-decoration: none; }
+      ul { list-style: none; }
+      button { font: inherit; color: inherit; }
+      body { font-family: var(--body); background: #111318; color: var(--bone); }
+
+      /* ---------- picker chrome ---------- */
+      .picker {
+        position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+        padding: 0.85rem 1.5rem; background: rgba(17, 19, 24, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+      }
+      .picker strong { font-family: var(--display); font-size: 1.5rem; letter-spacing: 0.05em; margin-right: auto; }
+      .picker strong span { color: var(--orange); }
+      .picker nav { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+      .picker nav i { width: 1px; height: 1.4rem; background: var(--line); margin: 0 0.4rem; }
+      .picker button { background: transparent; border: 1px solid rgba(245, 245, 240, 0.16); padding: 0.5rem 0.95rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+      .picker button.is-on { background: var(--orange); border-color: var(--orange); }
+      .picker a { font-size: 0.8rem; color: #8b909a; }
+      .brief { max-width: 72rem; margin: 2rem auto 1.25rem; padding: 0 1.5rem; display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; align-items: end; }
+      .brief h1 { font-family: var(--display); font-size: clamp(2.6rem, 6vw, 4.2rem); letter-spacing: 0.03em; line-height: 0.95; }
+      .brief p { color: #a9adb6; line-height: 1.6; }
+      .brief ul { display: grid; gap: 0.4rem; font-size: 0.9rem; color: #c8ccd3; }
+      .brief li::before { content: "→ "; color: var(--orange); }
+      .frame { max-width: 84rem; margin: 0 auto 2.5rem; padding: 0 1.5rem; }
+      .frame__label { font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: #8b909a; margin: 0 0 0.6rem 0.25rem; }
+      .frame__bar { display: flex; align-items: center; gap: 0.45rem; padding: 0.7rem 1rem; background: #23262d; border-radius: 14px 14px 0 0; font-size: 0.78rem; color: #8b909a; }
+      .frame__bar i { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #3a3e47; }
+      .frame__bar span { margin-left: 0.75rem; background: #16181d; padding: 0.25rem 0.8rem; border-radius: 999px; }
+      .frame__screen { border-radius: 0 0 14px 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); position: relative; }
+      .page { display: none; }
+      .page.is-on { display: block; }
+
+      /* ---------- Floodlight system ---------- */
+      .site-bg {
+        background:
+          radial-gradient(ellipse 80% 50% at 70% 0%, rgba(85, 152, 211, 0.18), transparent 55%),
+          radial-gradient(ellipse 60% 40% at 10% 90%, rgba(232, 84, 26, 0.12), transparent 50%),
+          linear-gradient(180deg, var(--charcoal) 0%, var(--navy) 55%, var(--charcoal) 100%);
+      }
+      .wrap { width: min(100% - 3rem, 72rem); margin: 0 auto; }
+      .eyebrow { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sky); }
+      .h2 { font-family: var(--display); font-size: clamp(2.6rem, 5vw, 3.8rem); letter-spacing: 0.03em; line-height: 0.95; margin-top: 0.35rem; }
+      .h3 { font-family: var(--display); font-size: 1.9rem; letter-spacing: 0.03em; line-height: 0.95; }
+      .muted { color: var(--muted); }
+      .sec { padding: 4.5rem 0 1rem; }
+      .sec-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.75rem; }
+
+      .nav {
+        position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 6; width: min(72rem, calc(100% - 2rem));
+        display: flex; align-items: center; gap: 1.5rem; padding: 0.5rem 0.55rem 0.5rem 1.25rem;
+        background: rgba(20, 24, 32, 0.5); backdrop-filter: blur(18px); border: 1px solid rgba(245, 245, 240, 0.12); border-radius: 999px;
+      }
+      .nav img { height: 1.3rem; }
+      .nav ul { display: flex; gap: 1.6rem; margin: 0 auto; font-size: 0.84rem; font-weight: 500; color: rgba(245, 245, 240, 0.7); text-transform: uppercase; letter-spacing: 0.06em; }
+      .nav li.on { color: var(--bone); position: relative; }
+      .nav li.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -0.45rem; height: 2px; border-radius: 2px; background: var(--orange); box-shadow: 0 0 12px var(--orange); }
+      .ic { width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: rgba(245, 245, 240, 0.08); font-size: 0.72rem; font-weight: 700; position: relative; }
+      .ic--me { background: var(--navy); color: var(--orange); border: 1px solid rgba(232, 84, 26, 0.55); }
+      .ic em { position: absolute; top: -0.2rem; right: -0.2rem; min-width: 1.1rem; height: 1.1rem; border-radius: 999px; background: var(--orange); font-style: normal; font-size: 0.65rem; display: grid; place-items: center; }
+
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.9rem 1.5rem; border-radius: 999px; font-weight: 700; font-size: 0.88rem; letter-spacing: 0.04em; text-transform: uppercase; border: 0; cursor: pointer; white-space: nowrap; }
+      .btn--hot { background: var(--orange); box-shadow: 0 10px 34px rgba(232, 84, 26, 0.45); }
+      .btn--glass { background: rgba(245, 245, 240, 0.08); border: 1px solid rgba(245, 245, 240, 0.22); backdrop-filter: blur(10px); }
+      .btn--ghost { background: transparent; border: 1px solid rgba(245, 245, 240, 0.18); }
+      .btn--sm { padding: 0.6rem 1.05rem; font-size: 0.78rem; }
+      .btn--xs { padding: 0.4rem 0.8rem; font-size: 0.7rem; }
+      .btn--block { width: 100%; }
+
+      .chips { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+      .chip { padding: 0.5rem 0.95rem; border-radius: 999px; border: 1px solid rgba(245, 245, 240, 0.18); font-size: 0.82rem; font-weight: 600; color: rgba(245, 245, 240, 0.8); }
+      .chip.on { background: var(--bone); color: var(--charcoal); border-color: var(--bone); }
+      .seg { display: inline-flex; padding: 0.25rem; border-radius: 999px; background: rgba(245, 245, 240, 0.06); border: 1px solid var(--line); }
+      .seg span { padding: 0.45rem 0.9rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+      .seg span.on { background: rgba(245, 245, 240, 0.14); color: var(--bone); }
+      .arrows { display: flex; gap: 0.5rem; }
+      .arrows span { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(245, 245, 240, 0.2); }
+      .arrows span:last-child { background: var(--bone); color: var(--charcoal); }
+      .glass { background: var(--glass); backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 22px; }
+      .bar { font-size: 0.78rem; color: var(--muted); }
+      .bar i { display: block; height: 0.3rem; border-radius: 999px; background: rgba(245, 245, 240, 0.1); margin-top: 0.4rem; overflow: hidden; }
+      .bar i::after { content: ""; display: block; height: 100%; width: var(--fill); background: var(--orange); }
+      .live { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; color: var(--orange); text-transform: uppercase; }
+      .live::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 4px rgba(232, 84, 26, 0.25); }
+      .pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(245, 245, 240, 0.08); color: var(--muted); }
+      .pill--live { background: rgba(76, 195, 138, 0.14); color: var(--green); }
+      .pill--hot { background: rgba(232, 84, 26, 0.16); color: #ff8a5c; }
+      .pill--sky { background: rgba(85, 152, 211, 0.16); color: #8cc0ee; }
+
+      /* page header: compact cinematic band for inner pages */
+      .ph { position: relative; height: 26rem; display: flex; align-items: flex-end; overflow: hidden; }
+      .ph > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+      .ph::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(30, 30, 35, 0.55) 0%, rgba(30, 30, 35, 0.15) 35%, rgba(30, 30, 35, 0.92) 100%), linear-gradient(90deg, rgba(30, 30, 35, 0.7), transparent 65%);
+      }
+      .ph .wrap { position: relative; z-index: 2; padding-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: end; gap: 2rem; }
+      .ph h1 { font-family: var(--display); font-size: clamp(4rem, 9vw, 7rem); line-height: 0.85; letter-spacing: 0.02em; margin-top: 0.4rem; }
+      .ph p.muted { max-width: 32rem; margin-top: 0.75rem; line-height: 1.55; }
+      .ph__stats { display: flex; gap: 0.75rem; }
+      .ph__stats div { padding: 0.9rem 1.2rem; min-width: 7rem; }
+      .ph__stats b { display: block; font-family: var(--display); font-size: 2.4rem; line-height: 1; }
+      .ph__stats span { font-size: 0.75rem; color: var(--muted); }
+
+      .foot { margin-top: 4rem; border-top: 1px solid var(--line); }
+      .foot .wrap { padding: 2.25rem 0; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.85rem; }
+      .foot img { height: 1.5rem; }
+
+      /* modal + drawer scrims */
+      .scrim { position: absolute; inset: 0; z-index: 20; background: rgba(10, 12, 16, 0.6); backdrop-filter: blur(6px); display: flex; }
+      .frame__screen--short { height: 44rem; }
+
+      /* =================== EVENTS =================== */
+      .ev-tools { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 0 0; }
+      .ev-feature { display: grid; grid-template-columns: 1.15fr 1fr; overflow: hidden; margin-top: 1.5rem; }
+      .ev-feature figure { position: relative; min-height: 22rem; }
+      .ev-feature figure img { width: 100%; height: 100%; object-fit: cover; }
+      .ev-feature figure::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 55%, rgba(23, 27, 36, 0.95)); }
+      .ev-feature__body { padding: 2.25rem 2.25rem 2rem 1rem; display: flex; flex-direction: column; gap: 1rem; }
+      .ev-feature h2 { font-family: var(--display); font-size: 3.6rem; line-height: 0.9; letter-spacing: 0.02em; }
+      .ev-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+      .ev-facts div { padding: 0.75rem 0.9rem; border-radius: 14px; background: rgba(245, 245, 240, 0.05); }
+      .ev-facts b { display: block; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+      .ev-facts span { font-weight: 600; font-size: 0.95rem; }
+      .ev-feature__foot { display: flex; align-items: center; gap: 1rem; margin-top: auto; }
+      .ev-feature__foot strong { font-family: var(--display); font-size: 2.6rem; line-height: 1; margin-right: auto; }
+      .date { position: absolute; z-index: 1; top: 1rem; left: 1rem; padding: 0.45rem 0.75rem; border-radius: 14px; background: rgba(13, 15, 20, 0.6); backdrop-filter: blur(8px); text-align: center; line-height: 1; }
+      .date b { display: block; font-family: var(--display); font-size: 1.9rem; }
+      .date span { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em; color: var(--orange); }
+      .posters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      .poster { border-radius: 22px; overflow: hidden; background: var(--card); border: 1px solid var(--line); }
+      .poster figure { position: relative; height: 12rem; }
+      .poster figure img { width: 100%; height: 100%; object-fit: cover; }
+      .poster figure::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, var(--card)); }
+      .poster .tag { position: absolute; z-index: 1; top: 1rem; right: 1rem; background: rgba(13, 15, 20, 0.7); backdrop-filter: blur(8px); }
+      .poster .tag.pill--hot { background: var(--orange); color: var(--bone); }
+      .poster__body { padding: 0.25rem 1.25rem 1.25rem; display: grid; gap: 0.6rem; }
+      .poster__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; }
+      .poster__foot strong { font-family: var(--display); font-size: 1.7rem; }
+      .poster--full figure img { filter: grayscale(1) brightness(0.6); }
+      .poster--full .poster__body > :not(.poster__foot) { opacity: 0.6; }
+      .ev-alert { margin-top: 1.5rem; display: flex; align-items: center; gap: 1.25rem; padding: 1.25rem 1.5rem; }
+      .ev-alert img { width: 3.5rem; }
+      .ev-alert div { margin-right: auto; }
+      .ev-alert b { font-family: var(--display); font-size: 1.6rem; letter-spacing: 0.03em; }
+
+      /* booking modal */
+      .book { margin: auto; width: 34rem; padding: 1.75rem; border-radius: 26px; background: rgba(23, 27, 36, 0.92); border: 1px solid rgba(245, 245, 240, 0.14); box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6); }
+      .book__head { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+      .book__head h3 { font-family: var(--display); font-size: 2.2rem; line-height: 0.95; }
+      .x { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; background: rgba(245, 245, 240, 0.08); font-size: 0.9rem; flex: none; }
+      .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 1.25rem 0 1.4rem; }
+      .steps span { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-top: 0.55rem; border-top: 3px solid rgba(245, 245, 240, 0.12); }
+      .steps span.done { color: var(--bone); border-color: var(--orange); }
+      .field { display: grid; gap: 0.35rem; margin-bottom: 0.85rem; }
+      .field label { font-size: 0.75rem; font-weight: 600; color: var(--muted); }
+      .input { padding: 0.8rem 1rem; border-radius: 14px; background: rgba(245, 245, 240, 0.06); border: 1px solid rgba(245, 245, 240, 0.14); font-size: 0.92rem; }
+      .input--focus { border-color: var(--sky); box-shadow: 0 0 0 4px rgba(85, 152, 211, 0.2); }
+      .input--ph { color: rgba(245, 245, 240, 0.4); }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+      .check { display: flex; gap: 0.6rem; align-items: start; font-size: 0.82rem; color: var(--muted); margin: 0.25rem 0 1.25rem; line-height: 1.45; }
+      .check i { flex: none; width: 1.1rem; height: 1.1rem; border-radius: 5px; background: var(--orange); display: grid; place-items: center; font-style: normal; font-size: 0.7rem; color: var(--bone); margin-top: 0.1rem; }
+      .book__foot { display: flex; align-items: center; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+      .book__foot div { margin-right: auto; }
+      .book__foot b { font-family: var(--display); font-size: 2rem; line-height: 1; display: block; }
+
+      /* =================== SHOP =================== */
+      .pdp { display: grid; grid-template-columns: 1.1fr 1fr; gap: 3rem; align-items: start; padding-top: 7rem; }
+      .pdp__stage { position: relative; border-radius: 28px; overflow: hidden; aspect-ratio: 1 / 1; display: grid; place-items: center; background: radial-gradient(55% 55% at 50% 50%, rgba(232, 84, 26, 0.5), transparent 70%), #14161c; border: 1px solid var(--line); }
+      .pdp__stage img { width: 78%; filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.55)); }
+      .pdp__stage .pill { position: absolute; top: 1.25rem; left: 1.25rem; }
+      .pdp__flip { position: absolute; bottom: 1.25rem; right: 1.25rem; }
+      .thumbs { display: flex; gap: 0.6rem; margin-top: 0.85rem; }
+      .thumbs span { width: 5rem; height: 5rem; border-radius: 16px; background: #14161c; border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; }
+      .thumbs span.on { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232, 84, 26, 0.25); }
+      .thumbs img { width: 80%; }
+      .pdp__info h1 { font-family: var(--display); font-size: clamp(3.5rem, 7vw, 5.5rem); line-height: 0.88; margin-top: 0.4rem; }
+      .pdp__price { display: flex; align-items: baseline; gap: 1rem; margin: 0.75rem 0 1.5rem; }
+      .pdp__price b { font-family: var(--display); font-size: 2.8rem; line-height: 1; }
+      .opt-label { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 0.55rem; }
+      .opt-label a { color: var(--sky); }
+      .swatches { display: flex; gap: 0.6rem; margin-bottom: 1.4rem; }
+      .swatch { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 1rem 0.45rem 0.45rem; border-radius: 999px; border: 1px solid rgba(245, 245, 240, 0.18); font-size: 0.85rem; font-weight: 600; }
+      .swatch i { width: 1.8rem; height: 1.8rem; border-radius: 50%; background: #2b2f4a; box-shadow: inset 0 0 0 5px #2b2f4a, inset 0 0 0 20px var(--dot); }
+      .swatch.on { border-color: var(--bone); background: rgba(245, 245, 240, 0.06); }
+      .sizes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 1.5rem; }
+      .sizes span { padding: 0.8rem 0; text-align: center; border-radius: 14px; border: 1px solid rgba(245, 245, 240, 0.18); font-weight: 600; font-size: 0.9rem; }
+      .sizes span.on { background: var(--bone); color: var(--charcoal); border-color: var(--bone); }
+      .sizes span.off { color: rgba(245, 245, 240, 0.3); text-decoration: line-through; }
+      .buy { display: flex; gap: 0.6rem; }
+      .qty { display: flex; align-items: center; gap: 1rem; padding: 0 1.1rem; border-radius: 999px; border: 1px solid rgba(245, 245, 240, 0.18); font-weight: 600; }
+      .assure { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 1.5rem; }
+      .assure div { padding: 0.85rem; border-radius: 16px; background: rgba(245, 245, 240, 0.04); border: 1px solid var(--line); font-size: 0.78rem; color: var(--muted); }
+      .assure b { display: block; color: var(--bone); font-size: 0.85rem; margin-bottom: 0.15rem; }
+      .acc { margin-top: 1.5rem; border-top: 1px solid var(--line); }
+      .acc div { display: flex; justify-content: space-between; padding: 1rem 0; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 0.92rem; }
+      .acc div span { color: var(--muted); }
+      .back-band { margin-top: 4.5rem; position: relative; overflow: hidden; background: radial-gradient(50% 80% at 75% 50%, rgba(85, 152, 211, 0.4), transparent 70%), #14161c; border-block: 1px solid var(--line); }
+      .back-band .wrap { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 2rem; padding: 3rem 0; }
+      .back-band img { width: 70%; margin-left: auto; filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.55)); }
+      .back-band h2 { font-family: var(--display); font-size: clamp(3rem, 6vw, 4.6rem); line-height: 0.9; }
+
+      /* bag drawer */
+      .drawer { margin-left: auto; width: 27rem; height: 100%; padding: 1.5rem; background: rgba(23, 27, 36, 0.95); border-left: 1px solid rgba(245, 245, 240, 0.14); display: flex; flex-direction: column; gap: 1rem; box-shadow: -30px 0 80px rgba(0, 0, 0, 0.5); }
+      .drawer__head { display: flex; justify-content: space-between; align-items: center; }
+      .drawer__head h3 { font-family: var(--display); font-size: 2.2rem; }
+      .line { display: grid; grid-template-columns: 5rem 1fr auto; gap: 1rem; align-items: center; padding: 0.85rem; border-radius: 18px; background: rgba(245, 245, 240, 0.04); border: 1px solid var(--line); }
+      .line span.img { width: 5rem; height: 5rem; border-radius: 14px; background: radial-gradient(circle, rgba(232, 84, 26, 0.35), transparent 70%), #14161c; display: grid; place-items: center; }
+      .line span.img--blue { background: radial-gradient(circle, rgba(85, 152, 211, 0.35), transparent 70%), #14161c; }
+      .line span.img img { width: 85%; }
+      .line b { display: block; font-weight: 600; }
+      .line small { color: var(--muted); font-size: 0.78rem; }
+      .line .qty { padding: 0.3rem 0.75rem; gap: 0.7rem; font-size: 0.82rem; margin-top: 0.45rem; width: max-content; }
+      .line strong { font-family: var(--display); font-size: 1.5rem; align-self: start; }
+      .progress { padding: 0.9rem 1rem; border-radius: 16px; background: rgba(85, 152, 211, 0.12); font-size: 0.82rem; color: #b9d7f2; }
+      .totals { margin-top: auto; display: grid; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.9rem; }
+      .totals div { display: flex; justify-content: space-between; color: var(--muted); }
+      .totals div.sum { color: var(--bone); font-weight: 700; font-size: 1.05rem; }
+      .totals p { font-size: 0.75rem; color: var(--muted); text-align: center; }
+
+      /* =================== TEAM =================== */
+      .coaches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      .coach { position: relative; display: grid; grid-template-columns: 8rem 1fr; align-items: end; gap: 1rem; padding: 1.25rem 1.25rem 0; overflow: hidden; }
+      .coach img { height: 10rem; width: 8rem; object-fit: cover; object-position: top; }
+      .coach div { padding-bottom: 1.25rem; }
+      .coach b { display: block; font-family: var(--display); font-size: 1.8rem; line-height: 0.95; }
+      .coach span { font-size: 0.8rem; color: var(--muted); }
+      .squad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+      .ath { position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 3 / 4; background: linear-gradient(180deg, var(--steel), var(--navy)); border: 1px solid var(--line); }
+      .ath::before { content: attr(data-num); position: absolute; right: 0.6rem; top: 0.2rem; font-family: var(--display); font-size: 6rem; line-height: 1; color: transparent; -webkit-text-stroke: 1.5px rgba(245, 245, 240, 0.35); }
+      .ath img { position: relative; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+      .ath::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(13, 15, 20, 0.92)); }
+      .ath div { position: absolute; z-index: 1; left: 1rem; right: 1rem; bottom: 0.9rem; }
+      .ath b { display: block; font-family: var(--display); font-size: 1.5rem; letter-spacing: 0.03em; line-height: 1; }
+      .ath span { font-size: 0.75rem; color: var(--muted); }
+      .ath--hover { box-shadow: 0 0 0 2px var(--orange), 0 20px 50px rgba(232, 84, 26, 0.35); transform: translateY(-4px); }
+      .ath--hover div span { color: var(--bone); }
+      .ath--join { display: flex; flex-direction: column; justify-content: flex-end; gap: 0.75rem; padding: 1.25rem; background: radial-gradient(90% 70% at 50% 30%, rgba(232, 84, 26, 0.4), transparent 70%), var(--card); border-style: dashed; border-color: rgba(232, 84, 26, 0.5); }
+      .ath--join::before, .ath--join::after { content: none; }
+      .ath--join img { position: absolute; top: 1.25rem; left: 50%; transform: translateX(-50%); width: 55%; height: auto; }
+      .ath--join b { font-family: var(--display); font-size: 1.7rem; line-height: 0.95; }
+      .ath--hover .ath__more { display: block; margin-top: 0.5rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); }
+      .ath__more { display: none; }
+      .rounds { display: flex; gap: 1rem; overflow: hidden; padding: 0.5rem 0.25rem 0.75rem; }
+      .round { flex: 1 1 0; min-width: 12rem; padding: 1.25rem; border-radius: 22px; background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 0.5rem; }
+      .round__num { font-family: var(--display); font-size: 3.4rem; line-height: 0.9; color: transparent; -webkit-text-stroke: 1.5px rgba(245, 245, 240, 0.4); }
+      .round h4 { font-family: var(--display); font-size: 1.6rem; letter-spacing: 0.03em; line-height: 1; }
+      .round p { font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+      .round__foot { margin-top: auto; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; border-top: 1px solid var(--line); }
+      .round__foot a { color: var(--sky); font-weight: 600; }
+      .round--done { opacity: 0.72; }
+      .round--next { background: radial-gradient(120% 90% at 50% 0%, rgba(232, 84, 26, 0.35), transparent 70%), var(--card); border-color: rgba(232, 84, 26, 0.6); box-shadow: 0 20px 50px rgba(232, 84, 26, 0.25); flex: 1.5 1 0; }
+      .round--next .round__num { -webkit-text-stroke-color: var(--orange); }
+      .countdown { display: flex; gap: 0.5rem; margin: 0.25rem 0; }
+      .countdown span { flex: 1; text-align: center; padding: 0.5rem 0; border-radius: 12px; background: rgba(13, 15, 20, 0.5); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+      .countdown b { display: block; font-family: var(--display); font-size: 1.7rem; color: var(--bone); letter-spacing: 0.03em; line-height: 1; }
+      .band { margin-top: 4.5rem; position: relative; height: 20rem; overflow: hidden; }
+      .band img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
+      .band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(20, 20, 26, 0.95), rgba(20, 20, 26, 0.15) 70%); }
+      .band .wrap { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: start; gap: 1rem; }
+      .band h2 { font-family: var(--display); font-size: clamp(3.5rem, 8vw, 6rem); line-height: 0.9; }
+
+      /* =================== ADMIN =================== */
+      .ad { padding: 6.5rem 0 3rem; }
+      .ad-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
+      .ad-head h1 { font-family: var(--display); font-size: 4rem; line-height: 0.9; margin-top: 0.3rem; }
+      .ad-tabs { display: flex; gap: 0.25rem; padding: 0.3rem; margin: 1.5rem 0; border-radius: 999px; width: max-content; }
+      .ad-tabs span { padding: 0.6rem 1.15rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 0.45rem; }
+      .ad-tabs span.on { background: var(--orange); color: var(--bone); box-shadow: 0 8px 24px rgba(232, 84, 26, 0.4); }
+      .ad-tabs em { font-style: normal; font-size: 0.68rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: rgba(245, 245, 240, 0.12); }
+      .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+      .kpi { padding: 1.15rem 1.25rem; }
+      .kpi span { font-size: 0.75rem; color: var(--muted); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+      .kpi b { display: block; font-family: var(--display); font-size: 2.6rem; line-height: 1; margin: 0.35rem 0 0.2rem; }
+      .kpi small { font-size: 0.75rem; color: var(--green); }
+      .kpi small.warn { color: #ff8a5c; }
+      .ad-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+      .search { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; border-radius: 999px; background: rgba(245, 245, 240, 0.06); border: 1px solid rgba(245, 245, 240, 0.14); font-size: 0.88rem; color: rgba(245, 245, 240, 0.45); min-width: 18rem; }
+      .ev-rows { display: grid; gap: 0.6rem; }
+      .ev-row { display: grid; grid-template-columns: 4.2rem 1.6fr 1fr auto; gap: 1.25rem; align-items: center; padding: 0.9rem 1rem 0.9rem 0.9rem; }
+      .ev-row.on { border-color: rgba(232, 84, 26, 0.55); box-shadow: 0 0 0 1px rgba(232, 84, 26, 0.3); }
+      .tile { width: 4.2rem; height: 4.2rem; border-radius: 16px; background: rgba(245, 245, 240, 0.06); display: grid; place-content: center; text-align: center; line-height: 1; }
+      .tile b { font-family: var(--display); font-size: 1.8rem; }
+      .tile span { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; color: var(--orange); }
+      .ev-row h4 { font-weight: 600; font-size: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+      .ev-row p { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+      .ev-row .acts { display: flex; gap: 0.4rem; }
+      .ad-split { display: grid; grid-template-columns: 1fr 24rem; gap: 1.25rem; align-items: start; }
+      .editor { padding: 1.4rem; position: relative; }
+      .editor h3 { font-family: var(--display); font-size: 1.9rem; line-height: 1; }
+      .editor__head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.1rem; }
+      .toggle { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-top: 1px solid var(--line); font-size: 0.88rem; }
+      .toggle small { display: block; color: var(--muted); font-size: 0.75rem; }
+      .sw { width: 2.6rem; height: 1.5rem; border-radius: 999px; background: rgba(245, 245, 240, 0.15); position: relative; flex: none; }
+      .sw::after { content: ""; position: absolute; top: 0.2rem; left: 0.2rem; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--bone); }
+      .sw.on { background: var(--green); }
+      .sw.on::after { left: auto; right: 0.2rem; }
+      .savebar { margin-top: 1rem; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0.75rem 0.75rem 1rem; border-radius: 999px; background: rgba(232, 84, 26, 0.12); border: 1px solid rgba(232, 84, 26, 0.4); font-size: 0.8rem; }
+      .savebar span { margin-right: auto; color: #ffb593; }
+
+      /* door */
+      .door { display: grid; grid-template-columns: 26rem 1fr; gap: 1.25rem; align-items: start; }
+      .scan { padding: 1.25rem; }
+      .scan__view { position: relative; aspect-ratio: 1 / 1; border-radius: 18px; overflow: hidden; background: #0c0e12; }
+      .scan__view img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(0.4) brightness(0.55); }
+      .scan__box { position: absolute; inset: 22%; border-radius: 18px; border: 3px solid var(--green); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35), 0 0 30px rgba(76, 195, 138, 0.6); }
+      .scan__hint { position: absolute; z-index: 1; left: 0; right: 0; bottom: 1rem; text-align: center; font-size: 0.78rem; color: rgba(245, 245, 240, 0.8); }
+      .result { margin-top: 1rem; display: flex; align-items: center; gap: 0.9rem; padding: 1rem; border-radius: 18px; background: rgba(76, 195, 138, 0.14); border: 1px solid rgba(76, 195, 138, 0.5); }
+      .result i { width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--green); color: #0c2a1c; display: grid; place-items: center; font-style: normal; font-weight: 800; flex: none; }
+      .result b { display: block; font-size: 1.05rem; }
+      .result small { color: #a7e6c8; font-size: 0.78rem; }
+      .result--warn { background: rgba(232, 84, 26, 0.12); border-color: rgba(232, 84, 26, 0.5); }
+      .result--warn i { background: var(--orange); color: var(--bone); }
+      .result--warn small { color: #ffb593; }
+      .door__count { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 1rem; }
+      .door__count div { padding: 0.75rem; border-radius: 14px; background: rgba(245, 245, 240, 0.05); text-align: center; }
+      .door__count b { display: block; font-family: var(--display); font-size: 2rem; line-height: 1; }
+      .door__count span { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+      .meter { height: 0.5rem; border-radius: 999px; background: rgba(245, 245, 240, 0.1); overflow: hidden; margin: 0.5rem 0 1.25rem; }
+      .meter i { display: block; height: 100%; width: 56%; background: linear-gradient(90deg, var(--green), #8fe3b9); border-radius: inherit; }
+      .people { display: grid; gap: 0.5rem; }
+      .person { display: grid; grid-template-columns: 2.6rem 1fr auto auto; gap: 0.9rem; align-items: center; padding: 0.7rem 0.75rem 0.7rem 0.8rem; border-radius: 16px; background: rgba(245, 245, 240, 0.04); border: 1px solid var(--line); }
+      .person .av { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; background: var(--steel); font-weight: 700; font-size: 0.8rem; }
+      .person b { font-weight: 600; display: block; }
+      .person small { font-size: 0.76rem; color: var(--muted); }
+      .person.in { opacity: 0.55; }
+      .person.in .av { background: var(--green); color: #0c2a1c; }
+      .flag { padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; background: rgba(232, 84, 26, 0.16); color: #ff8a5c; }
+      .tick { font-size: 0.78rem; color: var(--green); font-weight: 600; }
+
+      /* orders & stock */
+      .ad-two { display: grid; grid-template-columns: 1.55fr 1fr; gap: 1.25rem; align-items: start; }
+      .panel { padding: 1.25rem; }
+      .panel__head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+      .panel__head h3 { font-family: var(--display); font-size: 1.9rem; line-height: 1; }
+      .order { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 1rem; padding: 1rem 0; border-top: 1px solid var(--line); }
+      .order:first-of-type { border-top: 0; }
+      .order h4 { font-weight: 600; display: flex; gap: 0.6rem; align-items: center; }
+      .order h4 small { font-weight: 500; color: var(--muted); font-size: 0.78rem; }
+      .order p { font-size: 0.8rem; color: var(--muted); }
+      .order strong { font-family: var(--display); font-size: 1.6rem; text-align: right; line-height: 1; }
+      .order .acts { grid-column: 1 / -1; display: flex; gap: 0.4rem; align-items: center; }
+      .order .acts .input { padding: 0.45rem 0.85rem; font-size: 0.8rem; flex: 1; border-radius: 999px; }
+      .stock { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+      .stock th { text-align: left; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 0 0 0.6rem; }
+      .stock td { padding: 0.55rem 0; border-top: 1px solid var(--line); }
+      .stock td:last-child, .stock th:last-child { text-align: right; }
+      .step { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.2rem; border-radius: 999px; background: rgba(245, 245, 240, 0.06); border: 1px solid var(--line); }
+      .step i { width: 1.6rem; height: 1.6rem; border-radius: 50%; display: grid; place-items: center; font-style: normal; background: rgba(245, 245, 240, 0.08); font-size: 0.85rem; }
+      .step b { min-width: 1.4rem; text-align: center; }
+      .step.dirty { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232, 84, 26, 0.2); }
+      .dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; margin-right: 0.5rem; background: var(--dot); }
+      .low { color: #ff8a5c; font-size: 0.72rem; font-weight: 700; margin-left: 0.4rem; }
+      .toast { position: absolute; z-index: 30; left: 50%; bottom: 1.5rem; transform: translateX(-50%); display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem 0.75rem 0.85rem; border-radius: 999px; background: rgba(23, 27, 36, 0.95); border: 1px solid rgba(76, 195, 138, 0.5); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); font-size: 0.85rem; }
+      .toast i { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--green); color: #0c2a1c; display: grid; place-items: center; font-style: normal; font-weight: 800; font-size: 0.75rem; }
+      .toast a { color: var(--sky); font-weight: 600; margin-left: 0.5rem; }
+
+      /* admin menu (account dropdown) */
+      .menu { position: absolute; z-index: 25; top: 4.4rem; right: max(1rem, calc((100% - 72rem) / 2)); width: 18rem; padding: 0.6rem; border-radius: 22px; background: rgba(23, 27, 36, 0.95); border: 1px solid rgba(245, 245, 240, 0.14); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); }
+      .menu__me { display: flex; gap: 0.75rem; align-items: center; padding: 0.6rem; }
+      .menu__me .ic--me { flex: none; }
+      .menu__me small { display: block; color: var(--muted); font-size: 0.75rem; }
+      .menu a { display: flex; justify-content: space-between; padding: 0.7rem 0.75rem; border-radius: 14px; font-size: 0.88rem; font-weight: 500; }
+      .menu a.on { background: rgba(232, 84, 26, 0.14); color: #ffb593; }
+      .menu hr { border: 0; border-top: 1px solid var(--line); margin: 0.35rem 0.5rem; }
+
+      @media (max-width: 1000px) {
+        .brief, .ev-feature, .pdp, .back-band .wrap, .ad-split, .door, .ad-two { grid-template-columns: 1fr; }
+        .posters, .coaches { grid-template-columns: 1fr 1fr; }
+        .squad { grid-template-columns: repeat(3, 1fr); }
+        .kpis { grid-template-columns: 1fr 1fr; }
+        .nav ul { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="picker">
+      <strong>FLOODLIGHT <span>PAGES</span></strong>
+      <nav>
+        <button type="button" class="is-on" data-show="events">Events</button>
+        <button type="button" data-show="shop">Shop</button>
+        <button type="button" data-show="team">AFL Team</button>
+        <i></i>
+        <button type="button" data-show="ad-events">Admin · Events</button>
+        <button type="button" data-show="ad-door">Admin · Door</button>
+        <button type="button" data-show="ad-orders">Admin · Orders &amp; stock</button>
+      </nav>
+      <a href="redesign.html">← Concepts</a>
+    </header>
+
+    <!-- ===================================================== EVENTS -->
+    <section class="page is-on" data-page="events">
+      <header class="brief">
+        <div>
+          <h1>Events</h1>
+          <p>A short cinematic header replaces the homepage banner on inner pages. The next event gets a big feature card; everything after it sits in an even grid of posters (no bento). Booking opens as a glass modal over the page.</p>
+        </div>
+        <ul>
+          <li>Filter chips + grid / list toggle</li>
+          <li>Places-left bars on every card</li>
+          <li>Sold-out events stay visible but dimmed, with a waitlist</li>
+          <li>Three-step booking modal</li>
+        </ul>
+      </header>
+
+      <div class="frame">
+        <p class="frame__label">Events page</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/events</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li class="on">Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <header class="ph">
+            <img src="../assets/photos/web/events-hero.jpg" alt="" />
+            <div class="wrap">
+              <div>
+                <p class="eyebrow">Hosted by Bulldogs</p>
+                <h1>Events</h1>
+                <p class="muted">Tasters, training days and showcases run by the team. Book in under a minute — your ticket lands in your inbox.</p>
+              </div>
+              <div class="ph__stats">
+                <div class="glass"><b>4</b><span>Coming up</span></div>
+                <div class="glass"><b>3</b><span>Cities</span></div>
+              </div>
+            </div>
+          </header>
+
+          <section class="wrap">
+            <div class="ev-tools">
+              <div class="chips"><span class="chip on">All</span><span class="chip">Kids</span><span class="chip">Training</span><span class="chip">Showcases</span><span class="chip">Manchester</span><span class="chip">Leeds</span></div>
+              <div class="seg"><span class="on">Grid</span><span>List</span></div>
+            </div>
+
+            <article class="ev-feature glass">
+              <figure><img src="../assets/photos/web/round2-pack.jpg" alt="" /><div class="date"><b>28</b><span>NOV</span></div></figure>
+              <div class="ev-feature__body">
+                <span class="live">Next up · in 17 days</span>
+                <h2>Kids taster session</h2>
+                <p class="muted">A first go at freestyle gymnastics with the AFL squad. Trampolines, tumble track and a Q&amp;A with the athletes. No experience needed.</p>
+                <div class="ev-facts">
+                  <div><b>Where</b><span>Manchester</span></div>
+                  <div><b>When</b><span>Sat · 10:00</span></div>
+                  <div><b>Ages</b><span>7–12</span></div>
+                </div>
+                <div class="bar" style="--fill: 72%">18 of 25 places booked<i></i></div>
+                <div class="ev-feature__foot"><strong>£15</strong><a class="btn btn--glass btn--sm" href="#">Details</a><a class="btn btn--hot" href="#">Book now</a></div>
+              </div>
+            </article>
+          </section>
+
+          <section class="wrap sec">
+            <div class="sec-head"><div><p class="eyebrow">Later this season</p><h2 class="h2">All events</h2></div><span class="muted" style="font-size: 0.85rem">Showing 4 of 4</span></div>
+            <div class="posters">
+              <article class="poster">
+                <figure><img src="../assets/photos/web/round2-herning.jpg" alt="" /><div class="date"><b>06</b><span>DEC</span></div><span class="pill pill--sky tag">Training</span></figure>
+                <div class="poster__body">
+                  <h3 class="h3">Open training day</h3>
+                  <p class="muted">Leeds · 13:00 · 16+</p>
+                  <div class="bar" style="--fill: 35%">7 of 20 booked<i></i></div>
+                  <div class="poster__foot"><strong>£25</strong><a class="btn btn--glass btn--sm" href="#">Book</a></div>
+                </div>
+              </article>
+              <article class="poster poster--full">
+                <figure><img src="../assets/photos/web/arena-fear.jpg" alt="" /><div class="date"><b>19</b><span>DEC</span></div><span class="pill pill--hot tag">Sold out</span></figure>
+                <div class="poster__body">
+                  <h3 class="h3">Christmas showcase</h3>
+                  <p class="muted">Sheffield · 18:30 · All ages</p>
+                  <div class="bar" style="--fill: 100%">120 of 120 booked<i></i></div>
+                  <div class="poster__foot"><strong>Free</strong><a class="btn btn--ghost btn--sm" href="#">Join waitlist</a></div>
+                </div>
+              </article>
+              <article class="poster">
+                <figure><img src="../assets/photos/web/team-hero.jpg" alt="" /><div class="date"><b>10</b><span>JAN</span></div><span class="pill pill--live tag">New</span></figure>
+                <div class="poster__body">
+                  <h3 class="h3">New year camp</h3>
+                  <p class="muted">Manchester · 2 days · 12+</p>
+                  <div class="bar" style="--fill: 10%">Just announced<i></i></div>
+                  <div class="poster__foot"><strong>£60</strong><a class="btn btn--glass btn--sm" href="#">Book</a></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="ev-alert glass">
+              <img src="../assets/logo.png" alt="" />
+              <div><b>Never miss a session</b><p class="muted" style="font-size: 0.88rem">Get an email the moment new events go live.</p></div>
+              <a class="btn btn--hot btn--sm" href="#">Turn on alerts</a>
+            </div>
+          </section>
+          <footer class="foot"><div class="wrap"><img src="../assets/type-orange.png" alt="Bulldogs" /><span>© 2026 Team Bulldogs · Part of AIRTOX FACEOFF League</span></div></footer>
+        </div>
+      </div>
+
+      <div class="frame">
+        <p class="frame__label">Booking modal · step 2 of 3</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/events</span></div>
+        <div class="frame__screen frame__screen--short site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li class="on">Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <header class="ph"><img src="../assets/photos/web/events-hero.jpg" alt="" /><div class="wrap"><div><p class="eyebrow">Hosted by Bulldogs</p><h1>Events</h1></div></div></header>
+          <div class="scrim">
+            <div class="book">
+              <div class="book__head">
+                <div><span class="live">Sat 28 Nov · Manchester</span><h3 style="margin-top: 0.5rem">Kids taster session</h3></div>
+                <span class="x">✕</span>
+              </div>
+              <div class="steps"><span class="done">1 · Who’s coming</span><span class="done">2 · Details</span><span>3 · Pay</span></div>
+              <div class="grid2">
+                <div class="field"><label>Child’s name</label><div class="input">Mia Thompson</div></div>
+                <div class="field"><label>Date of birth</label><div class="input">14 / 03 / 2016</div></div>
+              </div>
+              <div class="field"><label>Emergency contact</label><div class="input input--focus">Sarah Thompson · 07700 900123</div></div>
+              <div class="field"><label>Medical info or allergies <span class="muted">(optional)</span></label><div class="input input--ph">Anything the coaches should know</div></div>
+              <div class="check"><i>✓</i><span>I’m the parent or guardian and agree to the <u>booking policy</u>.</span></div>
+              <div class="book__foot">
+                <div><small class="muted">1 place</small><b>£15.00</b></div>
+                <a class="btn btn--ghost btn--sm" href="#">Back</a>
+                <a class="btn btn--hot" href="#">Continue to pay</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== SHOP -->
+    <section class="page" data-page="shop">
+      <header class="brief">
+        <div>
+          <h1>Shop</h1>
+          <p>One product, so the shop page <em>is</em> the product page: a big spotlight stage on an orange glow, then a back-print band in sky blue. The bag slides in from the right as a glass drawer.</p>
+        </div>
+        <ul>
+          <li>Swatches change the glow colour (orange / blue)</li>
+          <li>Front / back flip on the stage</li>
+          <li>Made-to-order timing shown before you add</li>
+          <li>Drawer, not a new page, for the bag</li>
+        </ul>
+      </header>
+
+      <div class="frame">
+        <p class="frame__label">Shop page</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/shop</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li>Events</li><li class="on">Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <section class="wrap pdp">
+            <div>
+              <div class="pdp__stage">
+                <span class="pill pill--hot">Drop 01</span>
+                <img src="../assets/products/product_1_orange_front_cutout.png" alt="" />
+                <span class="pdp__flip seg"><span class="on">Front</span><span>Back</span></span>
+              </div>
+              <div class="thumbs">
+                <span class="on"><img src="../assets/products/product_1_orange_front_cutout.png" alt="" /></span>
+                <span><img src="../assets/products/product_1_orange_back_cutout.png" alt="" /></span>
+                <span><img src="../assets/products/product_1_blue_front_cutout.png" alt="" /></span>
+                <span><img src="../assets/products/product_1_blue_back_cutout.png" alt="" /></span>
+              </div>
+            </div>
+            <div class="pdp__info">
+              <p class="eyebrow">Official team merch</p>
+              <h1>Bulldogs Tee</h1>
+              <div class="pdp__price"><b>£25</b><span class="muted">Navy tee · chest print + full back graphic</span></div>
+              <div class="opt-label"><span>Print colour</span></div>
+              <div class="swatches">
+                <span class="swatch on" style="--dot: var(--orange)"><i></i>Orange</span>
+                <span class="swatch" style="--dot: var(--sky)"><i></i>Blue</span>
+              </div>
+              <div class="opt-label"><span>Size</span><a href="#">Size guide</a></div>
+              <div class="sizes"><span>S</span><span class="on">M</span><span>L</span><span>XL</span><span class="off">XXL</span></div>
+              <div class="buy">
+                <span class="qty"><span>−</span><b>1</b><span>+</span></span>
+                <a class="btn btn--hot btn--block" href="#">Add to bag · £25</a>
+              </div>
+              <div class="assure">
+                <div><b>Made to order</b>Ships in 2–3 weeks</div>
+                <div><b>UK delivery</b>Added at checkout</div>
+                <div><b>Secure checkout</b>Paid via Stripe</div>
+              </div>
+              <div class="acc">
+                <div>Details &amp; fit <span>+</span></div>
+                <div>Delivery &amp; returns <span>+</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="back-band">
+            <div class="wrap">
+              <div>
+                <p class="eyebrow">On the back</p>
+                <h2>Full mascot<br />back print.</h2>
+                <p class="muted" style="margin: 0.75rem 0 1.25rem; max-width: 26rem">The full Bulldogs crest across the shoulders. Available with orange or blue detailing.</p>
+                <div class="chips"><span class="chip">Orange</span><span class="chip on">Blue</span></div>
+              </div>
+              <img src="../assets/products/product_1_blue_back_cutout.png" alt="" />
+            </div>
+          </section>
+          <footer class="foot" style="margin-top: 0"><div class="wrap"><img src="../assets/type-orange.png" alt="Bulldogs" /><span>© 2026 Team Bulldogs · Part of AIRTOX FACEOFF League</span></div></footer>
+        </div>
+      </div>
+
+      <div class="frame">
+        <p class="frame__label">Bag drawer</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/shop</span></div>
+        <div class="frame__screen frame__screen--short site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li>Events</li><li class="on">Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag<em>2</em></span><span class="ic ic--me">LB</span>
+          </nav>
+          <section class="wrap pdp">
+            <div class="pdp__stage"><img src="../assets/products/product_1_orange_front_cutout.png" alt="" /></div>
+            <div class="pdp__info"><p class="eyebrow">Official team merch</p><h1>Bulldogs Tee</h1></div>
+          </section>
+          <div class="scrim">
+            <aside class="drawer">
+              <div class="drawer__head"><h3>Your bag</h3><span class="x">✕</span></div>
+              <div class="line">
+                <span class="img"><img src="../assets/products/product_1_orange_front_cutout.png" alt="" /></span>
+                <div><b>Bulldogs Tee</b><small>Orange print · M</small><span class="qty"><span>−</span><b>1</b><span>+</span></span></div>
+                <strong>£25</strong>
+              </div>
+              <div class="line">
+                <span class="img img--blue"><img src="../assets/products/product_1_blue_front_cutout.png" alt="" /></span>
+                <div><b>Bulldogs Tee</b><small>Blue print · L</small><span class="qty"><span>−</span><b>1</b><span>+</span></span></div>
+                <strong>£25</strong>
+              </div>
+              <div class="progress">Made to order — both tees ship together in 2–3 weeks.</div>
+              <div class="totals">
+                <div><span>Subtotal</span><span>£50.00</span></div>
+                <div><span>UK delivery</span><span>At checkout</span></div>
+                <div class="sum"><span>Total before delivery</span><span>£50.00</span></div>
+                <a class="btn btn--hot btn--block" href="#" style="margin-top: 0.5rem">Checkout</a>
+                <p>Secure payment via Stripe · UK only</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== TEAM -->
+    <section class="page" data-page="team">
+      <header class="brief">
+        <div>
+          <h1>AFL Team</h1>
+          <p>Coaches get their own wide cards up top, then the squad in an even portrait grid with kit numbers as outlined Bebas behind each athlete. The league calendar becomes a rail where finished rounds dim and the finals glow with a countdown.</p>
+        </div>
+        <ul>
+          <li>Real roster and kit numbers from the team sheet</li>
+          <li>Hover lifts a card with an orange ring + “View profile”</li>
+          <li>Highlights links on finished rounds</li>
+        </ul>
+      </header>
+
+      <div class="frame">
+        <p class="frame__label">AFL Team page</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/team</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li class="on">AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <header class="ph">
+            <img src="../assets/photos/web/team-hero.jpg" alt="" />
+            <div class="wrap">
+              <div>
+                <p class="eyebrow">Airtox Faceoff League</p>
+                <h1>2026 AFL Team</h1>
+                <p class="muted">British-led freestyle gymnasts taking on Denmark’s best, round by round.</p>
+              </div>
+              <div class="ph__stats">
+                <div class="glass"><b>12</b><span>On the roster</span></div>
+                <div class="glass"><b>6/6</b><span>Rounds done</span></div>
+              </div>
+            </div>
+          </header>
+
+          <section class="wrap sec" style="padding-top: 3.5rem">
+            <div class="sec-head"><div><p class="eyebrow">Staff</p><h2 class="h2">Coaching team</h2></div></div>
+            <div class="coaches">
+              <article class="coach glass"><img src="../assets/athletes/Henry%20Mantel.png" alt="" /><div><b>Henry Mantel</b><span>Head Coach</span></div></article>
+              <article class="coach glass"><img src="../assets/athletes/Lewis%20Clothier.png" alt="" /><div><b>Lewis Clothier</b><span>#7 · Coach &amp; Athlete</span></div></article>
+              <article class="coach glass"><img src="../assets/athletes/Chanin%20Janse%20Van%20Rensburg.png" alt="" /><div><b>Chanin Janse van Rensburg</b><span>#5 · Coach &amp; Athlete</span></div></article>
+            </div>
+          </section>
+
+          <section class="wrap sec">
+            <div class="sec-head"><div><p class="eyebrow">Squad</p><h2 class="h2">Athletes</h2></div></div>
+            <div class="squad">
+              <figure class="ath" data-num="1"><img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><div><b>Lewis Bagguley</b><span>#1 · Athlete</span></div></figure>
+              <figure class="ath ath--hover" data-num="4"><img src="../assets/athletes/Joe%20Oldham.png" alt="" /><div><b>Joe Oldham</b><span>#4 · Athlete</span><span class="ath__more">View profile →</span></div></figure>
+              <figure class="ath" data-num="6"><img src="../assets/athletes/Peter%20Goldberg.png" alt="" /><div><b>Peter Goldberg</b><span>#6 · Athlete</span></div></figure>
+              <figure class="ath" data-num="8"><img src="../assets/athletes/Leo%20Davidson.png" alt="" /><div><b>Leo Davidson</b><span>#8 · Athlete</span></div></figure>
+              <figure class="ath" data-num="9"><img src="../assets/athletes/Isaac%20Benninson.png" alt="" /><div><b>Isaac Benninson</b><span>#9 · Athlete</span></div></figure>
+              <figure class="ath" data-num="10"><img src="../assets/athletes/Will%20Calder.png" alt="" /><div><b>Will Calder</b><span>#10 · Athlete</span></div></figure>
+              <figure class="ath" data-num="11"><img src="../assets/athletes/Ebbe%20Larsen.png" alt="" /><div><b>Ebbe Larsen</b><span>#11 · Athlete</span></div></figure>
+              <figure class="ath" data-num="14"><img src="../assets/athletes/Daan%20Lammertink.png" alt="" /><div><b>Daan Lammertink</b><span>#14 · Athlete</span></div></figure>
+              <figure class="ath" data-num=""><img src="../assets/athletes/Matthew%20Capes.png" alt="" /><div><b>Matthew Capes</b><span>Athlete</span></div></figure>
+              <a class="ath ath--join" href="#"><img src="../assets/logo.png" alt="" /><b>Train with<br />the pack</b><span class="btn btn--hot btn--xs" style="width: max-content">Book a taster</span></a>
+            </div>
+          </section>
+
+          <section class="wrap sec">
+            <div class="sec-head"><div><p class="eyebrow">Calendar</p><h2 class="h2">League rounds</h2><p class="muted" style="margin-top: 0.5rem; font-size: 0.9rem">Two disciplines per round. Points stack toward finals qualification.</p></div><div class="arrows"><span>←</span><span>→</span></div></div>
+            <div class="rounds">
+              <article class="round round--done"><span class="round__num">04</span><h4>Round 4</h4><p>Farum Arena</p><div class="round__foot"><span class="muted">26 Sep</span><a href="#">Highlights</a></div></article>
+              <article class="round round--done"><span class="round__num">05</span><h4>Round 5</h4><p>Gråkjær Arena, Holstebro</p><div class="round__foot"><span class="muted">24 Oct</span><a href="#">Highlights</a></div></article>
+              <article class="round round--done"><span class="round__num">06</span><h4>Round 6</h4><p>Arena Svendborg</p><div class="round__foot"><span class="muted">7 Nov</span><a href="#">Highlights</a></div></article>
+              <article class="round round--next">
+                <span class="live">Up next</span>
+                <span class="round__num">F</span><h4>FACEOFF Finals</h4><p>Jyske Bank Boxen, Herning — top 4 teams</p>
+                <div class="countdown"><span><b>23</b>days</span><span><b>14</b>hrs</span><span><b>08</b>min</span></div>
+                <div class="round__foot"><span>5 Dec 2026</span><a href="#">Watch live</a></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="band">
+            <img src="../assets/photos/web/arena-fear.jpg" alt="" />
+            <div class="wrap"><p class="eyebrow">Fear nothing</p><h2>Run with<br />the pack.</h2><a class="btn btn--hot btn--sm" href="#">Book a taster</a></div>
+          </section>
+          <footer class="foot" style="margin-top: 0"><div class="wrap"><img src="../assets/type-orange.png" alt="Bulldogs" /><span>© 2026 Team Bulldogs · Part of AIRTOX FACEOFF League</span></div></footer>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== ADMIN · EVENTS -->
+    <section class="page" data-page="ad-events">
+      <header class="brief">
+        <div>
+          <h1>Admin · Events</h1>
+          <p>Same glass system, tuned for work: denser rows, a KPI strip, and an editor that opens beside the list instead of a popup. The Save bar only appears once something has changed.</p>
+        </div>
+        <ul>
+          <li>Reached from “Admin tools” in the account menu (admins only)</li>
+          <li>Tabs carry counts so you can see what needs doing</li>
+          <li>Publish / sign-ups are toggles, not checkboxes</li>
+        </ul>
+      </header>
+
+      <div class="frame">
+        <p class="frame__label">Events manager · editing an event</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/club</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <section class="wrap ad">
+            <div class="ad-head">
+              <div><p class="eyebrow">Signed in as Lewis</p><h1>Admin tools</h1></div>
+              <a class="btn btn--hot btn--sm" href="#">+ New event</a>
+            </div>
+            <div class="ad-tabs glass">
+              <span class="on">Events</span><span>Door</span><span>Stock</span><span>Orders <em>3</em></span><span>Newsletter</span><span>Admins</span>
+            </div>
+            <div class="kpis">
+              <div class="kpi glass"><span>Live events</span><b>4</b><small>1 draft</small></div>
+              <div class="kpi glass"><span>Booked places</span><b>147</b><small>+12 this week</small></div>
+              <div class="kpi glass"><span>Event revenue</span><b>£565</b><small>Stripe test mode</small></div>
+              <div class="kpi glass"><span>Orders to fulfil</span><b>3</b><small class="warn">Oldest 4 days</small></div>
+            </div>
+
+            <div class="ad-split">
+              <div>
+                <div class="ad-bar">
+                  <div class="chips"><span class="chip on">Upcoming</span><span class="chip">Drafts</span><span class="chip">Past</span></div>
+                  <span class="search">⌕ Search events</span>
+                </div>
+                <div class="ev-rows">
+                  <article class="ev-row glass on">
+                    <span class="tile"><b>28</b><span>NOV</span></span>
+                    <div><h4>Kids taster session <span class="pill pill--live">Live</span></h4><p>Manchester · 10:00 · £15</p></div>
+                    <div class="bar" style="--fill: 72%">18 / 25 booked<i></i></div>
+                    <div class="acts"><a class="btn btn--glass btn--xs" href="#">Door</a><a class="btn btn--ghost btn--xs" href="#">CSV</a></div>
+                  </article>
+                  <article class="ev-row glass">
+                    <span class="tile"><b>06</b><span>DEC</span></span>
+                    <div><h4>Open training day <span class="pill pill--live">Live</span></h4><p>Leeds · 13:00 · £25</p></div>
+                    <div class="bar" style="--fill: 35%">7 / 20 booked<i></i></div>
+                    <div class="acts"><a class="btn btn--ghost btn--xs" href="#">Edit</a><a class="btn btn--ghost btn--xs" href="#">CSV</a></div>
+                  </article>
+                  <article class="ev-row glass">
+                    <span class="tile"><b>19</b><span>DEC</span></span>
+                    <div><h4>Christmas showcase <span class="pill pill--hot">Full</span></h4><p>Sheffield · 18:30 · Free · 9 on waitlist</p></div>
+                    <div class="bar" style="--fill: 100%">120 / 120 booked<i></i></div>
+                    <div class="acts"><a class="btn btn--ghost btn--xs" href="#">Edit</a><a class="btn btn--ghost btn--xs" href="#">CSV</a></div>
+                  </article>
+                  <article class="ev-row glass">
+                    <span class="tile"><b>10</b><span>JAN</span></span>
+                    <div><h4>New year camp <span class="pill pill--live">Live</span></h4><p>Manchester · 2 days · £60</p></div>
+                    <div class="bar" style="--fill: 10%">2 / 20 booked<i></i></div>
+                    <div class="acts"><a class="btn btn--ghost btn--xs" href="#">Edit</a><a class="btn btn--ghost btn--xs" href="#">CSV</a></div>
+                  </article>
+                  <article class="ev-row glass" style="opacity: 0.7">
+                    <span class="tile"><b>—</b><span>TBC</span></span>
+                    <div><h4>Spring tumble clinic <span class="pill">Draft</span></h4><p>Leeds · no date yet</p></div>
+                    <div class="bar" style="--fill: 0%">Not published<i></i></div>
+                    <div class="acts"><a class="btn btn--ghost btn--xs" href="#">Edit</a></div>
+                  </article>
+                </div>
+              </div>
+
+              <aside class="editor glass">
+                <div class="editor__head"><div><p class="eyebrow">Editing</p><h3>Kids taster session</h3></div><span class="x">✕</span></div>
+                <div class="field"><label>Title</label><div class="input">Kids taster session</div></div>
+                <div class="grid2">
+                  <div class="field"><label>Date</label><div class="input">28 Nov 2026</div></div>
+                  <div class="field"><label>Start</label><div class="input">10:00</div></div>
+                </div>
+                <div class="grid2">
+                  <div class="field"><label>Price (£)</label><div class="input">15.00</div></div>
+                  <div class="field"><label>Capacity</label><div class="input input--focus">30</div></div>
+                </div>
+                <div class="field"><label>Location</label><div class="input">Manchester Gymnastics Centre</div></div>
+                <div class="toggle"><div>Published<small>Visible on the events page</small></div><span class="sw on"></span></div>
+                <div class="toggle"><div>Sign-ups open<small>People can book places</small></div><span class="sw on"></span></div>
+                <div class="savebar"><span>Capacity changed 25 → 30</span><a class="btn btn--ghost btn--xs" href="#">Undo</a><a class="btn btn--hot btn--xs" href="#">Save</a></div>
+              </aside>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="frame">
+        <p class="frame__label">How admins get there · account menu</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen site-bg" style="height: 30rem">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li class="on">Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <header class="ph" style="height: 30rem"><img src="../assets/hero.jpg" alt="" style="object-position: left center" /></header>
+          <div class="menu">
+            <div class="menu__me"><span class="ic ic--me">LB</span><div><b>Lewis Bagguley</b><small>lewis@example.com</small></div></div>
+            <hr />
+            <a href="#">My tickets <span class="muted">2</span></a>
+            <a href="#">Orders <span class="muted">1</span></a>
+            <a href="#">Profile</a>
+            <hr />
+            <a class="on" href="#">Admin tools <span>→</span></a>
+            <hr />
+            <a href="#">Sign out</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== ADMIN · DOOR -->
+    <section class="page" data-page="ad-door">
+      <header class="brief">
+        <div>
+          <h1>Admin · Door</h1>
+          <p>Built for a phone or tablet at the door. Camera on the left with a big green or orange result after each scan; the guest list on the right with live search and one-tap check-in. Medical flags stand out so coaches see them first.</p>
+        </div>
+        <ul>
+          <li>Green = checked in, orange = already scanned / wrong event</li>
+          <li>Live counter: in / waiting / capacity</li>
+          <li>Manual check-in for people without a phone</li>
+        </ul>
+      </header>
+
+      <div class="frame">
+        <p class="frame__label">Door check-in · Kids taster session</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/club#door</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <section class="wrap ad">
+            <div class="ad-head">
+              <div><p class="eyebrow">Signed in as Lewis</p><h1>Admin tools</h1></div>
+              <div class="seg"><span class="on">Kids taster · 28 Nov</span><span>Open training · 6 Dec</span></div>
+            </div>
+            <div class="ad-tabs glass">
+              <span>Events</span><span class="on">Door</span><span>Stock</span><span>Orders <em>3</em></span><span>Newsletter</span><span>Admins</span>
+            </div>
+
+            <div class="door">
+              <div class="scan glass">
+                <div class="scan__view">
+                  <img src="../assets/photos/web/events-hero.jpg" alt="" />
+                  <span class="scan__box"></span>
+                  <span class="scan__hint">Point at the QR code on the ticket</span>
+                </div>
+                <div class="result"><i>✓</i><div><b>Mia Thompson checked in</b><small>Age 10 · Ticket #BD-0418 · 10:02</small></div></div>
+                <div class="result result--warn" style="margin-top: 0.6rem"><i>!</i><div><b>Already checked in</b><small>Oliver Price · scanned at 09:58</small></div></div>
+              </div>
+
+              <div class="panel glass">
+                <div class="door__count">
+                  <div><b>14</b><span>In</span></div>
+                  <div><b>11</b><span>Waiting</span></div>
+                  <div><b>25</b><span>Booked</span></div>
+                </div>
+                <div class="meter"><i></i></div>
+                <div class="ad-bar">
+                  <span class="search" style="flex: 1">⌕ Search by name or ticket</span>
+                  <div class="seg"><span class="on">Waiting</span><span>In</span><span>All</span></div>
+                </div>
+                <div class="people">
+                  <div class="person"><span class="av">AK</span><div><b>Ava Khan</b><small>Age 8 · Parent: Imran Khan</small></div><span class="flag">Asthma</span><a class="btn btn--hot btn--xs" href="#">Check in</a></div>
+                  <div class="person"><span class="av">JB</span><div><b>Jack Brooks</b><small>Age 11 · Parent: Emma Brooks</small></div><span></span><a class="btn btn--hot btn--xs" href="#">Check in</a></div>
+                  <div class="person"><span class="av">LO</span><div><b>Lily O’Neill</b><small>Age 9 · Parent: Ciara O’Neill</small></div><span class="flag">Nut allergy</span><a class="btn btn--hot btn--xs" href="#">Check in</a></div>
+                  <div class="person"><span class="av">NS</span><div><b>Noah Singh</b><small>Age 12 · Parent: Priya Singh</small></div><span></span><a class="btn btn--hot btn--xs" href="#">Check in</a></div>
+                  <div class="person in"><span class="av">MT</span><div><b>Mia Thompson</b><small>Age 10 · Parent: Sarah Thompson</small></div><span></span><span class="tick">✓ 10:02</span></div>
+                  <div class="person in"><span class="av">OP</span><div><b>Oliver Price</b><small>Age 7 · Parent: Tom Price</small></div><span></span><span class="tick">✓ 09:58</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== ADMIN · ORDERS & STOCK -->
+    <section class="page" data-page="ad-orders">
+      <header class="brief">
+        <div>
+          <h1>Admin · Orders &amp; stock</h1>
+          <p>Orders and stock side by side, because fulfilling an order and checking what’s left usually happen together. Stock uses steppers; edited rows glow orange and a single Save bar appears. A toast confirms each action with Undo.</p>
+        </div>
+        <ul>
+          <li>Filter chips with counts: To fulfil · Fulfilled · Refunded</li>
+          <li>Tracking note inline, fulfil in one click</li>
+          <li>Low-stock warning per size</li>
+        </ul>
+      </header>
+
+      <div class="frame">
+        <p class="frame__label">Orders &amp; stock</p>
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk/club#orders</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="ic">Bag</span><span class="ic ic--me">LB</span>
+          </nav>
+          <section class="wrap ad">
+            <div class="ad-head">
+              <div><p class="eyebrow">Signed in as Lewis</p><h1>Admin tools</h1></div>
+              <a class="btn btn--ghost btn--sm" href="#">Export CSV</a>
+            </div>
+            <div class="ad-tabs glass">
+              <span>Events</span><span>Door</span><span>Stock</span><span class="on">Orders <em>3</em></span><span>Newsletter</span><span>Admins</span>
+            </div>
+
+            <div class="ad-two">
+              <div class="panel glass">
+                <div class="panel__head">
+                  <h3>Orders</h3>
+                  <div class="chips"><span class="chip on">To fulfil · 3</span><span class="chip">Fulfilled · 18</span><span class="chip">Refunded · 1</span></div>
+                </div>
+                <div class="order">
+                  <div><h4>#1042 <small>Rachel Green · 7 Nov</small> <span class="pill pill--hot">4 days</span></h4><p>Bulldogs Tee — Orange · M ×1, Blue · L ×1</p></div>
+                  <strong>£50</strong>
+                  <div class="acts"><span class="input input--focus">Royal Mail · AB123456789GB</span><a class="btn btn--hot btn--xs" href="#">Mark fulfilled</a><a class="btn btn--ghost btn--xs" href="#">Refund</a></div>
+                </div>
+                <div class="order">
+                  <div><h4>#1045 <small>Dan Wright · 9 Nov</small> <span class="pill pill--sky">Paid</span></h4><p>Bulldogs Tee — Blue · XL ×1</p></div>
+                  <strong>£25</strong>
+                  <div class="acts"><span class="input input--ph">Tracking or note (optional)</span><a class="btn btn--glass btn--xs" href="#">Mark fulfilled</a><a class="btn btn--ghost btn--xs" href="#">Refund</a></div>
+                </div>
+                <div class="order">
+                  <div><h4>#1047 <small>Hannah Lee · 10 Nov</small> <span class="pill pill--sky">Paid</span></h4><p>Bulldogs Tee — Orange · S ×2</p></div>
+                  <strong>£50</strong>
+                  <div class="acts"><span class="input input--ph">Tracking or note (optional)</span><a class="btn btn--glass btn--xs" href="#">Mark fulfilled</a><a class="btn btn--ghost btn--xs" href="#">Refund</a></div>
+                </div>
+              </div>
+
+              <div class="panel glass">
+                <div class="panel__head"><h3>Stock</h3><span class="muted" style="font-size: 0.8rem">Bulldogs Tee</span></div>
+                <table class="stock">
+                  <thead><tr><th>Variant</th><th>Sold</th><th>On hand</th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="dot" style="--dot: var(--orange)"></span>Orange · S</td><td class="muted">6</td><td><span class="step"><i>−</i><b>8</b><i>+</i></span></td></tr>
+                    <tr><td><span class="dot" style="--dot: var(--orange)"></span>Orange · M</td><td class="muted">11</td><td><span class="step dirty"><i>−</i><b>12</b><i>+</i></span></td></tr>
+                    <tr><td><span class="dot" style="--dot: var(--orange)"></span>Orange · L<span class="low">Low</span></td><td class="muted">9</td><td><span class="step"><i>−</i><b>2</b><i>+</i></span></td></tr>
+                    <tr><td><span class="dot" style="--dot: var(--sky)"></span>Blue · M</td><td class="muted">7</td><td><span class="step"><i>−</i><b>10</b><i>+</i></span></td></tr>
+                    <tr><td><span class="dot" style="--dot: var(--sky)"></span>Blue · L</td><td class="muted">5</td><td><span class="step dirty"><i>−</i><b>15</b><i>+</i></span></td></tr>
+                    <tr><td><span class="dot" style="--dot: var(--sky)"></span>Blue · XL<span class="low">Low</span></td><td class="muted">4</td><td><span class="step"><i>−</i><b>1</b><i>+</i></span></td></tr>
+                  </tbody>
+                </table>
+                <div class="savebar"><span>2 sizes changed</span><a class="btn btn--ghost btn--xs" href="#">Discard</a><a class="btn btn--hot btn--xs" href="#">Save stock</a></div>
+              </div>
+            </div>
+          </section>
+          <div class="toast"><i>✓</i>Order #1039 marked fulfilled <a href="#">Undo</a></div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      document.querySelectorAll("[data-show]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-show]").forEach((b) => b.classList.toggle("is-on", b === btn));
+          document.querySelectorAll("[data-page]").forEach((p) => p.classList.toggle("is-on", p.dataset.page === btn.dataset.show));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        });
+      });
+    </script>
+  </body>
+</html>

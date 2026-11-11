@@ -28,7 +28,6 @@
           <a href="contact.html">Contact</a>
         </nav>
         <div class="nav__actions">
-          <a class="btn btn--ghost" href="shop.html">Shop</a>
           <button class="cart-btn" type="button" data-open-cart aria-label="Open cart">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V6a5 5 0 0 1 10 0v1h3l-1.2 11.2A2 2 0 0 1 16.81 20H7.19a2 2 0 0 1-1.99-1.8L4 7h3zm2 0h6V6a3 3 0 0 0-6 0v1z"/></svg>
             <span class="cart-btn__count" data-count="0">0</span>
@@ -48,7 +47,7 @@
           <div class="wrap">
             <p class="eyebrow">Hosted by Bulldogs</p>
             <h1>Events</h1>
-            <p>Training days, taster sessions and shows — dates and details will land here as we announce them.</p>
+            <p>Training days, taster sessions and shows — book a place when dates go live.</p>
           </div>
         </header>
       </div>
@@ -60,31 +59,9 @@
             <h2>Coming up</h2>
             <p>A home for everything we put on outside league rounds — for athletes, families, and fans.</p>
           </div>
-          <div class="events">
-            <article class="event">
-              <span class="event__label">01</span>
-              <div>
-                <h3>Training days</h3>
-                <p>Open sessions and skill days with the Bulldogs coaching team. Details and booking to follow.</p>
-              </div>
-              <div class="event__meta">TBA</div>
-            </article>
-            <article class="event">
-              <span class="event__label">02</span>
-              <div>
-                <h3>Taster sessions</h3>
-                <p>First-look freestyle gymnastics. Safe intro, high energy, no experience needed.</p>
-              </div>
-              <div class="event__meta">TBA</div>
-            </article>
-            <article class="event">
-              <span class="event__label">03</span>
-              <div>
-                <h3>Shows</h3>
-                <p>Live performances and exhibition sets — arena atmosphere without the league clock.</p>
-              </div>
-              <div class="event__meta">TBA</div>
-            </article>
+          <p class="booking-banner" data-booking-banner hidden role="status"></p>
+          <div class="events" data-events>
+            <p class="muted">Loading dates…</p>
           </div>
           <p class="muted" style="margin-top: 2rem; max-width: 36rem;">
             Want early notice? Reach out via
@@ -149,7 +126,73 @@
       </div>
     </aside>
 
+    <dialog class="booking-dialog" data-booking-dialog>
+      <button class="booking-dialog__close" type="button" data-close-booking aria-label="Close booking form">×</button>
+      <form class="contact-form" data-booking-form>
+        <header class="booking-dialog__head">
+          <p class="eyebrow">Book a place</p>
+          <h2 data-booking-title>Event</h2>
+          <p class="muted" data-booking-when></p>
+        </header>
+        <input type="hidden" name="event_id" />
+        <div class="field-row">
+          <div class="field">
+            <label for="full_name">Your name</label>
+            <input id="full_name" name="full_name" type="text" required autocomplete="name" maxlength="200" />
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required autocomplete="email" maxlength="254" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" />
+        </div>
+        <div data-attendees></div>
+        <button class="btn btn--ghost" type="button" data-add-attendee>Add another attendee</button>
+        <label class="field field--check">
+          <input type="checkbox" name="newsletter_opt_in" />
+          <span>Email me about future Bulldogs events and drops</span>
+        </label>
+        <label class="field field--check">
+          <input type="checkbox" name="photo_consent" required />
+          <span>I consent to photos and video from this session being used by Team Bulldogs.</span>
+        </label>
+        <label class="field field--check">
+          <input type="checkbox" name="guardian_confirmed" />
+          <span>If any attendee is under 18, I am their parent or guardian.</span>
+        </label>
+        <label class="field field--check">
+          <input type="checkbox" name="terms_accepted" required />
+          <span>I accept the <a href="terms.html">terms</a> and <a href="booking-policy.html">booking policy</a>. Places are held for 40 minutes while you pay.</span>
+        </label>
+        <div class="auth-checkout" data-auth-checkout>
+          <div data-auth-logged-in hidden>
+            <p class="muted">Paying as <strong data-auth-as></strong></p>
+            <button class="btn btn--ghost" type="button" data-auth-out>Not you? Sign out</button>
+            <button class="btn btn--accent btn--block" type="submit">Continue to payment</button>
+          </div>
+          <div data-auth-guest>
+            <button class="btn btn--accent btn--block" type="submit" data-checkout-guest>Checkout as guest</button>
+            <p class="auth-checkout__alt">
+              <button class="text-btn" type="button" data-open-auth>Sign in</button>
+              ·
+              <button class="text-btn" type="button" data-open-auth="signup">Create account</button>
+            </p>
+          </div>
+        </div>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/auth-ui.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
+    <script src="js/events.js"></script>
   </body>
 </html>
