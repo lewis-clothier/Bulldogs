@@ -3,6 +3,13 @@
   const links = document.querySelector(".nav__links");
   const contactForm = document.querySelector("#contact-form");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const header = document.querySelector(".site-header");
+
+  if (header) {
+    const onHeaderScroll = () => header.classList.toggle("is-scrolled", window.scrollY > 24);
+    window.addEventListener("scroll", onHeaderScroll, { passive: true });
+    onHeaderScroll();
+  }
 
   if (toggle && links) {
     toggle.addEventListener("click", () => {
