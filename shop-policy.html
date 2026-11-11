@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shop policy — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" href="assets/logo.png" type="image/png" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="logo" href="index.html"><img class="logo__type" src="assets/type-orange.png" alt="Bulldogs" /></a>
+        <nav class="nav__links" aria-label="Primary">
+          <a href="index.html">Home</a><a href="team.html">AFL TEAM</a><a href="events.html">Events</a><a href="shop.html">Shop</a><a href="news.html">News</a><a href="contact.html">Contact</a>
+        </nav>
+        <div class="nav__actions">
+          <button class="cart-btn" type="button" data-open-cart aria-label="Open cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V6a5 5 0 0 1 10 0v1h3l-1.2 11.2A2 2 0 0 1 16.81 20H7.19a2 2 0 0 1-1.99-1.8L4 7h3zm2 0h6V6a3 3 0 0 0-6 0v1z"/></svg><span class="cart-btn__count">0</span></button>
+          <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Menu"><span></span><span></span><span></span></button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <header class="page-hero"><div class="wrap"><p class="eyebrow">Shop</p><h1>Delivery &amp; returns</h1><p>Print-on-demand tees via Tapstitch. Not next-day.</p></div></header>
+      <section class="section"><div class="wrap prose">
+        <h2>Made to order</h2>
+        <p>We place your order with our printer after you pay. Typical dispatch is around 2–3 weeks. We’ll email when it’s in.</p>
+        <h2>Delivery</h2>
+        <p>UK only for now. Delivery is added at Stripe checkout. You give the shipping address there.</p>
+        <h2>After you pay</h2>
+        <p>You can’t cancel merch online once paid — we may already have sent it to print. Email the club quickly if something’s wrong. If we haven’t marked the order fulfilled we can often refund from our side.</p>
+        <h2>Returns</h2>
+        <p>Faulty or mis-printed items: email photos and we’ll sort a reprint or refund. Change-of-mind returns may not apply to personalised/print-to-order kit — we’ll say so on the product if that changes. Have a solicitor check this if you need a hard consumer-law version.</p>
+      </div></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><div class="footer__bottom"><span>© 2026 Team Bulldogs</span></div></div></footer>
+    <div class="cart-overlay" data-close-cart></div>
+    <aside class="cart-drawer" aria-label="Shopping cart"><div class="cart-drawer__head"><h2>Your bag</h2><button class="cart-close" type="button" data-close-cart>×</button></div><div class="cart-drawer__body"></div><div class="cart-drawer__foot"><div class="cart-total"><span>Total</span><strong>£0</strong></div><button class="btn btn--accent btn--block" type="button">Checkout</button><p class="cart-note"></p></div></aside>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/auth-ui.js"></script><script src="js/main.js"></script><script src="js/shop.js"></script>
+  </body>
+</html>

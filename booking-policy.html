@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Booking policy — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" href="assets/logo.png" type="image/png" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="logo" href="index.html"><img class="logo__type" src="assets/type-orange.png" alt="Bulldogs" /></a>
+        <nav class="nav__links" aria-label="Primary">
+          <a href="index.html">Home</a><a href="team.html">AFL TEAM</a><a href="events.html">Events</a><a href="shop.html">Shop</a><a href="news.html">News</a><a href="contact.html">Contact</a>
+        </nav>
+        <div class="nav__actions">
+          <button class="cart-btn" type="button" data-open-cart aria-label="Open cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V6a5 5 0 0 1 10 0v1h3l-1.2 11.2A2 2 0 0 1 16.81 20H7.19a2 2 0 0 1-1.99-1.8L4 7h3zm2 0h6V6a3 3 0 0 0-6 0v1z"/></svg><span class="cart-btn__count">0</span></button>
+          <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Menu"><span></span><span></span><span></span></button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <header class="page-hero"><div class="wrap"><p class="eyebrow">Events</p><h1>Booking policy</h1><p>Holds, cancellations, and refunds for paid sessions.</p></div></header>
+      <section class="section"><div class="wrap prose">
+        <h2>Holding a place</h2>
+        <p>When you continue to payment we hold the place for 40 minutes. If you don’t pay, it goes back on sale.</p>
+        <h2>You cancel</h2>
+        <p>Cancel online (email link or your account) <strong>24 hours or more</strong> before the session starts. The place goes back on sale and Stripe refunds you. Inside 24 hours, email the club — we decide case by case.</p>
+        <h2>We cancel</h2>
+        <p>If the club cancels the session, everyone who paid is refunded and emailed.</p>
+        <h2>Tickets</h2>
+        <p>Bring the QR from your confirmation email or account. One code per attendee.</p>
+        <h2>Safeguarding</h2>
+        <p>We need date of birth, emergency contact, and photo/video consent for every attendee. Under-18s must be booked by a parent or guardian.</p>
+      </div></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><div class="footer__bottom"><span>© 2026 Team Bulldogs</span></div></div></footer>
+    <div class="cart-overlay" data-close-cart></div>
+    <aside class="cart-drawer" aria-label="Shopping cart"><div class="cart-drawer__head"><h2>Your bag</h2><button class="cart-close" type="button" data-close-cart>×</button></div><div class="cart-drawer__body"></div><div class="cart-drawer__foot"><div class="cart-total"><span>Total</span><strong>£0</strong></div><button class="btn btn--accent btn--block" type="button">Checkout</button><p class="cart-note"></p></div></aside>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script><script src="js/api.js"></script><script src="js/auth.js"></script><script src="js/auth-ui.js"></script><script src="js/main.js"></script><script src="js/shop.js"></script>
+  </body>
+</html>

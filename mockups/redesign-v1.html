@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Redesign concepts — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" href="../assets/logo.png" type="image/png" />
+    <style>
+      :root {
+        --charcoal: #1e1e23;
+        --navy: #2a384f;
+        --navy-ink: #1b2536;
+        --steel: #3c739d;
+        --sky: #5598d3;
+        --orange: #e8541a;
+        --orange-deep: #ae3f13;
+        --bone: #f5f5f0;
+        --display: "Bebas Neue", Impact, sans-serif;
+        --body: "Outfit", "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      img { display: block; max-width: 100%; }
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; color: inherit; cursor: pointer; }
+      body { font-family: var(--body); background: #111318; color: var(--bone); }
+
+      /* ---------- picker chrome ---------- */
+      .picker {
+        position: sticky; top: 0; z-index: 50;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+        padding: 0.85rem 1.5rem; background: rgba(17, 19, 24, 0.92);
+        backdrop-filter: blur(10px); border-bottom: 1px solid rgba(245, 245, 240, 0.1);
+      }
+      .picker strong { font-family: var(--display); font-size: 1.5rem; letter-spacing: 0.05em; margin-right: auto; }
+      .picker strong span { color: var(--orange); }
+      .picker nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      .picker button {
+        background: transparent; border: 1px solid rgba(245, 245, 240, 0.16);
+        padding: 0.5rem 0.95rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+      }
+      .picker button.is-on { background: var(--orange); border-color: var(--orange); }
+      .brief {
+        max-width: 72rem; margin: 2rem auto 1.25rem; padding: 0 1.5rem;
+        display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; align-items: end;
+      }
+      .brief h1 { font-family: var(--display); font-size: clamp(2.6rem, 6vw, 4.2rem); letter-spacing: 0.03em; line-height: 0.95; }
+      .brief p { color: #a9adb6; line-height: 1.6; }
+      .brief dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; font-size: 0.9rem; color: #c8ccd3; }
+      .brief dt { color: var(--orange); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.12em; padding-top: 0.2rem; }
+      .frame {
+        max-width: 84rem; margin: 0 auto 2.5rem; padding: 0 1.5rem;
+      }
+      .frame__bar {
+        display: flex; align-items: center; gap: 0.45rem; padding: 0.7rem 1rem;
+        background: #23262d; border-radius: 14px 14px 0 0; font-size: 0.78rem; color: #8b909a;
+      }
+      .frame__bar i { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #3a3e47; }
+      .frame__bar span { margin-left: 0.75rem; background: #16181d; padding: 0.25rem 0.8rem; border-radius: 999px; }
+      .frame__screen { border-radius: 0 0 14px 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }
+      .concept { display: none; }
+      .concept.is-on { display: block; }
+      .notes {
+        max-width: 72rem; margin: 0 auto 4rem; padding: 0 1.5rem;
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+      }
+      .notes article { background: #1a1d23; border: 1px solid rgba(245, 245, 240, 0.08); border-radius: 14px; padding: 1.15rem 1.25rem; }
+      .notes h3 { font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); margin-bottom: 0.6rem; }
+      .notes ul { list-style: none; display: grid; gap: 0.45rem; color: #c8ccd3; font-size: 0.92rem; line-height: 1.45; }
+      .swatches { display: flex; gap: 0.4rem; margin-top: 0.85rem; }
+      .swatches i { width: 2rem; height: 2rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); }
+      .compare { max-width: 72rem; margin: 0 auto 5rem; padding: 0 1.5rem; }
+      .compare h2 { font-family: var(--display); font-size: 2.2rem; letter-spacing: 0.04em; margin-bottom: 1rem; }
+      .compare table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+      .compare th, .compare td { text-align: left; padding: 0.8rem 0.75rem; border-bottom: 1px solid rgba(245, 245, 240, 0.08); vertical-align: top; }
+      .compare th { color: #8b909a; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; }
+      .compare td:first-child { color: var(--orange); font-weight: 600; white-space: nowrap; }
+
+      /* =====================================================
+         CONCEPT A — ARENA NIGHT
+         ===================================================== */
+      .ca { background: #0d0f14; color: var(--bone); font-family: var(--body); position: relative; }
+      .ca__nav {
+        position: absolute; top: 1.25rem; left: 50%; transform: translateX(-50%); z-index: 5;
+        width: min(70rem, calc(100% - 2rem));
+        display: flex; align-items: center; gap: 1.5rem; padding: 0.55rem 0.6rem 0.55rem 1.25rem;
+        background: rgba(20, 24, 32, 0.55); backdrop-filter: blur(18px);
+        border: 1px solid rgba(245, 245, 240, 0.12); border-radius: 999px;
+      }
+      .ca__nav img { height: 1.35rem; }
+      .ca__nav ul { list-style: none; display: flex; gap: 1.6rem; margin: 0 auto; font-size: 0.86rem; color: rgba(245, 245, 240, 0.72); }
+      .ca__nav ul li:first-child { color: var(--bone); }
+      .ca__icons { display: flex; gap: 0.4rem; }
+      .ca__icon {
+        width: 2.5rem; height: 2.5rem; border-radius: 50%; display: grid; place-items: center;
+        background: rgba(245, 245, 240, 0.08); font-size: 0.75rem; font-weight: 700;
+      }
+      .ca__icon--me { background: var(--navy); color: var(--orange); border: 1px solid rgba(232, 84, 26, 0.5); }
+      .ca__hero { position: relative; min-height: 46rem; padding-top: 7rem; display: grid; align-items: end; overflow: hidden; }
+      .ca__hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+      .ca__hero::after {
+        content: ""; position: absolute; inset: 0;
+        background:
+          radial-gradient(60% 50% at 75% 20%, rgba(232, 84, 26, 0.25), transparent 70%),
+          linear-gradient(180deg, rgba(13, 15, 20, 0.2) 0%, rgba(13, 15, 20, 0.35) 45%, #0d0f14 96%);
+      }
+      .ca__hero-inner { position: relative; z-index: 1; width: min(70rem, calc(100% - 3rem)); margin: 0 auto; padding-bottom: 3.5rem; }
+      .ca__kicker {
+        display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.35rem 0.8rem 0.35rem 0.4rem;
+        border-radius: 999px; background: rgba(245, 245, 240, 0.08); border: 1px solid rgba(245, 245, 240, 0.14);
+        font-size: 0.8rem; color: rgba(245, 245, 240, 0.85); margin-bottom: 1.25rem;
+      }
+      .ca__kicker b { background: var(--orange); color: var(--bone); padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; letter-spacing: 0.08em; }
+      .ca__hero h1 { font-family: var(--display); font-size: clamp(3.6rem, 8.5vw, 8rem); line-height: 0.86; letter-spacing: 0.01em; max-width: 12ch; }
+      .ca__hero h1 em { font-style: normal; color: var(--orange); }
+      .ca__hero p { max-width: 34rem; margin-top: 1.1rem; font-size: 1.1rem; color: rgba(245, 245, 240, 0.75); line-height: 1.55; }
+      .ca__ctas { display: flex; gap: 0.7rem; margin-top: 1.75rem; flex-wrap: wrap; }
+      .ca__btn {
+        display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.95rem 1.5rem; border-radius: 999px;
+        font-weight: 700; font-size: 0.92rem; letter-spacing: 0.02em;
+      }
+      .ca__btn--hot { background: var(--orange); box-shadow: 0 10px 40px rgba(232, 84, 26, 0.45); }
+      .ca__btn--glass { background: rgba(245, 245, 240, 0.08); border: 1px solid rgba(245, 245, 240, 0.2); backdrop-filter: blur(10px); }
+      .ca__stats {
+        position: relative; z-index: 1; width: min(70rem, calc(100% - 3rem)); margin: -1.5rem auto 0;
+        display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(245, 245, 240, 0.1);
+        border-radius: 18px; background: rgba(23, 27, 36, 0.8); backdrop-filter: blur(14px);
+      }
+      .ca__stats div { padding: 1.15rem 1.35rem; border-right: 1px solid rgba(245, 245, 240, 0.08); }
+      .ca__stats div:last-child { border-right: 0; }
+      .ca__stats b { display: block; font-family: var(--display); font-size: 2.3rem; letter-spacing: 0.03em; line-height: 1; }
+      .ca__stats span { font-size: 0.8rem; color: rgba(245, 245, 240, 0.55); }
+      .ca__wrap { width: min(70rem, calc(100% - 3rem)); margin: 0 auto; }
+      .ca__section { padding: 5.5rem 0 2rem; }
+      .ca__head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.75rem; }
+      .ca__eyebrow { font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--orange); font-weight: 700; }
+      .ca__head h2 { font-family: var(--display); font-size: clamp(2.6rem, 5vw, 3.8rem); letter-spacing: 0.02em; line-height: 0.95; margin-top: 0.35rem; }
+      .ca__link { font-size: 0.88rem; color: rgba(245, 245, 240, 0.7); border-bottom: 1px solid rgba(245, 245, 240, 0.25); padding-bottom: 0.15rem; }
+      .ca__bento { display: grid; grid-template-columns: 1.35fr 1fr 1fr; grid-template-rows: 15rem 15rem; gap: 1rem; }
+      .ca__tile {
+        position: relative; overflow: hidden; border-radius: 22px; padding: 1.5rem;
+        background: #161a22; border: 1px solid rgba(245, 245, 240, 0.08);
+        display: flex; flex-direction: column; justify-content: flex-end;
+      }
+      .ca__tile > img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      .ca__tile--photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 12, 16, 0.1) 20%, rgba(10, 12, 16, 0.75) 55%, rgba(10, 12, 16, 0.97)); }
+      .ca__tile > * { position: relative; z-index: 1; }
+      .ca__tile > img.bg { z-index: 0; }
+      .ca__tile--photo::after { z-index: 0; }
+      .ca__tile--big { grid-row: span 2; }
+      .ca__tile h3 { font-family: var(--display); font-size: 2.1rem; letter-spacing: 0.03em; line-height: 0.95; }
+      .ca__tile p { color: rgba(245, 245, 240, 0.7); font-size: 0.9rem; margin-top: 0.4rem; }
+      .ca__tag {
+        position: absolute !important; top: 1.25rem; left: 1.25rem; padding: 0.3rem 0.7rem; border-radius: 999px;
+        background: rgba(13, 15, 20, 0.6); backdrop-filter: blur(8px); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      .ca__tag--hot { background: var(--orange); }
+      .ca__tile--shop { background: radial-gradient(80% 80% at 70% 30%, rgba(232, 84, 26, 0.55), transparent 70%), #1a1416; }
+      .ca__tile--shop img.tee { position: absolute; right: -1.5rem; top: -0.5rem; width: 13rem; z-index: 0; filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.5)); }
+      .ca__tile--team { background: linear-gradient(160deg, #23324a, #161a22); }
+      .ca__faces { display: flex; margin-bottom: auto; }
+      .ca__faces img { width: 3.2rem; height: 3.2rem; border-radius: 50%; object-fit: cover; object-position: top; border: 2px solid #1d2638; margin-left: -0.7rem; background: var(--steel); }
+      .ca__faces img:first-child { margin-left: 0; }
+      .ca__tile--quote { background: var(--bone); color: var(--navy-ink); grid-column: span 2; }
+      .ca__tile--quote h3 { font-size: 3rem; color: var(--navy-ink); }
+      .ca__tile--quote h3 em { font-style: normal; color: var(--orange); }
+      .ca__tile--quote p { color: rgba(27, 37, 54, 0.7); }
+      .ca__tile > .ca__mark { position: absolute; right: 1.75rem; top: 50%; transform: translateY(-50%) rotate(8deg); height: 82%; width: auto; }
+      .ca__events { display: grid; gap: 0.6rem; }
+      .ca__event {
+        display: grid; grid-template-columns: 5.5rem 1fr auto auto; gap: 1.5rem; align-items: center;
+        padding: 1.1rem 1.35rem; border-radius: 18px; background: #151920; border: 1px solid rgba(245, 245, 240, 0.07);
+      }
+      .ca__date { text-align: center; border-right: 1px solid rgba(245, 245, 240, 0.1); padding-right: 1.25rem; }
+      .ca__date b { display: block; font-family: var(--display); font-size: 2.4rem; line-height: 0.9; }
+      .ca__date span { font-size: 0.72rem; letter-spacing: 0.14em; color: var(--orange); font-weight: 700; }
+      .ca__event h4 { font-size: 1.05rem; font-weight: 600; }
+      .ca__event p { font-size: 0.85rem; color: rgba(245, 245, 240, 0.55); margin-top: 0.15rem; }
+      .ca__spots { font-size: 0.8rem; color: rgba(245, 245, 240, 0.65); }
+      .ca__spots i { display: block; width: 7rem; height: 0.3rem; border-radius: 999px; background: rgba(245, 245, 240, 0.1); margin-top: 0.4rem; overflow: hidden; }
+      .ca__spots i::after { content: ""; display: block; height: 100%; width: var(--fill, 60%); background: var(--orange); }
+      .ca__btn--sm { padding: 0.65rem 1.1rem; font-size: 0.82rem; }
+      .ca__band { margin-top: 5rem; position: relative; height: 24rem; overflow: hidden; }
+      .ca__band img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
+      .ca__band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(13, 15, 20, 0.95), rgba(13, 15, 20, 0.2) 70%); }
+      .ca__band div { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; width: min(70rem, calc(100% - 3rem)); margin: 0 auto; }
+      .ca__band h2 { font-family: var(--display); font-size: clamp(3.5rem, 8vw, 6.5rem); line-height: 0.9; }
+      .ca__foot { padding: 3rem 0; display: flex; justify-content: space-between; align-items: center; color: rgba(245, 245, 240, 0.5); font-size: 0.85rem; }
+      .ca__foot img { height: 1.6rem; }
+
+      /* =====================================================
+         CONCEPT B — MATCHDAY
+         ===================================================== */
+      .cb { background: var(--bone); color: var(--navy-ink); font-family: var(--body); }
+      .cb__ticker { background: var(--orange); color: var(--bone); overflow: hidden; white-space: nowrap; font-family: var(--display); font-size: 1.05rem; letter-spacing: 0.08em; }
+      .cb__ticker div { display: inline-block; padding: 0.45rem 0; animation: cb-tick 28s linear infinite; }
+      .cb__ticker span { margin: 0 1.5rem; }
+      @keyframes cb-tick { to { transform: translateX(-50%); } }
+      .cb__nav { display: flex; align-items: center; gap: 2rem; padding: 1.1rem 2.5rem; border-bottom: 2px solid var(--navy-ink); background: var(--bone); }
+      .cb__nav img { height: 2.6rem; }
+      .cb__nav ul { list-style: none; display: flex; gap: 2rem; margin-right: auto; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; }
+      .cb__nav ul li.on { color: var(--orange); }
+      .cb__btn {
+        display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1.5rem;
+        font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;
+        border: 2px solid var(--navy-ink); background: var(--bone); box-shadow: 4px 4px 0 var(--navy-ink);
+      }
+      .cb__btn--hot { background: var(--orange); color: var(--bone); }
+      .cb__btn--ink { background: var(--navy-ink); color: var(--bone); box-shadow: 4px 4px 0 var(--orange); }
+      .cb__icon { width: 2.6rem; height: 2.6rem; border: 2px solid var(--navy-ink); display: grid; place-items: center; font-weight: 800; font-size: 0.8rem; position: relative; }
+      .cb__icon sup { position: absolute; top: -0.5rem; right: -0.5rem; background: var(--orange); color: var(--bone); border-radius: 999px; padding: 0 0.35rem; font-size: 0.65rem; }
+      .cb__hero { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 36rem; border-bottom: 2px solid var(--navy-ink); }
+      .cb__hero-copy { padding: 3.5rem 2.5rem 3rem; display: flex; flex-direction: column; justify-content: center; gap: 1.5rem; position: relative; overflow: hidden; }
+      .cb__num { position: absolute; right: -2rem; bottom: -4rem; font-family: var(--display); font-size: 26rem; line-height: 1; color: transparent; -webkit-text-stroke: 2px rgba(27, 37, 54, 0.12); }
+      .cb__label { display: inline-flex; gap: 0.6rem; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; }
+      .cb__label b { color: var(--orange); }
+      .cb__hero h1 { font-family: var(--display); font-size: clamp(5rem, 11vw, 10rem); line-height: 0.82; letter-spacing: 0.005em; margin: 1.25rem 0; position: relative; }
+      .cb__hero h1 span { display: inline-block; background: var(--orange); color: var(--bone); padding: 0 0.15em; transform: skew(-8deg); }
+      .cb__hero h1 span i { display: inline-block; font-style: normal; transform: skew(8deg); }
+      .cb__hero p { max-width: 30rem; font-size: 1.1rem; line-height: 1.55; color: rgba(27, 37, 54, 0.75); position: relative; }
+      .cb__ctas { display: flex; gap: 1rem; margin-top: 2rem; position: relative; flex-wrap: wrap; }
+      .cb__hero-media { position: relative; background: var(--navy-ink); overflow: hidden; clip-path: polygon(14% 0, 100% 0, 100% 100%, 0 100%); }
+      .cb__hero-media img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; filter: contrast(1.05) saturate(1.05); }
+      .cb__hero-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(27, 37, 54, 0.65), transparent 45%); }
+      .cb__card-next {
+        position: absolute; left: 18%; right: 1.5rem; bottom: 1.5rem; z-index: 1; background: var(--bone); color: var(--navy-ink);
+        border: 2px solid var(--navy-ink); box-shadow: 6px 6px 0 var(--orange); padding: 1rem 1.15rem;
+        display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center;
+      }
+      .cb__card-next b { font-family: var(--display); font-size: 2.4rem; line-height: 0.85; }
+      .cb__card-next small { display: block; font-weight: 800; font-size: 0.7rem; letter-spacing: 0.14em; color: var(--orange); }
+      .cb__card-next strong { display: block; font-size: 1rem; }
+      .cb__card-next span { font-size: 0.82rem; color: rgba(27, 37, 54, 0.65); }
+      .cb__sect { padding: 4.5rem 2.5rem; border-bottom: 2px solid var(--navy-ink); }
+      .cb__sect-head { display: grid; grid-template-columns: 6rem 1fr auto; gap: 1.5rem; align-items: end; margin-bottom: 2.25rem; }
+      .cb__sect-head > b { font-family: var(--display); font-size: 4.5rem; line-height: 0.8; color: var(--orange); }
+      .cb__sect-head h2 { font-family: var(--display); font-size: clamp(2.8rem, 6vw, 4.5rem); line-height: 0.85; }
+      .cb__tickets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+      .cb__ticket { border: 2px solid var(--navy-ink); background: #fff; display: grid; grid-template-rows: auto auto 1fr; position: relative; overflow: hidden; box-shadow: 6px 6px 0 var(--navy-ink); }
+      .cb__tickets { padding: 0 6px 6px 0; }
+      .cb__ticket-top { background: var(--navy-ink); color: var(--bone); padding: 1rem 1.15rem; display: flex; justify-content: space-between; align-items: end; }
+      .cb__ticket-top b { font-family: var(--display); font-size: 2.8rem; line-height: 0.85; }
+      .cb__ticket-top span { font-weight: 800; font-size: 0.72rem; letter-spacing: 0.14em; color: var(--orange); }
+      .cb__perf { height: 0; border-top: 2px dashed rgba(27, 37, 54, 0.35); margin: 0 1rem; position: relative; }
+      .cb__perf::before, .cb__perf::after { content: ""; position: absolute; top: -0.75rem; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--bone); border: 2px solid var(--navy-ink); }
+      .cb__perf::before { left: -1.85rem; }
+      .cb__perf::after { right: -1.85rem; }
+      .cb__ticket-body { padding: 1.2rem 1.15rem 1.15rem; display: flex; flex-direction: column; gap: 0.5rem; }
+      .cb__ticket-body h4 { font-family: var(--display); font-size: 1.9rem; line-height: 0.95; letter-spacing: 0.02em; }
+      .cb__ticket-body p { font-size: 0.88rem; color: rgba(27, 37, 54, 0.7); }
+      .cb__ticket-foot { margin-top: auto; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+      .cb__ticket-foot strong { font-family: var(--display); font-size: 1.8rem; }
+      .cb__chip { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.3rem 0.55rem; border: 2px solid var(--navy-ink); }
+      .cb__chip--hot { background: var(--orange); color: var(--bone); border-color: var(--orange); }
+      .cb__drop { display: grid; grid-template-columns: 1fr 1fr; background: var(--navy-ink); color: var(--bone); border-bottom: 2px solid var(--navy-ink); }
+      .cb__drop-media { position: relative; display: grid; grid-template-columns: 1fr 1fr; background: var(--orange); }
+      .cb__drop-media img { width: 100%; height: 100%; object-fit: contain; padding: 1.5rem; }
+      .cb__drop-media img:last-child { background: var(--sky); }
+      .cb__drop-copy { padding: 4rem 3rem; display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
+      .cb__drop-copy h2 { font-family: var(--display); font-size: clamp(3rem, 6vw, 5rem); line-height: 0.85; }
+      .cb__drop-copy p { color: rgba(245, 245, 240, 0.72); max-width: 26rem; line-height: 1.55; }
+      .cb__sizes { display: flex; gap: 0.5rem; }
+      .cb__sizes span { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; border: 2px solid rgba(245, 245, 240, 0.35); font-weight: 800; }
+      .cb__sizes span.on { border-color: var(--orange); background: var(--orange); }
+      .cb__roster { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border: 2px solid var(--navy-ink); }
+      .cb__player { position: relative; aspect-ratio: 3 / 4; background: var(--sky); border-right: 2px solid var(--navy-ink); overflow: hidden; }
+      .cb__player:nth-child(even) { background: var(--orange); }
+      .cb__player:last-child { border-right: 0; }
+      .cb__player img { position: absolute; inset: auto 0 0 0; width: 100%; height: 92%; object-fit: cover; object-position: top; }
+      .cb__player span { position: absolute; left: 0.6rem; top: 0.4rem; font-family: var(--display); font-size: 2.6rem; color: var(--bone); line-height: 1; }
+      .cb__player b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bone); padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; border-top: 2px solid var(--navy-ink); }
+      .cb__foot { background: var(--navy-ink); color: var(--bone); padding: 3rem 2.5rem; display: flex; justify-content: space-between; align-items: end; }
+      .cb__foot h2 { font-family: var(--display); font-size: clamp(3rem, 8vw, 6rem); line-height: 0.85; }
+      .cb__foot h2 em { font-style: normal; color: var(--orange); }
+      .cb__foot p { font-size: 0.85rem; color: rgba(245, 245, 240, 0.55); }
+
+      /* =====================================================
+         CONCEPT C — THE PACK
+         ===================================================== */
+      .cc {
+        font-family: var(--body); color: var(--bone);
+        background:
+          radial-gradient(50rem 30rem at 85% -5%, rgba(85, 152, 211, 0.35), transparent 70%),
+          radial-gradient(40rem 26rem at -10% 40%, rgba(232, 84, 26, 0.16), transparent 70%),
+          linear-gradient(180deg, #24324a 0%, #1c2638 50%, #171f2e 100%);
+        padding-bottom: 3rem;
+      }
+      .cc__nav { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 2rem; }
+      .cc__nav img { height: 2.4rem; }
+      .cc__seg { display: flex; gap: 0.25rem; padding: 0.3rem; margin: 0 auto; background: rgba(245, 245, 240, 0.07); border-radius: 999px; border: 1px solid rgba(245, 245, 240, 0.08); }
+      .cc__seg span { padding: 0.5rem 1rem; border-radius: 999px; font-size: 0.86rem; font-weight: 600; color: rgba(245, 245, 240, 0.7); }
+      .cc__seg span.on { background: var(--bone); color: var(--navy-ink); }
+      .cc__icon { width: 2.6rem; height: 2.6rem; border-radius: 14px; background: rgba(245, 245, 240, 0.08); display: grid; place-items: center; font-size: 0.78rem; font-weight: 700; border: 1px solid rgba(245, 245, 240, 0.08); }
+      .cc__icon--me { background: linear-gradient(135deg, var(--sky), var(--steel)); border: 0; }
+      .cc__wrap { width: min(72rem, calc(100% - 3rem)); margin: 0 auto; }
+      .cc__hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 2rem; align-items: center; padding: 3rem 0 2rem; }
+      .cc__pill { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.85rem; border-radius: 999px; background: rgba(85, 152, 211, 0.18); color: #bcd9f3; font-size: 0.82rem; font-weight: 600; }
+      .cc__pill i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.2); }
+      .cc__hero h1 { font-family: var(--display); font-size: clamp(4rem, 9vw, 7.5rem); line-height: 0.88; letter-spacing: 0.01em; margin: 1rem 0; }
+      .cc__hero h1 span { background: linear-gradient(90deg, var(--orange), #ff8a4c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .cc__hero p { font-size: 1.12rem; line-height: 1.6; color: rgba(245, 245, 240, 0.72); max-width: 32rem; }
+      .cc__ctas { display: flex; gap: 0.75rem; margin-top: 1.75rem; flex-wrap: wrap; }
+      .cc__btn { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.95rem 1.4rem; border-radius: 16px; font-weight: 700; font-size: 0.95rem; }
+      .cc__btn--hot { background: var(--orange); box-shadow: 0 12px 30px -8px rgba(232, 84, 26, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+      .cc__btn--soft { background: rgba(245, 245, 240, 0.08); border: 1px solid rgba(245, 245, 240, 0.12); }
+      .cc__btn svg { width: 1rem; height: 1rem; }
+      .cc__mascot { position: relative; aspect-ratio: 1; display: grid; place-items: center; }
+      .cc__mascot::before { content: ""; position: absolute; inset: 8%; border-radius: 50%; background: radial-gradient(circle, rgba(85, 152, 211, 0.45), transparent 65%); filter: blur(10px); }
+      .cc__mascot img.logo { position: relative; width: 72%; filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.45)); }
+      .cc__float {
+        position: absolute; display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.95rem 0.7rem 0.7rem;
+        background: rgba(30, 40, 58, 0.78); backdrop-filter: blur(14px); border: 1px solid rgba(245, 245, 240, 0.12);
+        border-radius: 18px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); font-size: 0.82rem;
+      }
+      .cc__float b { display: block; font-size: 0.92rem; }
+      .cc__float span { color: rgba(245, 245, 240, 0.6); }
+      .cc__float .dot { width: 2.4rem; height: 2.4rem; border-radius: 12px; display: grid; place-items: center; font-family: var(--display); font-size: 1.3rem; background: var(--orange); }
+      .cc__float img { width: 2.4rem; height: 2.4rem; border-radius: 12px; object-fit: cover; object-position: top; background: var(--sky); }
+      .cc__float--a { top: 44%; left: -8%; }
+      .cc__float--b { bottom: 14%; right: -2%; }
+      .cc__float--c { bottom: 2%; left: 10%; }
+      .cc__grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; margin-top: 1.5rem; }
+      .cc__card {
+        border-radius: 28px; padding: 1.5rem; position: relative; overflow: hidden;
+        background: rgba(245, 245, 240, 0.05); border: 1px solid rgba(245, 245, 240, 0.09);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+      .cc__card h3 { font-family: var(--display); font-size: 2rem; letter-spacing: 0.03em; line-height: 0.95; }
+      .cc__card p { color: rgba(245, 245, 240, 0.65); font-size: 0.9rem; margin-top: 0.35rem; }
+      .cc__card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+      .cc__chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      .cc__chips span { padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; background: rgba(245, 245, 240, 0.07); color: rgba(245, 245, 240, 0.75); }
+      .cc__chips span.on { background: var(--sky); color: var(--navy-ink); }
+      .cc__events { grid-column: span 7; }
+      .cc__ev { display: grid; grid-template-columns: 3.6rem 1fr auto; gap: 1rem; align-items: center; padding: 0.85rem; border-radius: 18px; background: rgba(245, 245, 240, 0.04); margin-top: 0.55rem; }
+      .cc__ev:first-of-type { background: rgba(232, 84, 26, 0.12); outline: 1px solid rgba(232, 84, 26, 0.35); }
+      .cc__ev-date { width: 3.6rem; height: 3.6rem; border-radius: 14px; background: var(--bone); color: var(--navy-ink); display: grid; place-content: center; text-align: center; line-height: 1; }
+      .cc__ev-date b { font-family: var(--display); font-size: 1.7rem; }
+      .cc__ev-date span { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; color: var(--orange); }
+      .cc__ev h4 { font-size: 1rem; }
+      .cc__ev p { font-size: 0.8rem; margin: 0.1rem 0 0; }
+      .cc__go { width: 2.5rem; height: 2.5rem; border-radius: 12px; background: var(--orange); display: grid; place-items: center; }
+      .cc__go svg { width: 1rem; height: 1rem; }
+      .cc__shop { grid-column: span 5; background: linear-gradient(160deg, rgba(85, 152, 211, 0.35), rgba(42, 56, 79, 0.2)); display: flex; flex-direction: column; }
+      .cc__shop img { width: 78%; margin: -0.5rem auto 0; filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.4)); }
+      .cc__swatch { display: flex; gap: 0.45rem; margin-top: 0.75rem; }
+      .cc__swatch i { width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 2px solid rgba(245, 245, 240, 0.25); }
+      .cc__swatch i.on { outline: 2px solid var(--bone); outline-offset: 2px; }
+      .cc__shop-foot { display: flex; justify-content: space-between; align-items: end; margin-top: auto; }
+      .cc__price { font-family: var(--display); font-size: 2.4rem; line-height: 1; }
+      .cc__team { grid-column: span 8; }
+      .cc__athletes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.7rem; margin-top: 1rem; }
+      .cc__athletes figure { border-radius: 20px; overflow: hidden; background: linear-gradient(180deg, var(--steel), var(--navy)); aspect-ratio: 3 / 4; position: relative; }
+      .cc__athletes img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+      .cc__athletes figcaption { position: absolute; left: 0.5rem; right: 0.5rem; bottom: 0.5rem; padding: 0.35rem 0.5rem; border-radius: 10px; background: rgba(23, 31, 46, 0.75); backdrop-filter: blur(8px); font-size: 0.72rem; font-weight: 600; }
+      .cc__photo { grid-column: span 4; padding: 0; min-height: 18rem; }
+      .cc__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      .cc__photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(23, 31, 46, 0.95)); }
+      .cc__photo div { position: absolute; left: 1.5rem; right: 1.5rem; bottom: 1.4rem; z-index: 1; }
+      .cc__mobile-row { display: grid; grid-template-columns: 1fr auto; gap: 3rem; align-items: center; margin-top: 3.5rem; }
+      .cc__mobile-row h2 { font-family: var(--display); font-size: 3rem; line-height: 0.95; }
+      .cc__mobile-row ul { list-style: none; margin-top: 1rem; display: grid; gap: 0.6rem; color: rgba(245, 245, 240, 0.72); }
+      .cc__mobile-row li::before { content: "→ "; color: var(--orange); font-weight: 700; }
+      .cc__phone {
+        width: 18rem; height: 36rem; border-radius: 2.6rem; padding: 0.6rem; background: #0b0f16;
+        box-shadow: 0 0 0 2px rgba(245, 245, 240, 0.08), 0 40px 80px rgba(0, 0, 0, 0.5);
+      }
+      .cc__screen { position: relative; width: 100%; height: 100%; border-radius: 2.1rem; overflow: hidden; background: linear-gradient(180deg, #24324a, #171f2e); }
+      .cc__screen-hero { height: 13rem; position: relative; }
+      .cc__screen-hero img { width: 100%; height: 100%; object-fit: cover; }
+      .cc__screen-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, #24324a); }
+      .cc__screen-hero h3 { position: absolute; left: 1rem; bottom: 0.6rem; z-index: 1; font-family: var(--display); font-size: 2.2rem; line-height: 0.9; }
+      .cc__screen-body { padding: 0.75rem 0.85rem; display: grid; gap: 0.55rem; }
+      .cc__screen .cc__ev { margin: 0; padding: 0.6rem; grid-template-columns: 2.8rem 1fr auto; gap: 0.6rem; }
+      .cc__screen .cc__ev-date { width: 2.8rem; height: 2.8rem; border-radius: 11px; }
+      .cc__screen .cc__ev-date b { font-size: 1.3rem; }
+      .cc__screen .cc__go { width: 2rem; height: 2rem; border-radius: 10px; }
+      .cc__tabbar {
+        position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.75rem; display: grid; grid-template-columns: repeat(4, 1fr);
+        padding: 0.45rem; border-radius: 22px; background: rgba(245, 245, 240, 0.1); backdrop-filter: blur(16px); border: 1px solid rgba(245, 245, 240, 0.12);
+      }
+      .cc__tabbar span { text-align: center; padding: 0.55rem 0; border-radius: 16px; font-size: 0.68rem; font-weight: 700; color: rgba(245, 245, 240, 0.6); }
+      .cc__tabbar span.on { background: var(--orange); color: var(--bone); }
+
+      @media (max-width: 900px) {
+        .brief, .notes, .cb__hero, .cb__drop, .cc__hero, .cc__mobile-row { grid-template-columns: 1fr; }
+        .ca__bento { grid-template-columns: 1fr; grid-template-rows: none; }
+        .ca__tile { min-height: 14rem; }
+        .ca__tile--big, .ca__tile--quote { grid-row: auto; grid-column: auto; }
+        .ca__stats { grid-template-columns: repeat(2, 1fr); }
+        .ca__event { grid-template-columns: 4.5rem 1fr; }
+        .ca__nav ul, .cb__nav ul, .cc__seg { display: none; }
+        .cb__tickets { grid-template-columns: 1fr; }
+        .cb__roster { grid-template-columns: repeat(3, 1fr); }
+        .cc__grid > * { grid-column: 1 / -1 !important; }
+        .cc__athletes { grid-template-columns: repeat(3, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="picker">
+      <strong>Bulldogs <span>redesign</span></strong>
+      <nav>
+        <button type="button" class="is-on" data-show="a">A · Arena Night</button>
+        <button type="button" data-show="b">B · Matchday</button>
+        <button type="button" data-show="c">C · The Pack</button>
+      </nav>
+    </div>
+
+    <!-- ============== A ============== -->
+    <section class="concept is-on" data-concept="a">
+      <header class="brief">
+        <div>
+          <h1>A · Arena Night</h1>
+          <p>Cinematic and premium. The site feels like the arena under the lights — dark, full-bleed photography, floating glass nav, and orange used like stage lighting. Closest to the current site, but with more depth and polish.</p>
+        </div>
+        <dl>
+          <dt>Mood</dt><dd>Nike / Red Bull event pages</dd>
+          <dt>Shape</dt><dd>Pill buttons, 22px cards</dd>
+          <dt>Type</dt><dd>Huge Bebas, Outfit body</dd>
+          <dt>Layout</dt><dd>Bento grid + ticket-row events</dd>
+        </dl>
+      </header>
+      <div class="frame">
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen ca">
+          <nav class="ca__nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li>Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <div class="ca__icons"><span class="ca__icon">Bag</span><span class="ca__icon ca__icon--me">LB</span></div>
+          </nav>
+          <div class="ca__hero">
+            <img src="../assets/photos/web/round2-pack.jpg" alt="" />
+            <div class="ca__hero-inner">
+              <span class="ca__kicker"><b>LIVE</b> Airtox Faceoff League 2026 · Round 3 next</span>
+              <h1>Fear nothing. <em>Run with the pack.</em></h1>
+              <p>The British-led freestyle gymnastics team in Airtox Faceoff League — training days, tasters and shows across the UK.</p>
+              <div class="ca__ctas">
+                <a class="ca__btn ca__btn--hot" href="#">Book Events →</a>
+                <a class="ca__btn ca__btn--glass" href="#">Shop the drop</a>
+              </div>
+            </div>
+          </div>
+          <div class="ca__stats">
+            <div><b>12</b><span>Athletes in the pack</span></div>
+            <div><b>2026</b><span>AFL season</span></div>
+            <div><b>3</b><span>Upcoming events</span></div>
+            <div><b>Drop 01</b><span>Official tee — live</span></div>
+          </div>
+
+          <div class="ca__wrap ca__section">
+            <div class="ca__head">
+              <div><p class="ca__eyebrow">This season</p><h2>Everything Bulldogs</h2></div>
+              <a class="ca__link" href="#">View all</a>
+            </div>
+            <div class="ca__bento">
+              <article class="ca__tile ca__tile--big ca__tile--photo">
+                <img class="bg" src="../assets/photos/web/events-hero.jpg" alt="" />
+                <span class="ca__tag ca__tag--hot">Next event</span>
+                <h3>Kids taster session</h3>
+                <p>Sat 28 Nov · Manchester · Ages 7–12 · £15</p>
+                <div class="ca__ctas"><a class="ca__btn ca__btn--hot ca__btn--sm" href="#">Book a place</a></div>
+              </article>
+              <article class="ca__tile ca__tile--shop">
+                <img class="tee" src="../assets/products/product_1_orange_front_cutout.png" alt="" />
+                <span class="ca__tag">Drop 01</span>
+                <h3>Bulldogs Tee</h3>
+                <p>£25 · Orange or blue print</p>
+              </article>
+              <article class="ca__tile ca__tile--team">
+                <div class="ca__faces">
+                  <img src="../assets/athletes/Lewis%20Bagguley.png" alt="" />
+                  <img src="../assets/athletes/Joe%20Oldham.png" alt="" />
+                  <img src="../assets/athletes/Henry%20Mantel.png" alt="" />
+                  <img src="../assets/athletes/Leo%20Davidson.png" alt="" />
+                </div>
+                <h3>Meet the team</h3>
+                <p>12 athletes · AFL 2026</p>
+              </article>
+              <article class="ca__tile ca__tile--quote">
+                <img class="ca__mark" src="../assets/logo.png" alt="" />
+                <h3>Hungry <em>by nature.</em></h3>
+                <p>British grit, creativity and energy in every round.</p>
+              </article>
+            </div>
+          </div>
+
+          <div class="ca__wrap">
+            <div class="ca__head">
+              <div><p class="ca__eyebrow">Hosted by Bulldogs</p><h2>Upcoming events</h2></div>
+              <a class="ca__link" href="#">All events</a>
+            </div>
+            <div class="ca__events">
+              <article class="ca__event">
+                <div class="ca__date"><b>28</b><span>NOV</span></div>
+                <div><h4>Kids taster session</h4><p>Manchester · 10:00 · Ages 7–12</p></div>
+                <div class="ca__spots" style="--fill: 72%">18 of 25 booked<i></i></div>
+                <a class="ca__btn ca__btn--hot ca__btn--sm" href="#">£15 · Book</a>
+              </article>
+              <article class="ca__event">
+                <div class="ca__date"><b>06</b><span>DEC</span></div>
+                <div><h4>Open training day</h4><p>Leeds · 13:00 · 16+</p></div>
+                <div class="ca__spots" style="--fill: 35%">7 of 20 booked<i></i></div>
+                <a class="ca__btn ca__btn--glass ca__btn--sm" href="#">£25 · Book</a>
+              </article>
+              <article class="ca__event">
+                <div class="ca__date"><b>19</b><span>DEC</span></div>
+                <div><h4>Christmas showcase</h4><p>Sheffield · 18:30 · All ages</p></div>
+                <div class="ca__spots" style="--fill: 90%">Almost full<i></i></div>
+                <a class="ca__btn ca__btn--glass ca__btn--sm" href="#">Free · Reserve</a>
+              </article>
+            </div>
+          </div>
+
+          <div class="ca__band">
+            <img src="../assets/photos/web/arena-fear.jpg" alt="" />
+            <div><p class="ca__eyebrow">Herning · Round 2</p><h2>Hungry<br />by nature.</h2></div>
+          </div>
+          <div class="ca__wrap ca__foot">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <span>© 2026 Team Bulldogs · Part of AIRTOX FACEOFF League</span>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <article><h3>Why it works</h3><ul><li>Photography does the heavy lifting — feels like a pro team.</li><li>Smallest jump from today, so low risk.</li><li>Bento grid surfaces events, shop and team in one glance.</li></ul></article>
+        <article><h3>Watch out for</h3><ul><li>Needs strong photos for every new event.</li><li>Dark-on-dark can feel heavy on long legal / policy pages.</li></ul></article>
+        <article><h3>Palette</h3><ul><li>Near-black base, navy cards, orange as the only loud colour.</li></ul><div class="swatches"><i style="background:#0d0f14"></i><i style="background:#161a22"></i><i style="background:#2a384f"></i><i style="background:#e8541a"></i><i style="background:#f5f5f0"></i></div></article>
+      </div>
+    </section>
+
+    <!-- ============== B ============== -->
+    <section class="concept" data-concept="b">
+      <header class="brief">
+        <div>
+          <h1>B · Matchday</h1>
+          <p>Bold sports-brand editorial. Light bone background, thick navy rules, hard offset shadows and jersey-number graphics. It reads like a matchday programme or a kit launch — loud, confident and very British club.</p>
+        </div>
+        <dl>
+          <dt>Mood</dt><dd>Kit launch / matchday programme</dd>
+          <dt>Shape</dt><dd>Square corners, 2px rules, offset shadows</dd>
+          <dt>Type</dt><dd>Compressed Bebas, uppercase labels</dd>
+          <dt>Layout</dt><dd>Numbered sections, ticket cards</dd>
+        </dl>
+      </header>
+      <div class="frame">
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen cb">
+          <div class="cb__ticker"><div>
+            <span>Next up · Kids taster · Sat 28 Nov</span><span>★</span><span>Drop 01 tee — live now</span><span>★</span><span>AFL 2026 · Round 3</span><span>★</span><span>Fear nothing</span><span>★</span>
+            <span>Next up · Kids taster · Sat 28 Nov</span><span>★</span><span>Drop 01 tee — live now</span><span>★</span><span>AFL 2026 · Round 3</span><span>★</span><span>Fear nothing</span><span>★</span>
+          </div></div>
+          <nav class="cb__nav">
+            <img src="../assets/logo.png" alt="Bulldogs" />
+            <ul><li class="on">Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="cb__icon">Bag<sup>1</sup></span>
+            <span class="cb__icon">LB</span>
+          </nav>
+          <div class="cb__hero">
+            <div class="cb__hero-copy">
+              <span class="cb__num">27</span>
+              <span class="cb__label"><b>●</b> AFL 2026 · British-led</span>
+              <div>
+                <h1>Hungry<br /><span><i>by nature.</i></span></h1>
+                <p>Freestyle gymnastics with UK grit. Train with us, watch us compete, wear the pack.</p>
+                <div class="cb__ctas">
+                  <a class="cb__btn cb__btn--hot" href="#">Book Events</a>
+                  <a class="cb__btn" href="#">Shop the drop</a>
+                </div>
+              </div>
+            </div>
+            <div class="cb__hero-media">
+              <img src="../assets/photos/web/arena-fear.jpg" alt="" />
+              <div class="cb__card-next">
+                <b>28<br /><small>NOV</small></b>
+                <div><small>Next event</small><strong>Kids taster session</strong><span>Manchester · 7 places left</span></div>
+                <a class="cb__btn cb__btn--ink" href="#">Book</a>
+              </div>
+            </div>
+          </div>
+
+          <section class="cb__sect">
+            <div class="cb__sect-head">
+              <b>01</b>
+              <h2>Events</h2>
+              <a class="cb__btn" href="#">All events</a>
+            </div>
+            <div class="cb__tickets">
+              <article class="cb__ticket">
+                <div class="cb__ticket-top"><b>28 NOV</b><span>SAT · 10:00</span></div>
+                <div class="cb__perf"></div>
+                <div class="cb__ticket-body">
+                  <span class="cb__chip cb__chip--hot" style="align-self:start">7 left</span>
+                  <h4>Kids taster session</h4>
+                  <p>Manchester · Ages 7–12. First flips, safe landings, big smiles.</p>
+                  <div class="cb__ticket-foot"><strong>£15</strong><a class="cb__btn cb__btn--hot" href="#">Book</a></div>
+                </div>
+              </article>
+              <article class="cb__ticket">
+                <div class="cb__ticket-top"><b>06 DEC</b><span>SAT · 13:00</span></div>
+                <div class="cb__perf"></div>
+                <div class="cb__ticket-body">
+                  <span class="cb__chip" style="align-self:start">16+</span>
+                  <h4>Open training day</h4>
+                  <p>Leeds · Train alongside the AFL squad for an afternoon.</p>
+                  <div class="cb__ticket-foot"><strong>£25</strong><a class="cb__btn" href="#">Book</a></div>
+                </div>
+              </article>
+              <article class="cb__ticket">
+                <div class="cb__ticket-top"><b>19 DEC</b><span>FRI · 18:30</span></div>
+                <div class="cb__perf"></div>
+                <div class="cb__ticket-body">
+                  <span class="cb__chip" style="align-self:start">All ages</span>
+                  <h4>Christmas showcase</h4>
+                  <p>Sheffield · Live show from the full Bulldogs team.</p>
+                  <div class="cb__ticket-foot"><strong>Free</strong><a class="cb__btn" href="#">Reserve</a></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="cb__drop">
+            <div class="cb__drop-media">
+              <img src="../assets/products/product_1_orange_front_cutout.png" alt="" />
+              <img src="../assets/products/product_1_blue_back_cutout.png" alt="" />
+            </div>
+            <div class="cb__drop-copy">
+              <span class="cb__label" style="color:var(--bone)"><b>02</b> Shop · Drop 01</span>
+              <h2>Wear<br />the pack.</h2>
+              <p>Official Bulldogs tee. Navy with chest print and full back graphic. Made to order.</p>
+              <div class="cb__sizes"><span>S</span><span class="on">M</span><span>L</span><span>XL</span></div>
+              <div class="cb__ctas"><a class="cb__btn cb__btn--hot" href="#">Add to bag · £25</a></div>
+            </div>
+          </section>
+
+          <section class="cb__sect">
+            <div class="cb__sect-head">
+              <b>03</b>
+              <h2>The squad</h2>
+              <a class="cb__btn" href="#">Full roster</a>
+            </div>
+            <div class="cb__roster">
+              <figure class="cb__player"><span>01</span><img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><b>Lewis Bagguley</b></figure>
+              <figure class="cb__player"><span>07</span><img src="../assets/athletes/Joe%20Oldham.png" alt="" /><b>Joe Oldham</b></figure>
+              <figure class="cb__player"><span>10</span><img src="../assets/athletes/Henry%20Mantel.png" alt="" /><b>Henry Mantel</b></figure>
+              <figure class="cb__player"><span>11</span><img src="../assets/athletes/Leo%20Davidson.png" alt="" /><b>Leo Davidson</b></figure>
+              <figure class="cb__player"><span>17</span><img src="../assets/athletes/Will%20Calder.png" alt="" /><b>Will Calder</b></figure>
+              <figure class="cb__player"><span>27</span><img src="../assets/athletes/Matthew%20Capes.png" alt="" /><b>Matthew Capes</b></figure>
+            </div>
+          </section>
+
+          <footer class="cb__foot">
+            <h2>Fear<br /><em>nothing.</em></h2>
+            <p>© 2026 Team Bulldogs<br />Part of AIRTOX FACEOFF League</p>
+          </footer>
+        </div>
+      </div>
+      <div class="notes">
+        <article><h3>Why it works</h3><ul><li>Instantly ownable — doesn’t look like any other club site.</li><li>Light base makes forms, checkout and policy pages easy to read.</li><li>Works with fewer photos; type and blocks carry it.</li></ul></article>
+        <article><h3>Watch out for</h3><ul><li>Biggest change from today.</li><li>Offset shadows need restraint or it gets noisy.</li></ul></article>
+        <article><h3>Palette</h3><ul><li>Bone base, navy ink, orange blocks, sky as the second kit colour.</li></ul><div class="swatches"><i style="background:#f5f5f0"></i><i style="background:#1b2536"></i><i style="background:#e8541a"></i><i style="background:#5598d3"></i><i style="background:#fff"></i></div></article>
+      </div>
+    </section>
+
+    <!-- ============== C ============== -->
+    <section class="concept" data-concept="c">
+      <header class="brief">
+        <div>
+          <h1>C · The Pack</h1>
+          <p>Friendly, app-like and mascot-led. Navy base lit with sky-blue glow from the bulldog, soft 28px cards, segmented controls and filter chips. Built mobile-first so booking feels like using an app — great for parents booking tasters.</p>
+        </div>
+        <dl>
+          <dt>Mood</dt><dd>Modern app / community club</dd>
+          <dt>Shape</dt><dd>Rounded cards, soft glass, chips</dd>
+          <dt>Type</dt><dd>Bebas headlines, roomy Outfit</dd>
+          <dt>Layout</dt><dd>12-col bento, bottom tab bar on mobile</dd>
+        </dl>
+      </header>
+      <div class="frame">
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen cc">
+          <nav class="cc__nav">
+            <img src="../assets/logo.png" alt="Bulldogs" />
+            <div class="cc__seg"><span class="on">Home</span><span>AFL Team</span><span>Events</span><span>Shop</span><span>News</span><span>Contact</span></div>
+            <span class="cc__icon">Bag</span>
+            <span class="cc__icon cc__icon--me">LB</span>
+          </nav>
+          <div class="cc__wrap">
+            <div class="cc__hero">
+              <div>
+                <span class="cc__pill"><i></i> Bookings open for winter sessions</span>
+                <h1>Run with <span>the pack.</span></h1>
+                <p>Team Bulldogs is the British-led freestyle gymnastics team in Airtox Faceoff League. Come train with us, catch a show, or rep the kit.</p>
+                <div class="cc__ctas">
+                  <a class="cc__btn cc__btn--hot" href="#">Book Events <svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></a>
+                  <a class="cc__btn cc__btn--soft" href="#">Shop the drop</a>
+                </div>
+              </div>
+              <div class="cc__mascot">
+                <img class="logo" src="../assets/logo.png" alt="" />
+                <div class="cc__float cc__float--a"><span class="dot">28</span><div><b>Kids taster</b><span>Sat · 7 places left</span></div></div>
+                <div class="cc__float cc__float--b"><img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><div><b>12 athletes</b><span>AFL 2026 squad</span></div></div>
+                <div class="cc__float cc__float--c"><span class="dot" style="background:var(--sky)">£</span><div><b>Drop 01 live</b><span>Official tee · £25</span></div></div>
+              </div>
+            </div>
+
+            <div class="cc__grid">
+              <article class="cc__card cc__events">
+                <div class="cc__card-head">
+                  <h3>Upcoming</h3>
+                  <div class="cc__chips"><span class="on">All</span><span>Kids</span><span>Training</span><span>Shows</span></div>
+                </div>
+                <div class="cc__ev"><div class="cc__ev-date"><b>28</b><span>NOV</span></div><div><h4>Kids taster session</h4><p>Manchester · 10:00 · £15 · 7 left</p></div><span class="cc__go"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                <div class="cc__ev"><div class="cc__ev-date"><b>06</b><span>DEC</span></div><div><h4>Open training day</h4><p>Leeds · 13:00 · £25</p></div><span class="cc__go" style="background:rgba(245,245,240,.1)"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                <div class="cc__ev"><div class="cc__ev-date"><b>19</b><span>DEC</span></div><div><h4>Christmas showcase</h4><p>Sheffield · 18:30 · Free</p></div><span class="cc__go" style="background:rgba(245,245,240,.1)"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+              </article>
+              <article class="cc__card cc__shop">
+                <div class="cc__card-head"><h3>Drop 01</h3><span class="cc__pill">New</span></div>
+                <img src="../assets/products/product_1_blue_front_cutout.png" alt="" />
+                <div class="cc__shop-foot">
+                  <div><p>Bulldogs Tee</p><div class="cc__price">£25</div><div class="cc__swatch"><i style="background:var(--orange)"></i><i class="on" style="background:var(--sky)"></i></div></div>
+                  <a class="cc__btn cc__btn--hot" href="#">Add</a>
+                </div>
+              </article>
+              <article class="cc__card cc__team">
+                <div class="cc__card-head"><h3>Meet the pack</h3><a class="cc__btn cc__btn--soft" href="#" style="padding:.55rem .9rem;font-size:.82rem">See all 12</a></div>
+                <div class="cc__athletes">
+                  <figure><img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><figcaption>Lewis B.</figcaption></figure>
+                  <figure><img src="../assets/athletes/Joe%20Oldham.png" alt="" /><figcaption>Joe O.</figcaption></figure>
+                  <figure><img src="../assets/athletes/Henry%20Mantel.png" alt="" /><figcaption>Henry M.</figcaption></figure>
+                  <figure><img src="../assets/athletes/Leo%20Davidson.png" alt="" /><figcaption>Leo D.</figcaption></figure>
+                  <figure><img src="../assets/athletes/Will%20Calder.png" alt="" /><figcaption>Will C.</figcaption></figure>
+                  <figure><img src="../assets/athletes/Ebbe%20Larsen.png" alt="" /><figcaption>Ebbe L.</figcaption></figure>
+                </div>
+              </article>
+              <article class="cc__card cc__photo">
+                <img src="../assets/photos/web/round2-herning.jpg" alt="" />
+                <div><span class="cc__pill">AFL · Round 2</span><h3 style="margin-top:.6rem">Hungry by nature.</h3><p>Highlights from Herning.</p></div>
+              </article>
+            </div>
+
+            <div class="cc__mobile-row">
+              <div>
+                <h2>Built for thumbs first</h2>
+                <ul>
+                  <li>Bottom tab bar on phones: Home, Events, Shop, Account.</li>
+                  <li>Events become tappable cards with spaces left.</li>
+                  <li>Booking and checkout open as bottom sheets.</li>
+                  <li>Account avatar replaces the sign-in button once logged in.</li>
+                </ul>
+              </div>
+              <div class="cc__phone">
+                <div class="cc__screen">
+                  <div class="cc__screen-hero"><img src="../assets/photos/web/events-hero.jpg" alt="" /><h3>Events</h3></div>
+                  <div class="cc__screen-body">
+                    <div class="cc__chips"><span class="on">All</span><span>Kids</span><span>Training</span></div>
+                    <div class="cc__ev"><div class="cc__ev-date"><b>28</b><span>NOV</span></div><div><h4 style="font-size:.85rem">Kids taster</h4><p>£15 · 7 left</p></div><span class="cc__go"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                    <div class="cc__ev"><div class="cc__ev-date"><b>06</b><span>DEC</span></div><div><h4 style="font-size:.85rem">Open training</h4><p>£25</p></div><span class="cc__go" style="background:rgba(245,245,240,.1)"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                    <div class="cc__ev"><div class="cc__ev-date"><b>19</b><span>DEC</span></div><div><h4 style="font-size:.85rem">Xmas showcase</h4><p>Free</p></div><span class="cc__go" style="background:rgba(245,245,240,.1)"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                  </div>
+                  <div class="cc__tabbar"><span>Home</span><span class="on">Events</span><span>Shop</span><span>Me</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <article><h3>Why it works</h3><ul><li>Mascot and sky blue finally get used — warmer, more family-friendly.</li><li>Best mobile booking experience of the three.</li><li>Card system scales easily to admin, account and checkout.</li></ul></article>
+        <article><h3>Watch out for</h3><ul><li>Softer feel — less “elite competition” edge.</li><li>Glass and glows need care for performance on older phones.</li></ul></article>
+        <article><h3>Palette</h3><ul><li>Navy base lit with sky glow, orange for actions, bone for dates.</li></ul><div class="swatches"><i style="background:#24324a"></i><i style="background:#171f2e"></i><i style="background:#5598d3"></i><i style="background:#e8541a"></i><i style="background:#f5f5f0"></i></div></article>
+      </div>
+    </section>
+
+    <section class="compare">
+      <h2>Side by side</h2>
+      <table>
+        <thead><tr><th></th><th>A · Arena Night</th><th>B · Matchday</th><th>C · The Pack</th></tr></thead>
+        <tbody>
+          <tr><td>Feel</td><td>Premium, cinematic</td><td>Loud, editorial, ownable</td><td>Friendly, app-like</td></tr>
+          <tr><td>Base</td><td>Dark</td><td>Light (bone)</td><td>Navy</td></tr>
+          <tr><td>Best for</td><td>Showing off the competition team</td><td>Merch drops and brand recognition</td><td>Parents and members booking on phones</td></tr>
+          <tr><td>Change from today</td><td>Small</td><td>Large</td><td>Medium</td></tr>
+          <tr><td>Photo dependency</td><td>High</td><td>Low</td><td>Medium</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <script>
+      document.querySelectorAll("[data-show]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-show]").forEach((b) => b.classList.toggle("is-on", b === btn));
+          document.querySelectorAll("[data-concept]").forEach((c) => c.classList.toggle("is-on", c.dataset.concept === btn.dataset.show));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+    </script>
+  </body>
+</html>

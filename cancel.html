@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cancel booking — Team Bulldogs</title>
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" href="assets/logo.png" type="image/png" />
+  </head>
+  <body>
+    <div class="page-bg"></div>
+    <main>
+      <section class="section"><div class="wrap prose" data-cancel>
+        <h1>Cancel booking</h1>
+        <p>If you’re 24 hours or more before the session, the place goes back on sale and you’ll be refunded.</p>
+        <button class="btn btn--accent" type="button" data-confirm-cancel>Cancel my booking</button>
+        <p class="form-status" role="status"></p>
+      </div></section>
+    </main>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+      (() => {
+        const api = window.BULLDOGS_API;
+        const token = new URLSearchParams(location.search).get("c");
+        const status = document.querySelector(".form-status");
+        document.querySelector("[data-confirm-cancel]")?.addEventListener("click", async () => {
+          if (!token || !api) return;
+          status.textContent = "Cancelling…";
+          try {
+            const result = await api.fn("public-booking", { action: "cancel", token });
+            status.textContent = result.refunded ? "Cancelled. Refund is on its way." : "Cancelled.";
+          } catch (err) {
+            status.textContent = err.message;
+            status.classList.add("is-error");
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

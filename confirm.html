@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>You’re in — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" href="assets/logo.png" type="image/png" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="logo" href="index.html"><img class="logo__type" src="assets/type-orange.png" alt="Bulldogs" /></a>
+        <nav class="nav__links"><a href="events.html">Events</a><a href="shop.html">Shop</a></nav>
+        <div class="nav__actions"></div>
+      </div>
+    </header>
+    <main>
+      <header class="page-hero">
+        <div class="wrap" data-confirm>
+          <p class="eyebrow">Done</p>
+          <h1>You’re booked</h1>
+          <p class="muted" data-confirm-ref></p>
+          <p>Check your email for the confirmation. Create an account if you want tickets in one place next time.</p>
+          <p>
+            <a class="btn btn--accent" data-ticket-link hidden href="ticket.html">View tickets</a>
+            <button class="btn btn--ghost" type="button" data-open-auth="signup">Create an account</button>
+            <a class="btn btn--ghost" href="events.html">Back to events</a>
+          </p>
+        </div>
+      </header>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/auth-ui.js"></script>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const type = params.get("type");
+      const ref = params.get("ref");
+      const token = params.get("c");
+      const title = document.querySelector("[data-confirm] h1");
+      const line = document.querySelector("[data-confirm-ref]");
+      const ticket = document.querySelector("[data-ticket-link]");
+      if (type === "order") {
+        title.textContent = "Order received";
+        document.querySelector("[data-confirm] p:nth-of-type(3)").textContent =
+          "We’ll email you and place the Tapstitch order. Dispatch is typically 2–3 weeks.";
+        document.querySelector('a[href="events.html"]').href = "shop.html";
+        document.querySelector('a[href="shop.html"]').textContent = "Back to shop";
+      }
+      if (ref && line) line.textContent = `Reference ${ref}`;
+      if (token && ticket) {
+        ticket.hidden = false;
+        ticket.href = `ticket.html?c=${token}`;
+      }
+      if (type === "order" || params.get("order") === "success") {
+        try { localStorage.removeItem("bulldogs-cart"); } catch { /* ignore */ }
+      }
+    </script>
+  </body>
+</html>

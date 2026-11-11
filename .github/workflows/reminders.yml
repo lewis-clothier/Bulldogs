@@ -1,0 +1,25 @@
+name: Booking and cart reminders
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  remind:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call send-reminders
+        env:
+          URL: ${{ secrets.SUPABASE_FUNCTIONS_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SECRET" ]; then
+            echo "Set SUPABASE_FUNCTIONS_URL and CRON_SECRET on this repo to enable reminders."
+            exit 0
+          fi
+          curl -fsS -X POST "$URL/functions/v1/send-reminders" \
+            -H "x-cron-secret: $SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{}'

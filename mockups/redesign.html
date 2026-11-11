@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Redesign concepts v2 — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" href="../assets/logo.png" type="image/png" />
+    <style>
+      :root {
+        --charcoal: #1e1e23;
+        --navy: #2a384f;
+        --navy-deep: #1b2536;
+        --steel: #3c739d;
+        --sky: #5598d3;
+        --orange: #e8541a;
+        --bone: #f5f5f0;
+        --muted: rgba(245, 245, 240, 0.62);
+        --line: rgba(245, 245, 240, 0.1);
+        --display: "Bebas Neue", Impact, sans-serif;
+        --body: "Outfit", "Segoe UI", sans-serif;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      img { display: block; max-width: 100%; }
+      a { color: inherit; text-decoration: none; }
+      ul { list-style: none; }
+      body { font-family: var(--body); background: #111318; color: var(--bone); }
+
+      /* ---------- picker chrome ---------- */
+      .picker {
+        position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+        padding: 0.85rem 1.5rem; background: rgba(17, 19, 24, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+      }
+      .picker strong { font-family: var(--display); font-size: 1.5rem; letter-spacing: 0.05em; margin-right: auto; }
+      .picker strong span { color: var(--orange); }
+      .picker nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      .picker button { background: transparent; color: var(--bone); border: 1px solid rgba(245, 245, 240, 0.16); padding: 0.5rem 0.95rem; border-radius: 999px; font: 600 0.85rem var(--body); cursor: pointer; }
+      .picker button.is-on { background: var(--orange); border-color: var(--orange); }
+      .picker a { font-size: 0.8rem; color: #8b909a; }
+      .brief { max-width: 72rem; margin: 2rem auto 1.25rem; padding: 0 1.5rem; display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; align-items: end; }
+      .brief h1 { font-family: var(--display); font-size: clamp(2.6rem, 6vw, 4.2rem); letter-spacing: 0.03em; line-height: 0.95; }
+      .brief p { color: #a9adb6; line-height: 1.6; }
+      .brief dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; font-size: 0.9rem; color: #c8ccd3; }
+      .brief dt { color: var(--orange); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.12em; padding-top: 0.2rem; }
+      .frame { max-width: 84rem; margin: 0 auto 2.5rem; padding: 0 1.5rem; }
+      .frame__bar { display: flex; align-items: center; gap: 0.45rem; padding: 0.7rem 1rem; background: #23262d; border-radius: 14px 14px 0 0; font-size: 0.78rem; color: #8b909a; }
+      .frame__bar i { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #3a3e47; }
+      .frame__bar span { margin-left: 0.75rem; background: #16181d; padding: 0.25rem 0.8rem; border-radius: 999px; }
+      .frame__screen { border-radius: 0 0 14px 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); position: relative; }
+      .concept { display: none; }
+      .concept.is-on { display: block; }
+      .notes { max-width: 72rem; margin: 0 auto 4rem; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      .notes article { background: #1a1d23; border: 1px solid rgba(245, 245, 240, 0.08); border-radius: 14px; padding: 1.15rem 1.25rem; }
+      .notes h3 { font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); margin-bottom: 0.6rem; }
+      .notes ul { display: grid; gap: 0.45rem; color: #c8ccd3; font-size: 0.92rem; line-height: 1.45; }
+      .compare { max-width: 72rem; margin: 0 auto 5rem; padding: 0 1.5rem; }
+      .compare h2 { font-family: var(--display); font-size: 2.2rem; letter-spacing: 0.04em; margin-bottom: 1rem; }
+      .compare table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+      .compare th, .compare td { text-align: left; padding: 0.8rem 0.75rem; border-bottom: 1px solid rgba(245, 245, 240, 0.08); vertical-align: top; }
+      .compare th { color: #8b909a; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; }
+      .compare td:first-child { color: var(--orange); font-weight: 600; white-space: nowrap; }
+
+      /* ---------- shared: the current hero banner (unchanged) ---------- */
+      .site-bg {
+        background:
+          radial-gradient(ellipse 80% 50% at 70% 0%, rgba(85, 152, 211, 0.18), transparent 55%),
+          radial-gradient(ellipse 60% 40% at 10% 90%, rgba(232, 84, 26, 0.12), transparent 50%),
+          linear-gradient(180deg, var(--charcoal) 0%, var(--navy) 55%, var(--charcoal) 100%);
+      }
+      .hb { position: relative; height: 34rem; display: flex; align-items: flex-end; padding: 5.5rem 0 1.5rem; overflow: hidden; }
+      .hb__media {
+        position: absolute; inset: 0; overflow: hidden;
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 72%, transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 72%, transparent 100%);
+      }
+      .hb__track { display: flex; height: 100%; width: max-content; animation: hb-marquee 45s linear infinite; }
+      .hb__track img { height: 100%; width: auto; max-width: none; }
+      .hb__scrub {
+        position: absolute; inset: 0; pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(30, 30, 35, 0.25) 0%, transparent 35%, rgba(42, 56, 79, 0.3) 65%, rgba(30, 30, 35, 0.88) 100%),
+          linear-gradient(90deg, rgba(30, 30, 35, 0.35) 0%, transparent 50%);
+      }
+      @keyframes hb-marquee { to { transform: translate3d(-33.3333%, 0, 0); } }
+      .hb__content { position: relative; z-index: 2; width: min(100% - 3rem, 72rem); margin: 0 auto; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+      .wrap { width: min(100% - 3rem, 72rem); margin: 0 auto; }
+      .eyebrow { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sky); }
+      .h2 { font-family: var(--display); font-size: clamp(2.6rem, 5vw, 3.8rem); letter-spacing: 0.03em; line-height: 0.95; margin-top: 0.35rem; }
+      .muted { color: var(--muted); }
+      .sec-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.75rem; }
+
+      /* =====================================================
+         1 — FLOODLIGHT  (A-led: cinematic, glass, rails)
+         ===================================================== */
+      .c1 { color: var(--bone); }
+      .c1__nav {
+        position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 6; width: min(72rem, calc(100% - 2rem));
+        display: flex; align-items: center; gap: 1.5rem; padding: 0.5rem 0.55rem 0.5rem 1.25rem;
+        background: rgba(20, 24, 32, 0.5); backdrop-filter: blur(18px); border: 1px solid rgba(245, 245, 240, 0.12); border-radius: 999px;
+      }
+      .c1__nav img { height: 1.3rem; }
+      .c1__nav ul { display: flex; gap: 1.6rem; margin: 0 auto; font-size: 0.84rem; font-weight: 500; color: rgba(245, 245, 240, 0.7); text-transform: uppercase; letter-spacing: 0.06em; }
+      .c1__nav li.on { color: var(--bone); }
+      .c1__ic { width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: rgba(245, 245, 240, 0.08); font-size: 0.72rem; font-weight: 700; }
+      .c1__ic--me { background: var(--navy); color: var(--orange); border: 1px solid rgba(232, 84, 26, 0.55); }
+      .c1__btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1.5rem; border-radius: 999px; font-weight: 700; font-size: 0.88rem; letter-spacing: 0.04em; text-transform: uppercase; }
+      .c1__btn--hot { background: var(--orange); box-shadow: 0 10px 34px rgba(232, 84, 26, 0.45); }
+      .c1__btn--glass { background: rgba(245, 245, 240, 0.08); border: 1px solid rgba(245, 245, 240, 0.22); backdrop-filter: blur(10px); }
+      .c1__btn--sm { padding: 0.6rem 1.05rem; font-size: 0.78rem; }
+      .c1__next {
+        position: relative; z-index: 3; margin: 0.5rem auto 0; width: min(100% - 3rem, 72rem);
+        display: flex; align-items: center; gap: 1.25rem; padding: 0.85rem 0.9rem 0.85rem 1.25rem; border-radius: 999px;
+        background: rgba(23, 27, 36, 0.75); backdrop-filter: blur(14px); border: 1px solid var(--line);
+      }
+      .c1__live { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; color: var(--orange); }
+      .c1__live::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 4px rgba(232, 84, 26, 0.25); }
+      .c1__next strong { font-weight: 600; }
+      .c1__next span.muted { font-size: 0.88rem; margin-right: auto; }
+      .c1__sec { padding: 5rem 0 1rem; }
+      .c1__rail { display: flex; gap: 1rem; overflow: hidden; padding-bottom: 0.5rem; }
+      .c1__poster { flex: 0 0 20rem; border-radius: 22px; overflow: hidden; background: #171b23; border: 1px solid var(--line); }
+      .c1__poster figure { position: relative; height: 12rem; }
+      .c1__poster figure img { width: 100%; height: 100%; object-fit: cover; }
+      .c1__poster figure::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, #171b23); }
+      .c1__date { position: absolute; z-index: 1; top: 1rem; left: 1rem; padding: 0.4rem 0.7rem; border-radius: 14px; background: rgba(13, 15, 20, 0.6); backdrop-filter: blur(8px); text-align: center; line-height: 1; }
+      .c1__date b { display: block; font-family: var(--display); font-size: 1.9rem; }
+      .c1__date span { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em; color: var(--orange); }
+      .c1__poster-body { padding: 0.25rem 1.25rem 1.25rem; display: grid; gap: 0.6rem; }
+      .c1__poster h3 { font-family: var(--display); font-size: 1.9rem; letter-spacing: 0.03em; line-height: 0.95; }
+      .c1__bar { font-size: 0.78rem; color: var(--muted); }
+      .c1__bar i { display: block; height: 0.3rem; border-radius: 999px; background: rgba(245, 245, 240, 0.1); margin-top: 0.4rem; overflow: hidden; }
+      .c1__bar i::after { content: ""; display: block; height: 100%; width: var(--fill); background: var(--orange); }
+      .c1__poster-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; }
+      .c1__poster-foot strong { font-family: var(--display); font-size: 1.7rem; }
+      .c1__arrows { display: flex; gap: 0.5rem; }
+      .c1__arrows span { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(245, 245, 240, 0.2); }
+      .c1__arrows span:last-child { background: var(--bone); color: var(--charcoal); }
+      .c1__spot { margin-top: 5rem; position: relative; overflow: hidden; background: radial-gradient(55% 80% at 30% 50%, rgba(232, 84, 26, 0.45), transparent 70%), #14161c; border-block: 1px solid var(--line); }
+      .c1__spot .wrap { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 2rem; padding: 4rem 0; }
+      .c1__spot img.tee { width: 82%; margin: 0 auto; filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.55)); }
+      .c1__spot h2 { font-family: var(--display); font-size: clamp(3rem, 6vw, 5rem); line-height: 0.9; }
+      .c1__price { font-family: var(--display); font-size: 2.6rem; margin: 0.5rem 0 1rem; }
+      .c1__opts { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+      .c1__opts span { padding: 0.55rem 0.95rem; border-radius: 999px; border: 1px solid rgba(245, 245, 240, 0.2); font-size: 0.85rem; font-weight: 600; }
+      .c1__opts span.on { background: var(--bone); color: var(--charcoal); border-color: var(--bone); }
+      .c1__team { display: flex; gap: 1rem; overflow: hidden; }
+      .c1__athlete { flex: 0 0 13rem; border-radius: 22px; overflow: hidden; position: relative; aspect-ratio: 3 / 4; background: linear-gradient(180deg, var(--steel), var(--navy)); }
+      .c1__athlete img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+      .c1__athlete::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(13, 15, 20, 0.9)); }
+      .c1__athlete div { position: absolute; z-index: 1; left: 1rem; bottom: 0.9rem; }
+      .c1__athlete b { display: block; font-family: var(--display); font-size: 1.5rem; letter-spacing: 0.03em; line-height: 1; }
+      .c1__athlete span { font-size: 0.75rem; color: var(--muted); }
+      .c1__band { margin-top: 5rem; position: relative; height: 22rem; overflow: hidden; }
+      .c1__band img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
+      .c1__band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(20, 20, 26, 0.95), rgba(20, 20, 26, 0.15) 70%); }
+      .c1__band .wrap { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; }
+      .c1__band h2 { font-family: var(--display); font-size: clamp(3.5rem, 8vw, 6.5rem); line-height: 0.9; }
+      .c1__foot { padding: 2.5rem 0; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.85rem; }
+      .c1__foot img { height: 1.5rem; }
+
+      /* =====================================================
+         2 — NIGHT PACK  (C-led: soft cards, chips, mobile-first)
+         ===================================================== */
+      .c2__nav { position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 1rem; padding: 1rem 2rem; }
+      .c2__nav img { height: 1.4rem; }
+      .c2__seg { display: flex; gap: 0.2rem; padding: 0.3rem; margin: 0 auto; background: rgba(20, 26, 38, 0.55); backdrop-filter: blur(14px); border-radius: 999px; border: 1px solid var(--line); }
+      .c2__seg span { padding: 0.5rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: rgba(245, 245, 240, 0.7); }
+      .c2__seg span.on { background: var(--bone); color: var(--navy-deep); }
+      .c2__ic { width: 2.5rem; height: 2.5rem; border-radius: 14px; background: rgba(20, 26, 38, 0.55); backdrop-filter: blur(14px); display: grid; place-items: center; font-size: 0.74rem; font-weight: 700; border: 1px solid var(--line); }
+      .c2__ic--me { background: linear-gradient(135deg, var(--sky), var(--steel)); border: 0; }
+      .c2__btn { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.9rem 1.35rem; border-radius: 16px; font-weight: 700; font-size: 0.92rem; }
+      .c2__btn svg { width: 1rem; height: 1rem; }
+      .c2__btn--hot { background: var(--orange); box-shadow: 0 12px 30px -8px rgba(232, 84, 26, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+      .c2__btn--soft { background: rgba(245, 245, 240, 0.09); border: 1px solid rgba(245, 245, 240, 0.14); backdrop-filter: blur(10px); }
+      .c2__btn--sm { padding: 0.55rem 0.9rem; font-size: 0.82rem; border-radius: 12px; }
+      .c2__glass { border-radius: 28px; background: rgba(245, 245, 240, 0.05); border: 1px solid rgba(245, 245, 240, 0.09); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+      .c2__sec { padding: 4.5rem 0 0; }
+      .c2__chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      .c2__chips span { padding: 0.45rem 0.9rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; background: rgba(245, 245, 240, 0.07); color: rgba(245, 245, 240, 0.75); }
+      .c2__chips span.on { background: var(--sky); color: var(--navy-deep); }
+      .c2__list { padding: 0.6rem; display: grid; gap: 0.5rem; }
+      .c2__row { display: grid; grid-template-columns: 4rem 1fr auto auto; gap: 1.25rem; align-items: center; padding: 0.85rem 1rem 0.85rem 0.85rem; border-radius: 20px; }
+      .c2__row:hover, .c2__row.is-hot { background: rgba(245, 245, 240, 0.05); }
+      .c2__row.is-hot { outline: 1px solid rgba(232, 84, 26, 0.4); background: rgba(232, 84, 26, 0.1); }
+      .c2__dt { width: 4rem; height: 4rem; border-radius: 16px; background: var(--bone); color: var(--navy-deep); display: grid; place-content: center; text-align: center; line-height: 1; }
+      .c2__dt b { font-family: var(--display); font-size: 1.9rem; }
+      .c2__dt span { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.14em; color: var(--orange); }
+      .c2__row h4 { font-size: 1.05rem; }
+      .c2__row p { font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; }
+      .c2__tag { font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.65rem; border-radius: 999px; background: rgba(85, 152, 211, 0.18); color: #bcd9f3; white-space: nowrap; }
+      .c2__tag--hot { background: rgba(232, 84, 26, 0.2); color: #ffb08a; }
+      .c2__go { width: 2.6rem; height: 2.6rem; border-radius: 14px; display: grid; place-items: center; background: rgba(245, 245, 240, 0.09); }
+      .c2__go--hot { background: var(--orange); }
+      .c2__go svg { width: 1rem; height: 1rem; }
+      .c2__shop { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .c2__prod { padding: 1.5rem; display: flex; flex-direction: column; min-height: 26rem; overflow: hidden; position: relative; }
+      .c2__prod--orange { background: radial-gradient(70% 60% at 50% 35%, rgba(232, 84, 26, 0.4), transparent 70%), rgba(245, 245, 240, 0.04); }
+      .c2__prod--blue { background: radial-gradient(70% 60% at 50% 35%, rgba(85, 152, 211, 0.45), transparent 70%), rgba(245, 245, 240, 0.04); }
+      .c2__prod img { width: 68%; margin: 0 auto; filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.45)); }
+      .c2__prod-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: end; }
+      .c2__prod h3 { font-family: var(--display); font-size: 1.9rem; letter-spacing: 0.03em; }
+      .c2__price { font-family: var(--display); font-size: 2.2rem; line-height: 1; }
+      .c2__pack { margin-top: 4.5rem; padding: 2.5rem; display: grid; grid-template-columns: auto 1fr auto; gap: 2rem; align-items: center; background: radial-gradient(60% 120% at 0% 50%, rgba(85, 152, 211, 0.3), transparent 60%), rgba(245, 245, 240, 0.04); }
+      .c2__pack > img { width: 9rem; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.4)); }
+      .c2__faces { display: flex; margin-top: 1rem; }
+      .c2__faces img { width: 3.4rem; height: 3.4rem; border-radius: 50%; object-fit: cover; object-position: top; border: 3px solid #223049; margin-left: -0.8rem; background: var(--steel); }
+      .c2__faces img:first-child { margin-left: 0; }
+      .c2__faces span { width: 3.4rem; height: 3.4rem; border-radius: 50%; margin-left: -0.8rem; display: grid; place-items: center; background: var(--orange); font-weight: 700; font-size: 0.85rem; border: 3px solid #223049; }
+      .c2__mobile { margin-top: 4.5rem; display: grid; grid-template-columns: 1fr auto auto; gap: 2rem; align-items: center; padding-bottom: 3rem; }
+      .c2__mobile h2 { font-family: var(--display); font-size: 3rem; line-height: 0.95; }
+      .c2__mobile ul { margin-top: 1rem; display: grid; gap: 0.6rem; color: var(--muted); }
+      .c2__mobile li::before { content: "→ "; color: var(--orange); font-weight: 700; }
+      .c2__phone { width: 16.5rem; height: 33rem; border-radius: 2.4rem; padding: 0.55rem; background: #0b0f16; box-shadow: 0 0 0 2px rgba(245, 245, 240, 0.08), 0 40px 80px rgba(0, 0, 0, 0.5); }
+      .c2__screen { position: relative; width: 100%; height: 100%; border-radius: 1.95rem; overflow: hidden; }
+      .c2__screen .hb { height: 12rem; padding: 0 0 0.8rem; }
+      .c2__screen .hb__content { width: calc(100% - 1.4rem); gap: 0.4rem; }
+      .c2__screen .c2__btn { padding: 0.55rem 0.8rem; font-size: 0.72rem; border-radius: 11px; }
+      .c2__screen-body { padding: 0.5rem 0.7rem; display: grid; gap: 0.5rem; }
+      .c2__screen .c2__row { grid-template-columns: 2.7rem 1fr auto; gap: 0.6rem; padding: 0.5rem; border-radius: 14px; }
+      .c2__screen .c2__dt { width: 2.7rem; height: 2.7rem; border-radius: 11px; }
+      .c2__screen .c2__dt b { font-size: 1.25rem; }
+      .c2__screen .c2__row h4 { font-size: 0.82rem; }
+      .c2__screen .c2__row p { font-size: 0.7rem; }
+      .c2__screen .c2__go { width: 2rem; height: 2rem; border-radius: 10px; }
+      .c2__screen .c2__chips span { font-size: 0.7rem; padding: 0.3rem 0.65rem; }
+      .c2__tabbar { position: absolute; left: 0.6rem; right: 0.6rem; bottom: 0.6rem; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0.4rem; border-radius: 20px; background: rgba(245, 245, 240, 0.1); backdrop-filter: blur(16px); border: 1px solid rgba(245, 245, 240, 0.12); }
+      .c2__tabbar span { text-align: center; padding: 0.5rem 0; border-radius: 14px; font-size: 0.66rem; font-weight: 700; color: rgba(245, 245, 240, 0.6); }
+      .c2__tabbar span.on { background: var(--orange); color: var(--bone); }
+      .c2__sheet { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.6rem 1rem 1rem; border-radius: 24px 24px 0 0; background: #f5f5f0; color: var(--navy-deep); box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.4); }
+      .c2__sheet i { display: block; width: 2.5rem; height: 0.3rem; border-radius: 999px; background: rgba(27, 37, 54, 0.2); margin: 0 auto 0.75rem; }
+      .c2__sheet h4 { font-family: var(--display); font-size: 1.6rem; letter-spacing: 0.03em; }
+      .c2__sheet p { font-size: 0.78rem; color: rgba(27, 37, 54, 0.65); }
+      .c2__field { margin-top: 0.6rem; padding: 0.6rem 0.75rem; border-radius: 12px; border: 1px solid rgba(27, 37, 54, 0.15); font-size: 0.78rem; color: rgba(27, 37, 54, 0.55); }
+      .c2__sheet .c2__btn { width: 100%; justify-content: center; margin-top: 0.75rem; font-size: 0.82rem; padding: 0.75rem; color: var(--bone); }
+
+      /* =====================================================
+         3 — SEASON LINE  (blend: timeline story, sticky drop)
+         ===================================================== */
+      .c3__nav { position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 2rem; padding: 1.15rem 2rem; border-bottom: 1px solid rgba(245, 245, 240, 0.08); background: linear-gradient(180deg, rgba(20, 22, 28, 0.85), rgba(20, 22, 28, 0)); }
+      .c3__nav img { height: 1.35rem; }
+      .c3__nav ul { display: flex; gap: 1.75rem; margin-right: auto; font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(245, 245, 240, 0.65); }
+      .c3__nav li { position: relative; padding: 0.3rem 0; }
+      .c3__nav li.on { color: var(--bone); }
+      .c3__nav li.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -0.35rem; height: 2px; border-radius: 2px; background: var(--orange); box-shadow: 0 0 12px var(--orange); }
+      .c3__ic { width: 2.4rem; height: 2.4rem; border-radius: 12px; display: grid; place-items: center; border: 1px solid rgba(245, 245, 240, 0.16); font-size: 0.72rem; font-weight: 700; }
+      .c3__ic--me { border-color: rgba(85, 152, 211, 0.6); background: rgba(85, 152, 211, 0.15); color: #bcd9f3; }
+      .c3__btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1.45rem; border-radius: 12px; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; }
+      .c3__btn--hot { background: var(--orange); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 14px 30px -10px rgba(232, 84, 26, 0.8); }
+      .c3__btn--line { border: 1px solid rgba(245, 245, 240, 0.3); background: rgba(20, 22, 28, 0.35); backdrop-filter: blur(8px); }
+      .c3__btn--sm { padding: 0.55rem 0.95rem; font-size: 0.74rem; border-radius: 10px; }
+      .c3__intro { padding: 3.5rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: end; }
+      .c3__intro h2 { font-family: var(--display); font-size: clamp(3rem, 6vw, 4.6rem); line-height: 0.9; }
+      .c3__intro h2 em { font-style: normal; color: var(--orange); }
+      .c3__stats { display: flex; gap: 2.5rem; }
+      .c3__stats b { display: block; font-family: var(--display); font-size: 2.8rem; line-height: 1; }
+      .c3__stats span { font-size: 0.8rem; color: var(--muted); }
+      .c3__line { position: relative; margin-top: 3.5rem; padding-left: 3rem; }
+      .c3__line::before { content: ""; position: absolute; left: 0.7rem; top: 0.5rem; bottom: 0.5rem; width: 2px; background: linear-gradient(180deg, var(--sky), var(--orange) 55%, rgba(245, 245, 240, 0.08)); }
+      .c3__node { position: relative; display: grid; grid-template-columns: 8rem 1fr auto; gap: 1.5rem; align-items: center; padding: 1.25rem 1.5rem; margin-bottom: 0.85rem; border-radius: 18px; background: rgba(245, 245, 240, 0.035); border: 1px solid rgba(245, 245, 240, 0.07); }
+      .c3__node::before { content: ""; position: absolute; left: -2.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; border-radius: 50%; background: #1e1e23; border: 2px solid rgba(245, 245, 240, 0.3); }
+      .c3__node.is-past { opacity: 0.6; }
+      .c3__node.is-past::before { background: var(--sky); border-color: var(--sky); }
+      .c3__node.is-next { background: linear-gradient(90deg, rgba(232, 84, 26, 0.16), rgba(245, 245, 240, 0.03)); border-color: rgba(232, 84, 26, 0.4); }
+      .c3__node.is-next::before { background: var(--orange); border-color: var(--orange); box-shadow: 0 0 0 6px rgba(232, 84, 26, 0.22), 0 0 18px var(--orange); }
+      .c3__when b { display: block; font-family: var(--display); font-size: 1.9rem; letter-spacing: 0.03em; line-height: 1; }
+      .c3__when span { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sky); }
+      .c3__node.is-next .c3__when span { color: var(--orange); }
+      .c3__node h4 { font-size: 1.1rem; }
+      .c3__node p { font-size: 0.86rem; color: var(--muted); margin-top: 0.15rem; }
+      .c3__kind { display: inline-block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 6px; background: rgba(85, 152, 211, 0.18); color: #bcd9f3; margin-bottom: 0.35rem; }
+      .c3__kind--club { background: rgba(232, 84, 26, 0.18); color: #ffb08a; }
+      .c3__result { font-family: var(--display); font-size: 1.6rem; color: var(--sky); }
+      .c3__drop { margin-top: 5rem; display: grid; grid-template-columns: 1.1fr 1fr; min-height: 32rem; border-block: 1px solid var(--line); }
+      .c3__drop-stage { position: relative; display: grid; place-items: center; background: radial-gradient(60% 60% at 50% 55%, rgba(85, 152, 211, 0.4), transparent 70%), linear-gradient(180deg, #1c2638, #151b27); overflow: hidden; }
+      .c3__drop-stage::before { content: "DROP 01"; position: absolute; font-family: var(--display); font-size: 12rem; line-height: 1; color: transparent; -webkit-text-stroke: 1px rgba(245, 245, 240, 0.08); white-space: nowrap; }
+      .c3__drop-stage img { position: relative; width: 70%; filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.5)); }
+      .c3__thumbs { position: absolute; left: 1.25rem; bottom: 1.25rem; display: flex; gap: 0.5rem; }
+      .c3__thumbs img { width: 3.6rem; height: 3.6rem; border-radius: 12px; background: rgba(245, 245, 240, 0.08); padding: 0.25rem; object-fit: contain; border: 1px solid var(--line); }
+      .c3__thumbs img.on { border-color: var(--sky); }
+      .c3__drop-info { padding: 3.5rem 3rem; display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
+      .c3__drop-info h2 { font-family: var(--display); font-size: clamp(3rem, 5vw, 4.4rem); line-height: 0.9; }
+      .c3__toggle { display: inline-flex; padding: 0.25rem; border-radius: 12px; background: rgba(245, 245, 240, 0.06); border: 1px solid var(--line); width: fit-content; }
+      .c3__toggle span { padding: 0.5rem 1rem; border-radius: 9px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+      .c3__toggle span.on { background: var(--sky); color: var(--navy-deep); }
+      .c3__sizes { display: flex; gap: 0.45rem; }
+      .c3__sizes span { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; border-radius: 10px; border: 1px solid rgba(245, 245, 240, 0.18); font-weight: 700; font-size: 0.85rem; }
+      .c3__sizes span.on { border-color: var(--orange); color: var(--orange); }
+      .c3__roster { margin-top: 5rem; display: grid; grid-template-columns: 1fr 20rem; gap: 3rem; align-items: center; }
+      .c3__names li { display: flex; align-items: baseline; gap: 1rem; padding: 0.35rem 0; border-bottom: 1px solid rgba(245, 245, 240, 0.07); font-family: var(--display); font-size: clamp(2rem, 4vw, 3rem); letter-spacing: 0.03em; line-height: 1; color: rgba(245, 245, 240, 0.28); }
+      .c3__names li small { font-family: var(--body); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--muted); }
+      .c3__names li.on { color: var(--bone); }
+      .c3__names li.on::after { content: "→"; margin-left: auto; color: var(--orange); font-size: 2rem; }
+      .c3__portrait { border-radius: 24px; overflow: hidden; aspect-ratio: 3 / 4; background: linear-gradient(180deg, var(--sky), var(--navy)); position: relative; }
+      .c3__portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+      .c3__portrait span { position: absolute; left: 1rem; bottom: 1rem; padding: 0.4rem 0.75rem; border-radius: 10px; background: rgba(20, 22, 28, 0.7); backdrop-filter: blur(8px); font-size: 0.8rem; font-weight: 600; }
+      .c3__join { margin: 5rem auto 0; padding: 2.25rem 2.5rem; border-radius: 24px; display: flex; align-items: center; gap: 2rem; background: linear-gradient(90deg, rgba(232, 84, 26, 0.22), rgba(85, 152, 211, 0.18)); border: 1px solid rgba(245, 245, 240, 0.1); }
+      .c3__join img { width: 5rem; }
+      .c3__join h3 { font-family: var(--display); font-size: 2.4rem; line-height: 0.95; }
+      .c3__join p { color: var(--muted); font-size: 0.92rem; }
+      .c3__join div { margin-right: auto; }
+      .c3__foot { padding: 2.5rem 0; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.85rem; }
+      .c3__foot img { height: 1.4rem; }
+
+      @media (max-width: 900px) {
+        .brief, .notes, .c1__spot .wrap, .c2__shop, .c2__pack, .c2__mobile, .c3__intro, .c3__drop, .c3__roster { grid-template-columns: 1fr; }
+        .c1__nav ul, .c2__seg, .c3__nav ul { display: none; }
+        .c2__row { grid-template-columns: 3.4rem 1fr auto; }
+        .c2__row .c2__tag { display: none; }
+        .c3__node { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="picker">
+      <strong>Bulldogs <span>redesign v2</span></strong>
+      <nav>
+        <button type="button" class="is-on" data-show="1">1 · Floodlight</button>
+        <button type="button" data-show="2">2 · Night Pack</button>
+        <button type="button" data-show="3">3 · Season Line</button>
+      </nav>
+      <a href="redesign-v1.html">Round 1 →</a>
+    </div>
+
+    <!-- ================= 1 · FLOODLIGHT ================= -->
+    <section class="concept is-on" data-concept="1">
+      <header class="brief">
+        <div>
+          <h1>1 · Floodlight</h1>
+          <p>Arena Night’s cinema, without the grid. The page reads top to bottom like a broadcast: hero banner, a live “next up” strip, then swipeable rails for events and the team, and one big spotlight moment for the drop.</p>
+        </div>
+        <dl>
+          <dt>From A</dt><dd>Glass pill nav, orange glow, spaces-left bars</dd>
+          <dt>From C</dt><dd>Rounded cards, swipe rails for thumbs</dd>
+          <dt>Layout</dt><dd>Full-width bands, horizontal rails</dd>
+          <dt>Feel</dt><dd>Premium, cinematic, competition-first</dd>
+        </dl>
+      </header>
+      <div class="frame">
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen site-bg c1">
+          <nav class="c1__nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li class="on">Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="c1__ic">Bag</span><span class="c1__ic c1__ic--me">LB</span>
+          </nav>
+          <section class="hb">
+            <div class="hb__media"><div class="hb__track"><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /></div><div class="hb__scrub"></div></div>
+            <div class="hb__content">
+              <a class="c1__btn c1__btn--glass" href="#">Book Events</a>
+              <a class="c1__btn c1__btn--hot" href="#">Shop the drop</a>
+            </div>
+          </section>
+          <div class="c1__next">
+            <span class="c1__live">NEXT UP</span>
+            <strong>Kids taster session</strong>
+            <span class="muted">Sat 28 Nov · Manchester · 7 places left</span>
+            <a class="c1__btn c1__btn--hot c1__btn--sm" href="#">Book · £15</a>
+          </div>
+
+          <section class="wrap c1__sec">
+            <div class="sec-head">
+              <div><p class="eyebrow">Hosted by Bulldogs</p><h2 class="h2">Upcoming events</h2></div>
+              <div class="c1__arrows"><span>←</span><span>→</span></div>
+            </div>
+            <div class="c1__rail">
+              <article class="c1__poster">
+                <figure><img src="../assets/photos/web/events-hero.jpg" alt="" /><div class="c1__date"><b>28</b><span>NOV</span></div></figure>
+                <div class="c1__poster-body">
+                  <h3>Kids taster session</h3>
+                  <p class="muted">Manchester · 10:00 · Ages 7–12</p>
+                  <div class="c1__bar" style="--fill: 72%">18 of 25 booked<i></i></div>
+                  <div class="c1__poster-foot"><strong>£15</strong><a class="c1__btn c1__btn--hot c1__btn--sm" href="#">Book</a></div>
+                </div>
+              </article>
+              <article class="c1__poster">
+                <figure><img src="../assets/photos/web/round2-pack.jpg" alt="" /><div class="c1__date"><b>06</b><span>DEC</span></div></figure>
+                <div class="c1__poster-body">
+                  <h3>Open training day</h3>
+                  <p class="muted">Leeds · 13:00 · 16+</p>
+                  <div class="c1__bar" style="--fill: 35%">7 of 20 booked<i></i></div>
+                  <div class="c1__poster-foot"><strong>£25</strong><a class="c1__btn c1__btn--glass c1__btn--sm" href="#">Book</a></div>
+                </div>
+              </article>
+              <article class="c1__poster">
+                <figure><img src="../assets/photos/web/round2-herning.jpg" alt="" /><div class="c1__date"><b>19</b><span>DEC</span></div></figure>
+                <div class="c1__poster-body">
+                  <h3>Christmas showcase</h3>
+                  <p class="muted">Sheffield · 18:30 · All ages</p>
+                  <div class="c1__bar" style="--fill: 90%">Almost full<i></i></div>
+                  <div class="c1__poster-foot"><strong>Free</strong><a class="c1__btn c1__btn--glass c1__btn--sm" href="#">Reserve</a></div>
+                </div>
+              </article>
+              <article class="c1__poster">
+                <figure><img src="../assets/photos/web/team-hero.jpg" alt="" /><div class="c1__date"><b>10</b><span>JAN</span></div></figure>
+                <div class="c1__poster-body">
+                  <h3>New year camp</h3>
+                  <p class="muted">Manchester · 2 days · 12+</p>
+                  <div class="c1__bar" style="--fill: 10%">Just announced<i></i></div>
+                  <div class="c1__poster-foot"><strong>£60</strong><a class="c1__btn c1__btn--glass c1__btn--sm" href="#">Book</a></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="c1__spot">
+            <div class="wrap">
+              <img class="tee" src="../assets/products/product_1_orange_front_cutout.png" alt="" />
+              <div>
+                <p class="eyebrow">First drop</p>
+                <h2>Wear Bulldogs</h2>
+                <p class="muted">Navy tee with chest print and full back graphic. Made to order — 2–3 weeks.</p>
+                <div class="c1__price">£25</div>
+                <div class="c1__opts"><span class="on">Orange print</span><span>Blue print</span></div>
+                <div class="c1__opts"><span>S</span><span class="on">M</span><span>L</span><span>XL</span></div>
+                <a class="c1__btn c1__btn--hot" href="#">Add to bag</a>
+              </div>
+            </div>
+          </section>
+
+          <section class="wrap c1__sec">
+            <div class="sec-head">
+              <div><p class="eyebrow">AFL 2026</p><h2 class="h2">Meet the team</h2></div>
+              <div class="c1__arrows"><span>←</span><span>→</span></div>
+            </div>
+            <div class="c1__team">
+              <figure class="c1__athlete"><img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><div><b>Lewis Bagguley</b><span>Captain</span></div></figure>
+              <figure class="c1__athlete"><img src="../assets/athletes/Joe%20Oldham.png" alt="" /><div><b>Joe Oldham</b><span>Athlete</span></div></figure>
+              <figure class="c1__athlete"><img src="../assets/athletes/Henry%20Mantel.png" alt="" /><div><b>Henry Mantel</b><span>Athlete</span></div></figure>
+              <figure class="c1__athlete"><img src="../assets/athletes/Leo%20Davidson.png" alt="" /><div><b>Leo Davidson</b><span>Athlete</span></div></figure>
+              <figure class="c1__athlete"><img src="../assets/athletes/Will%20Calder.png" alt="" /><div><b>Will Calder</b><span>Athlete</span></div></figure>
+              <figure class="c1__athlete"><img src="../assets/athletes/Ebbe%20Larsen.png" alt="" /><div><b>Ebbe Larsen</b><span>Athlete</span></div></figure>
+            </div>
+          </section>
+
+          <section class="c1__band">
+            <img src="../assets/photos/web/arena-fear.jpg" alt="" />
+            <div class="wrap"><p class="eyebrow">Herning · Round 2</p><h2>Hungry<br />by nature.</h2></div>
+          </section>
+          <footer class="wrap c1__foot"><img src="../assets/type-orange.png" alt="Bulldogs" /><span>© 2026 Team Bulldogs · Part of AIRTOX FACEOFF League</span></footer>
+        </div>
+      </div>
+      <div class="notes">
+        <article><h3>Why it works</h3><ul><li>Keeps today’s mood, but every section has one clear job.</li><li>Rails scale to any number of events or athletes without breaking layout.</li><li>“Next up” strip means the next booking is one tap from the banner.</li></ul></article>
+        <article><h3>Watch out for</h3><ul><li>Rails hide content off-screen — needs arrows and swipe hints.</li><li>Event posters want a photo each (can fall back to a brand graphic).</li></ul></article>
+        <article><h3>Site-wide</h3><ul><li>Events page = full rail + list toggle.</li><li>Shop = spotlight per product.</li><li>Modals and account menu use the same glass panels.</li></ul></article>
+      </div>
+    </section>
+
+    <!-- ================= 2 · NIGHT PACK ================= -->
+    <section class="concept" data-concept="2">
+      <header class="brief">
+        <div>
+          <h1>2 · Night Pack</h1>
+          <p>The Pack’s warmth on the current navy background. Soft rounded panels, filter chips and big tap targets make booking feel like an app. Everything stacks in a single column, so the phone and desktop layouts match.</p>
+        </div>
+        <dl>
+          <dt>From A</dt><dd>Hero glow, orange as the action colour</dd>
+          <dt>From C</dt><dd>Segmented nav, chips, bottom tab bar, sheets</dd>
+          <dt>Layout</dt><dd>Single-column panels</dd>
+          <dt>Feel</dt><dd>Friendly, family, easy to book</dd>
+        </dl>
+      </header>
+      <div class="frame">
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="c2__nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <div class="c2__seg"><span class="on">Home</span><span>AFL Team</span><span>Events</span><span>Shop</span><span>News</span><span>Contact</span></div>
+            <span class="c2__ic">Bag</span><span class="c2__ic c2__ic--me">LB</span>
+          </nav>
+          <section class="hb">
+            <div class="hb__media"><div class="hb__track"><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /></div><div class="hb__scrub"></div></div>
+            <div class="hb__content">
+              <a class="c2__btn c2__btn--soft" href="#">Book Events</a>
+              <a class="c2__btn c2__btn--hot" href="#">Shop the drop <svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></a>
+            </div>
+          </section>
+
+          <div class="wrap">
+            <section class="c2__sec">
+              <div class="sec-head">
+                <div><p class="eyebrow">Hosted by Bulldogs</p><h2 class="h2">What’s on</h2></div>
+                <div class="c2__chips"><span class="on">All</span><span>Kids</span><span>Training</span><span>Shows</span></div>
+              </div>
+              <div class="c2__glass c2__list">
+                <div class="c2__row is-hot"><div class="c2__dt"><b>28</b><span>NOV</span></div><div><h4>Kids taster session</h4><p>Manchester · Sat 10:00 · Ages 7–12</p></div><span class="c2__tag c2__tag--hot">7 places left</span><span class="c2__go c2__go--hot"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                <div class="c2__row"><div class="c2__dt"><b>06</b><span>DEC</span></div><div><h4>Open training day</h4><p>Leeds · Sat 13:00 · 16+ · £25</p></div><span class="c2__tag">13 places</span><span class="c2__go"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                <div class="c2__row"><div class="c2__dt"><b>19</b><span>DEC</span></div><div><h4>Christmas showcase</h4><p>Sheffield · Fri 18:30 · All ages · Free</p></div><span class="c2__tag">Almost full</span><span class="c2__go"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                <div class="c2__row"><div class="c2__dt"><b>10</b><span>JAN</span></div><div><h4>New year camp</h4><p>Manchester · 2 days · 12+ · £60</p></div><span class="c2__tag">New</span><span class="c2__go"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+              </div>
+            </section>
+
+            <section class="c2__sec">
+              <div class="sec-head">
+                <div><p class="eyebrow">Drop 01</p><h2 class="h2">Wear the pack</h2></div>
+                <a class="c2__btn c2__btn--soft c2__btn--sm" href="#">Size guide</a>
+              </div>
+              <div class="c2__shop">
+                <article class="c2__glass c2__prod c2__prod--orange">
+                  <img src="../assets/products/product_1_orange_front_cutout.png" alt="" />
+                  <div class="c2__prod-foot"><div><p class="muted">Bulldogs Tee</p><h3>Orange print</h3></div><div style="text-align:right"><div class="c2__price">£25</div><a class="c2__btn c2__btn--hot c2__btn--sm" href="#" style="margin-top:.5rem">Add to bag</a></div></div>
+                </article>
+                <article class="c2__glass c2__prod c2__prod--blue">
+                  <img src="../assets/products/product_1_blue_back_cutout.png" alt="" />
+                  <div class="c2__prod-foot"><div><p class="muted">Bulldogs Tee</p><h3>Blue print</h3></div><div style="text-align:right"><div class="c2__price">£25</div><a class="c2__btn c2__btn--hot c2__btn--sm" href="#" style="margin-top:.5rem">Add to bag</a></div></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="c2__glass c2__pack">
+              <img src="../assets/logo.png" alt="" />
+              <div>
+                <p class="eyebrow">AFL 2026</p>
+                <h2 class="h2">Meet the pack</h2>
+                <p class="muted">British-led freestyle gymnasts competing across Europe.</p>
+                <div class="c2__faces">
+                  <img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><img src="../assets/athletes/Joe%20Oldham.png" alt="" /><img src="../assets/athletes/Henry%20Mantel.png" alt="" /><img src="../assets/athletes/Leo%20Davidson.png" alt="" /><img src="../assets/athletes/Will%20Calder.png" alt="" /><span>+7</span>
+                </div>
+              </div>
+              <a class="c2__btn c2__btn--hot" href="#">See the team</a>
+            </section>
+
+            <section class="c2__mobile">
+              <div>
+                <h2>Same banner, built for thumbs</h2>
+                <ul>
+                  <li>The hero banner stays as it is — the buttons just get bigger tap targets.</li>
+                  <li>Bottom tab bar: Home, Events, Shop, Me.</li>
+                  <li>Booking and checkout slide up as bottom sheets instead of full pages.</li>
+                </ul>
+              </div>
+              <div class="c2__phone">
+                <div class="c2__screen site-bg">
+                  <section class="hb">
+                    <div class="hb__media"><div class="hb__track"><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /></div><div class="hb__scrub"></div></div>
+                    <div class="hb__content"><a class="c2__btn c2__btn--soft" href="#">Book Events</a><a class="c2__btn c2__btn--hot" href="#">Shop the drop</a></div>
+                  </section>
+                  <div class="c2__screen-body">
+                    <div class="c2__chips"><span class="on">All</span><span>Kids</span><span>Training</span></div>
+                    <div class="c2__row is-hot"><div class="c2__dt"><b>28</b><span>NOV</span></div><div><h4>Kids taster</h4><p>£15 · 7 left</p></div><span class="c2__go c2__go--hot"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                    <div class="c2__row"><div class="c2__dt"><b>06</b><span>DEC</span></div><div><h4>Open training</h4><p>£25</p></div><span class="c2__go"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13 5l7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6z"/></svg></span></div>
+                  </div>
+                  <div class="c2__tabbar"><span class="on">Home</span><span>Events</span><span>Shop</span><span>Me</span></div>
+                </div>
+              </div>
+              <div class="c2__phone">
+                <div class="c2__screen site-bg">
+                  <div class="c2__screen-body" style="padding-top:1rem;opacity:.35">
+                    <div class="c2__row is-hot"><div class="c2__dt"><b>28</b><span>NOV</span></div><div><h4>Kids taster</h4><p>£15 · 7 left</p></div></div>
+                    <div class="c2__row"><div class="c2__dt"><b>06</b><span>DEC</span></div><div><h4>Open training</h4><p>£25</p></div></div>
+                  </div>
+                  <div class="c2__sheet">
+                    <i></i>
+                    <h4>Kids taster session</h4>
+                    <p>Sat 28 Nov · Manchester · £15</p>
+                    <div class="c2__field">Child’s name</div>
+                    <div class="c2__field">Date of birth</div>
+                    <div class="c2__field">Emergency contact</div>
+                    <a class="c2__btn c2__btn--hot" href="#">Continue to pay · £15</a>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <article><h3>Why it works</h3><ul><li>Easiest to use, especially for parents booking tasters on phones.</li><li>The mascot and sky blue get used properly.</li><li>The same panel style works for account, admin and checkout.</li></ul></article>
+        <article><h3>Watch out for</h3><ul><li>Softer, less “elite athlete” in tone.</li><li>Needs restraint with glows so it doesn’t feel generic.</li></ul></article>
+        <article><h3>Site-wide</h3><ul><li>Events page = filter chips + list.</li><li>Shop = one card per colourway.</li><li>All forms slide up as bottom sheets on mobile.</li></ul></article>
+      </div>
+    </section>
+
+    <!-- ================= 3 · SEASON LINE ================= -->
+    <section class="concept" data-concept="3">
+      <header class="brief">
+        <div>
+          <h1>3 · Season Line</h1>
+          <p>Tells the season as a story. Below the hero banner there’s a glowing timeline that mixes AFL rounds (with results) and Bulldogs events, so fans and families both see what’s next. Then a product stage for the drop and an interactive roster.</p>
+        </div>
+        <dl>
+          <dt>From A</dt><dd>Dark cinema, glow accents, outline type</dd>
+          <dt>From C</dt><dd>Toggles, soft panels, sky as a second colour</dd>
+          <dt>Layout</dt><dd>Vertical timeline, split stage, name list</dd>
+          <dt>Feel</dt><dd>Story-led, “follow our season”</dd>
+        </dl>
+      </header>
+      <div class="frame">
+        <div class="frame__bar"><i></i><i></i><i></i><span>teambulldogs.co.uk</span></div>
+        <div class="frame__screen site-bg">
+          <nav class="c3__nav">
+            <img src="../assets/type-orange.png" alt="Bulldogs" />
+            <ul><li class="on">Home</li><li>AFL Team</li><li>Events</li><li>Shop</li><li>News</li><li>Contact</li></ul>
+            <span class="c3__ic">Bag</span><span class="c3__ic c3__ic--me">LB</span>
+          </nav>
+          <section class="hb">
+            <div class="hb__media"><div class="hb__track"><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /><img src="../assets/hero.jpg" alt="" /></div><div class="hb__scrub"></div></div>
+            <div class="hb__content">
+              <a class="c3__btn c3__btn--line" href="#">Book Events</a>
+              <a class="c3__btn c3__btn--hot" href="#">Shop the drop</a>
+            </div>
+          </section>
+
+          <div class="wrap">
+            <section class="c3__intro">
+              <div><p class="eyebrow">2026 season</p><h2>Follow the pack, <em>round by round.</em></h2></div>
+              <div class="c3__stats"><div><b>12</b><span>Athletes</span></div><div><b>2 / 5</b><span>AFL rounds done</span></div><div><b>4</b><span>Events coming</span></div></div>
+            </section>
+
+            <section class="c3__line">
+              <article class="c3__node is-past"><div class="c3__when"><b>14 SEP</b><span>Round 1</span></div><div><span class="c3__kind">AFL</span><h4>Faceoff Round 1 · Aarhus</h4><p>Team battle · 6 teams</p></div><span class="c3__result">3rd</span></article>
+              <article class="c3__node is-past"><div class="c3__when"><b>19 OCT</b><span>Round 2</span></div><div><span class="c3__kind">AFL</span><h4>Faceoff Round 2 · Herning</h4><p>Team battle · Highlights on YouTube</p></div><span class="c3__result">2nd</span></article>
+              <article class="c3__node is-next"><div class="c3__when"><b>28 NOV</b><span>Next up</span></div><div><span class="c3__kind c3__kind--club">Bulldogs event</span><h4>Kids taster session · Manchester</h4><p>Ages 7–12 · £15 · 7 places left</p></div><a class="c3__btn c3__btn--hot c3__btn--sm" href="#">Book</a></article>
+              <article class="c3__node"><div class="c3__when"><b>06 DEC</b><span>Training</span></div><div><span class="c3__kind c3__kind--club">Bulldogs event</span><h4>Open training day · Leeds</h4><p>16+ · £25</p></div><a class="c3__btn c3__btn--line c3__btn--sm" href="#">Book</a></article>
+              <article class="c3__node"><div class="c3__when"><b>18 JAN</b><span>Round 3</span></div><div><span class="c3__kind">AFL</span><h4>Faceoff Round 3 · Copenhagen</h4><p>Watch live on YouTube</p></div><a class="c3__btn c3__btn--line c3__btn--sm" href="#">Remind me</a></article>
+            </section>
+          </div>
+
+          <section class="c3__drop">
+            <div class="c3__drop-stage">
+              <img src="../assets/products/product_1_blue_front_cutout.png" alt="" />
+              <div class="c3__thumbs">
+                <img class="on" src="../assets/products/product_1_blue_front_cutout.png" alt="" />
+                <img src="../assets/products/product_1_blue_back_cutout.png" alt="" />
+                <img src="../assets/products/product_1_orange_front_cutout.png" alt="" />
+              </div>
+            </div>
+            <div class="c3__drop-info">
+              <p class="eyebrow">Drop 01 · Official tee</p>
+              <h2>Rep the pack.</h2>
+              <p class="muted">Navy tee, chest print and full back graphic. Made to order — 2–3 weeks.</p>
+              <div class="c3__toggle"><span>Orange print</span><span class="on">Blue print</span></div>
+              <div class="c3__sizes"><span>S</span><span class="on">M</span><span>L</span><span>XL</span></div>
+              <div style="display:flex;gap:1rem;align-items:center;margin-top:.5rem"><span style="font-family:var(--display);font-size:2.4rem">£25</span><a class="c3__btn c3__btn--hot" href="#">Add to bag</a></div>
+            </div>
+          </section>
+
+          <div class="wrap">
+            <section class="c3__roster">
+              <div>
+                <p class="eyebrow">AFL 2026 squad</p>
+                <ul class="c3__names" style="margin-top:1rem">
+                  <li>Joe Oldham <small>Athlete</small></li>
+                  <li class="on">Lewis Bagguley <small>Captain</small></li>
+                  <li>Henry Mantel <small>Athlete</small></li>
+                  <li>Leo Davidson <small>Athlete</small></li>
+                  <li>Will Calder <small>Athlete</small></li>
+                </ul>
+              </div>
+              <figure class="c3__portrait"><img src="../assets/athletes/Lewis%20Bagguley.png" alt="" /><span>Lewis Bagguley · Captain</span></figure>
+            </section>
+
+            <section class="c3__join">
+              <img src="../assets/logo.png" alt="" />
+              <div><h3>Run with the pack</h3><p>Create an account to keep your tickets, bookings and drop alerts in one place.</p></div>
+              <a class="c3__btn c3__btn--hot" href="#">Join free</a>
+            </section>
+            <footer class="c3__foot"><img src="../assets/type-orange.png" alt="Bulldogs" /><span>© 2026 Team Bulldogs · Part of AIRTOX FACEOFF League</span></footer>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <article><h3>Why it works</h3><ul><li>Gives fans a reason to come back after every round.</li><li>AFL and club events live in one place without extra pages.</li><li>The roster is interactive but still simple.</li></ul></article>
+        <article><h3>Watch out for</h3><ul><li>Results need updating after each round (an admin tool can handle this).</li><li>Timeline gets long — show the next few and collapse the rest.</li></ul></article>
+        <article><h3>Site-wide</h3><ul><li>Events page = full season timeline.</li><li>Team page = name list with portrait reveal.</li><li>News can slot into the timeline as post cards.</li></ul></article>
+      </div>
+    </section>
+
+    <section class="compare">
+      <h2>Side by side</h2>
+      <table>
+        <thead><tr><th></th><th>1 · Floodlight</th><th>2 · Night Pack</th><th>3 · Season Line</th></tr></thead>
+        <tbody>
+          <tr><td>Hero banner</td><td>Kept, glass nav floats over it</td><td>Kept, segmented nav</td><td>Kept, underline nav</td></tr>
+          <tr><td>Events</td><td>Swipe rail of posters</td><td>Filter chips + list</td><td>Season timeline</td></tr>
+          <tr><td>Shop</td><td>One big spotlight</td><td>A card per colourway</td><td>Product stage + toggles</td></tr>
+          <tr><td>Team</td><td>Portrait rail</td><td>Avatar cluster + mascot</td><td>Name list + portrait</td></tr>
+          <tr><td>Best for</td><td>Pro, competition feel</td><td>Parents booking on mobile</td><td>Fans following the season</td></tr>
+          <tr><td>Build effort</td><td>Low–medium</td><td>Medium</td><td>Medium–high</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <script>
+      document.querySelectorAll("[data-show]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-show]").forEach((b) => b.classList.toggle("is-on", b === btn));
+          document.querySelectorAll("[data-concept]").forEach((c) => c.classList.toggle("is-on", c.dataset.concept === btn.dataset.show));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        });
+      });
+    </script>
+  </body>
+</html>

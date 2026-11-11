@@ -1,5 +1,7 @@
 (() => {
   const STORAGE_KEY = "bulldogs-cart";
+  const cfg = window.BULLDOGS || {};
+  const api = window.BULLDOGS_API;
 
   const getCart = () => {
     try {
@@ -9,18 +11,71 @@
     }
   };
 
-  const saveCart = (cart) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
-    renderCart();
-  };
-
-  const formatPrice = (n) => `£${n.toFixed(0)}`;
+  const formatPrice = (n) => `£${Number(n).toFixed(0)}`;
+  const moneyPence = (pence) => `£${(pence / 100).toFixed(pence % 100 ? 2 : 0)}`;
 
   const cartCountEls = () => document.querySelectorAll(".cart-btn__count");
   const cartBody = document.querySelector(".cart-drawer__body");
   const cartTotal = document.querySelector(".cart-total strong");
   const overlay = document.querySelector(".cart-overlay");
   const drawer = document.querySelector(".cart-drawer");
+  if (!document.querySelector("[data-checkout-dialog]")) {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<dialog class="booking-dialog" data-checkout-dialog>
+        <button class="booking-dialog__close" type="button" data-close-checkout aria-label="Close">×</button>
+        <form class="contact-form" data-checkout-form>
+          <header class="booking-dialog__head">
+            <p class="eyebrow">Checkout</p>
+            <h2>Delivery details</h2>
+            <p class="muted">You’ll add your address on the next screen. Made to order — typically 2–3 weeks.</p>
+          </header>
+          <div class="field">
+            <label for="checkout_full_name">Your name</label>
+            <input id="checkout_full_name" name="full_name" type="text" autocomplete="name" maxlength="200" />
+          </div>
+          <div class="field">
+            <label for="checkout_email">Email</label>
+            <input id="checkout_email" name="email" type="email" required autocomplete="email" maxlength="254" />
+          </div>
+          <label class="field field--check">
+            <input type="checkbox" name="newsletter_opt_in" />
+            <span>Email me about future Bulldogs events and drops</span>
+          </label>
+          <p class="muted">By paying you agree to the <a href="shop-policy.html">shop policy</a> and <a href="terms.html">terms</a>.</p>
+          <div class="auth-checkout" data-auth-checkout>
+            <div data-auth-logged-in hidden>
+              <p class="muted">Paying as <strong data-auth-as></strong></p>
+              <button class="btn btn--ghost" type="button" data-auth-out>Not you? Sign out</button>
+              <button class="btn btn--accent btn--block" type="submit">Continue to payment</button>
+            </div>
+            <div data-auth-guest>
+              <button class="btn btn--accent btn--block" type="submit" data-checkout-guest>Checkout as guest</button>
+              <p class="auth-checkout__alt">
+                <button class="text-btn" type="button" data-open-auth>Sign in</button>
+                ·
+                <button class="text-btn" type="button" data-open-auth="signup">Create account</button>
+              </p>
+            </div>
+          </div>
+          <p class="form-status" role="status"></p>
+        </form>
+      </dialog>`,
+    );
+  }
+
+  document.querySelectorAll(".cart-drawer__foot .btn").forEach((btn) => {
+    btn.disabled = false;
+    btn.removeAttribute("disabled");
+    btn.dataset.checkout = "";
+    btn.textContent = "Checkout";
+  });
+
+  const checkoutBtn = document.querySelector("[data-checkout]");
+  const checkoutDialog = document.querySelector("[data-checkout-dialog]");
+  const checkoutForm = document.querySelector("[data-checkout-form]");
+
+  window.BULLDOGS_AUTH?.bindCheckout(checkoutForm?.querySelector("[data-auth-checkout]"));
 
   const openCart = () => {
     overlay?.classList.add("is-open");
@@ -31,30 +86,71 @@
   const closeCart = () => {
     overlay?.classList.remove("is-open");
     drawer?.classList.remove("is-open");
-    if (!document.querySelector(".nav__links.is-open")) {
-      document.body.style.overflow = "";
+    if (!document.querySelector(".nav__links.is-open")) document.body.style.overflow = "";
+  };
+
+  const saveCart = (cart) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+    renderCart();
+    const session = window.BULLDOGS_SESSION;
+    if (session && api) {
+      api.fn("me-api", { action: "save_cart", items: cart }).catch(() => {});
     }
+  };
+
+  let catalogCache = [];
+  const shippingPence = Number(cfg.shippingPence || 0);
+
+  const applyStock = (product) => {
+    const id = product.getAttribute("data-product-id");
+    const row = catalogCache.find((item) => item.id === id);
+    const select = product.querySelector("[data-size]");
+    const add = product.querySelector("[data-add]");
+    if (!row || !select) return;
+    const colour = product.getAttribute("data-colour") || "orange";
+    const variants = row.variants || [];
+    [...select.options].forEach((opt) => {
+      const size = opt.value || opt.textContent.trim();
+      const match = variants.find((v) => v.colour === colour && v.size === size);
+      const available = match ? Number(match.available) : 0;
+      opt.disabled = available <= 0;
+      opt.textContent = available <= 0 ? `${size} — sold out` : size;
+    });
+    if (select.selectedOptions[0]?.disabled) {
+      const first = [...select.options].find((opt) => !opt.disabled);
+      if (first) select.value = first.value;
+    }
+    if (add) add.disabled = [...select.options].every((opt) => opt.disabled);
   };
 
   const renderCart = () => {
     const cart = getCart();
     const count = cart.reduce((sum, item) => sum + item.qty, 0);
     const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const ship = cart.length && shippingPence ? shippingPence / 100 : 0;
 
     cartCountEls().forEach((el) => {
       el.textContent = String(count);
       el.dataset.count = String(count);
     });
 
-    if (cartTotal) cartTotal.textContent = formatPrice(total);
+    if (cartTotal) cartTotal.textContent = formatPrice(total + ship);
+    if (checkoutBtn) {
+      checkoutBtn.disabled = !cart.length;
+      checkoutBtn.textContent = cart.length ? "Checkout" : "Checkout";
+    }
+    const note = document.querySelector(".cart-note");
+    if (note) {
+      note.textContent = shippingPence
+        ? `UK delivery ${moneyPence(shippingPence)}. Made to order — typically 2–3 weeks.`
+        : "Made to order — typically 2–3 weeks.";
+    }
 
     if (!cartBody) return;
-
     if (!cart.length) {
       cartBody.innerHTML = `<p class="cart-empty">Your bag is empty. Grab some pack gear.</p>`;
       return;
     }
-
     cartBody.innerHTML = cart
       .map(
         (item, i) => `
@@ -62,25 +158,18 @@
         <img src="${item.image}" alt="" />
         <div>
           <h4>${item.name}</h4>
-          <p>${[item.colour, item.size ? `Size ${item.size}` : ""].filter(Boolean).join(" · ")}${item.colour || item.size ? " · " : ""}${formatPrice(item.price)} × ${item.qty}</p>
+          <p>${[item.colourLabel, item.size ? `Size ${item.size}` : ""].filter(Boolean).join(" · ")} · ${formatPrice(item.price)} × ${item.qty}</p>
           <button type="button" class="cart-item__remove" data-remove="${i}">Remove</button>
         </div>
         <span>${formatPrice(item.price * item.qty)}</span>
-      </article>`
+      </article>`,
       )
       .join("");
   };
 
-  document.querySelectorAll("[data-open-cart]").forEach((btn) => {
-    btn.addEventListener("click", openCart);
-  });
-
-  document.querySelectorAll("[data-close-cart]").forEach((btn) => {
-    btn.addEventListener("click", closeCart);
-  });
-
+  document.querySelectorAll("[data-open-cart]").forEach((btn) => btn.addEventListener("click", openCart));
+  document.querySelectorAll("[data-close-cart]").forEach((btn) => btn.addEventListener("click", closeCart));
   overlay?.addEventListener("click", closeCart);
-
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeCart();
   });
@@ -88,9 +177,8 @@
   cartBody?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-remove]");
     if (!btn) return;
-    const index = Number(btn.dataset.remove);
     const cart = getCart();
-    cart.splice(index, 1);
+    cart.splice(Number(btn.dataset.remove), 1);
     saveCart(cart);
   });
 
@@ -101,7 +189,6 @@
     const frontImg = product.querySelector(".product__img--front");
     const backImg = product.querySelector(".product__img--back");
     const singleImg = product.querySelector(".product__img:not(.product__img--back)");
-
     if (frontImg && frontSrc) {
       frontImg.src = frontSrc;
       frontImg.alt = `Bulldogs Tee — ${colour} print`;
@@ -109,19 +196,10 @@
       singleImg.src = frontSrc;
       singleImg.alt = `Bulldogs Tee — ${colour} print`;
     }
-
-    if (backImg && backSrc) {
-      backImg.src = backSrc;
-    }
-
-    if (frontSrc) {
-      product.setAttribute("data-image", frontSrc);
-    }
-
+    if (backImg && backSrc) backImg.src = backSrc;
+    if (frontSrc) product.setAttribute("data-image", frontSrc);
     const label = product.querySelector("[data-colour-label]");
-    if (label) {
-      label.textContent = colour === "blue" ? "Blue" : "Orange";
-    }
+    if (label) label.textContent = colour === "blue" ? "Blue" : "Orange";
   };
 
   const applyColour = (product, colour) => {
@@ -131,12 +209,12 @@
       btn.classList.toggle("is-active", btn.getAttribute("data-colour") === colour);
     });
     syncProductImage(product);
+    applyStock(product);
   };
 
   const applyView = (product, view) => {
     const side = view === "back" ? "back" : "front";
-    const media = product.querySelector(".product__media--swap");
-    media?.classList.toggle("is-showing-back", side === "back");
+    product.querySelector(".product__media--swap")?.classList.toggle("is-showing-back", side === "back");
     product.querySelectorAll("[data-view]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.getAttribute("data-view") === side);
     });
@@ -145,36 +223,37 @@
   const params = new URLSearchParams(window.location.search);
   const storedColour = sessionStorage.getItem("bulldogs-shop-colour");
   if (storedColour) sessionStorage.removeItem("bulldogs-shop-colour");
-  const urlColour = (
-    params.get("colour") ||
-    params.get("color") ||
-    storedColour ||
-    ""
-  ).toLowerCase();
+  const urlColour = (params.get("colour") || params.get("color") || storedColour || "").toLowerCase();
+  if (params.get("order") === "cancelled" || params.get("order") === "success") {
+    const banner = document.querySelector("[data-shop-banner]");
+    if (banner) {
+      banner.hidden = false;
+      if (params.get("order") === "success") {
+        banner.textContent = "Order received. Check your email — we’ll place the print order next.";
+        banner.classList.remove("is-error");
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        banner.textContent = "Payment was cancelled. Nothing was charged.";
+        banner.classList.add("is-error");
+      }
+    }
+  }
 
   document.querySelectorAll("[data-shop-colour]").forEach((link) => {
     link.addEventListener("click", () => {
       const colour = link.getAttribute("data-shop-colour");
-      if (colour === "blue" || colour === "orange") {
-        sessionStorage.setItem("bulldogs-shop-colour", colour);
-      }
+      if (colour === "blue" || colour === "orange") sessionStorage.setItem("bulldogs-shop-colour", colour);
     });
   });
 
   document.querySelectorAll(".product").forEach((product) => {
     applyColour(product, urlColour === "blue" || urlColour === "orange" ? urlColour : "orange");
     applyView(product, "front");
-
     product.querySelectorAll("[data-colour]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        applyColour(product, btn.getAttribute("data-colour"));
-      });
+      btn.addEventListener("click", () => applyColour(product, btn.getAttribute("data-colour")));
     });
-
     product.querySelectorAll("[data-view]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        applyView(product, btn.getAttribute("data-view"));
-      });
+      btn.addEventListener("click", () => applyView(product, btn.getAttribute("data-view")));
     });
 
     const media = product.querySelector(".product__media--swap");
@@ -183,7 +262,6 @@
       let swipePointer = null;
       let swipeStartX = 0;
       let swipeStartY = 0;
-
       media.addEventListener("pointerdown", (e) => {
         if (e.button != null && e.button !== 0) return;
         swipePointer = e.pointerId;
@@ -191,56 +269,129 @@
         swipeStartY = e.clientY;
         media.setPointerCapture?.(e.pointerId);
       });
-
       const endSwipe = (e) => {
         if (swipePointer == null || e.pointerId !== swipePointer) return;
         swipePointer = null;
         const dx = e.clientX - swipeStartX;
         const dy = e.clientY - swipeStartY;
         if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy)) return;
-
         const showingBack = media.classList.contains("is-showing-back");
         if (dx < 0 && !showingBack) applyView(product, "back");
         else if (dx > 0 && showingBack) applyView(product, "front");
       };
-
       media.addEventListener("pointerup", endSwipe);
       media.addEventListener("pointercancel", () => {
         swipePointer = null;
       });
     }
 
-    const addBtn = product.querySelector("[data-add]");
-    if (!addBtn) return;
-
-    addBtn.addEventListener("click", () => {
+    product.querySelector("[data-add]")?.addEventListener("click", () => {
+      const addBtn = product.querySelector("[data-add]");
+      if (addBtn?.disabled) return;
       const name = product.getAttribute("data-name");
+      const productId = product.getAttribute("data-product-id") || "bulldogs-tee";
       const price = Number(product.getAttribute("data-price"));
-      const colour = product.getAttribute("data-colour") || "";
-      const colourLabel = colour ? `${colour.charAt(0).toUpperCase()}${colour.slice(1)} print` : "";
+      const colour = product.getAttribute("data-colour") || "orange";
+      const colourLabel = `${colour.charAt(0).toUpperCase()}${colour.slice(1)} print`;
       const image =
         product.getAttribute(`data-front-${colour}`) ||
         product.getAttribute("data-image") ||
-        product.querySelector(".product__img--front")?.src ||
-        product.querySelector(".product__img")?.src;
-      const sizeSelect = product.querySelector("[data-size], select");
-      const size = sizeSelect ? sizeSelect.value : "";
-      const qtySelect = product.querySelector("[data-qty]");
-      const qty = Math.max(1, Number(qtySelect?.value) || 1);
-
+        product.querySelector(".product__img--front")?.src;
+      const size = product.querySelector("[data-size], select")?.value || "";
+      const qty = Math.max(1, Number(product.querySelector("[data-qty]")?.value) || 1);
       const cart = getCart();
-      const existing = cart.find(
-        (item) => item.name === name && item.size === size && item.colour === colourLabel
-      );
-      if (existing) {
-        existing.qty += qty;
-      } else {
-        cart.push({ name, price, image, size, colour: colourLabel, qty });
-      }
+      const existing = cart.find((item) => item.product_id === productId && item.size === size && item.colour === colour);
+      if (existing) existing.qty += qty;
+      else cart.push({ product_id: productId, name, price, image, size, colour, colourLabel, qty });
       saveCart(cart);
       openCart();
     });
   });
+
+  checkoutBtn?.addEventListener("click", () => {
+    if (!getCart().length) return;
+    const session = window.BULLDOGS_SESSION;
+    if (session?.user && checkoutForm) {
+      if (checkoutForm.email) checkoutForm.email.value = session.user.email;
+      if (checkoutForm.full_name && session.user.user_metadata?.full_name) {
+        checkoutForm.full_name.value = session.user.user_metadata.full_name;
+      }
+    }
+    closeCart();
+    checkoutDialog?.showModal();
+  });
+
+  checkoutDialog?.querySelectorAll("[data-close-checkout]").forEach((btn) => {
+    btn.addEventListener("click", () => checkoutDialog.close());
+  });
+
+  checkoutForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!api) return;
+    const status = checkoutForm.querySelector(".form-status");
+    const submitBtns = [...checkoutForm.querySelectorAll('[type="submit"]')];
+    const data = new FormData(checkoutForm);
+    const cart = getCart();
+    status.textContent = "Starting checkout…";
+    status.classList.remove("is-error");
+    submitBtns.forEach((btn) => {
+      btn.disabled = true;
+    });
+    try {
+      const payload = await api.fn("create-shop-checkout", {
+        email: data.get("email"),
+        full_name: data.get("full_name") || null,
+        newsletter_opt_in: data.get("newsletter_opt_in") === "on",
+        items: cart.map((item) => ({
+          product_id: item.product_id,
+          colour: item.colour,
+          size: item.size,
+          quantity: item.qty,
+        })),
+      });
+      if (!payload.url) throw new Error("Couldn't start checkout");
+      window.location.assign(payload.url);
+    } catch (err) {
+      status.textContent = err.message || "Couldn't start checkout.";
+      status.classList.add("is-error");
+      submitBtns.forEach((btn) => {
+        btn.disabled = false;
+      });
+    }
+  });
+
+  const mergeAccountCart = async () => {
+    if (!api || !window.BULLDOGS_SESSION) return;
+    try {
+      const remote = await api.fn("me-api", { action: "get_cart" });
+      const local = getCart();
+      if ((!local.length) && Array.isArray(remote.items) && remote.items.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.items));
+        renderCart();
+      } else if (local.length) {
+        await api.fn("me-api", { action: "save_cart", items: local });
+      }
+    } catch {
+      /* guest */
+    }
+  };
+
+  if (api) {
+    api.rpc("list_shop_catalog").then((catalog) => {
+      catalogCache = catalog || [];
+      document.querySelectorAll(".product[data-product-id]").forEach((product) => {
+        const id = product.getAttribute("data-product-id");
+        const row = catalogCache.find((item) => item.id === id);
+        if (!row) return;
+        product.setAttribute("data-price", String(row.price_pence / 100));
+        applyStock(product);
+      });
+    }).catch(() => {});
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) mergeAccountCart();
+    });
+    setTimeout(mergeAccountCart, 800);
+  }
 
   renderCart();
 })();

@@ -8,32 +8,54 @@ export function getSiteUrl(): string {
   return requireEnv("SITE_URL").replace(/\/+$/, "");
 }
 
-function corsHeaders(req: Request): Record<string, string> {
-  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? `${getSiteUrl()},http://localhost:3000`)
-    .split(",")
-    .map((origin) => origin.trim().replace(/\/+$/, ""))
-    .filter(Boolean);
+/** Prefer the page the visitor is on (local :3000 or production) when it is an allowed origin. */
+export function checkoutSiteUrl(req: Request): string {
+  const origin = (req.headers.get("Origin") ?? "").replace(/\/+$/, "");
+  const allowed = [
+    ...(Deno.env.get("ALLOWED_ORIGINS") ?? getSiteUrl()).split(",").map((value) => value.trim().replace(/\/+$/, "")),
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ].filter(Boolean);
+  if (origin && allowed.includes(origin)) return origin;
+  return getSiteUrl();
+}
+
+function corsHeaders(req: Request, methods = "POST, OPTIONS"): Record<string, string> {
+  const allowedOrigins = [
+    ...(Deno.env.get("ALLOWED_ORIGINS") ?? getSiteUrl())
+      .split(",")
+      .map((origin) => origin.trim().replace(/\/+$/, "")),
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ].filter(Boolean);
   const origin = req.headers.get("Origin") ?? "";
   return {
     "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+    "Access-Control-Allow-Methods": methods,
     Vary: "Origin",
   };
 }
 
-export function json(req: Request, body: unknown, status = 200): Response {
+export function json(req: Request, body: unknown, status = 200, methods = "POST, OPTIONS"): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req, methods), "Content-Type": "application/json" },
   });
 }
 
 /** Handles CORS preflight and rejects anything but POST. Returns null when the request should proceed. */
-export function preflight(req: Request): Response | null {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
-  if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
+export function preflight(req: Request, methods = "POST, OPTIONS"): Response | null {
+  const allowed = methods.split(",").map((m) => m.trim());
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req, methods) });
+  if (!allowed.includes(req.method)) return json(req, { error: "Method not allowed" }, 405, methods);
   return null;
+}
+
+export function bearer(req: Request): string | null {
+  const raw = req.headers.get("Authorization") ?? "";
+  const match = raw.match(/^Bearer\s+(\S+)/i);
+  return match?.[1] ?? null;
 }
 
 export async function readJson(req: Request): Promise<Record<string, unknown> | null> {
