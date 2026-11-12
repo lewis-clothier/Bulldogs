@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/floodlight-pages.css" />
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
   <body>
@@ -21,11 +22,11 @@
         </a>
         <nav class="nav__links" aria-label="Primary">
           <a href="index.html">Home</a>
-          <a href="team.html" aria-current="page">AFL TEAM</a>
           <a href="events.html">Events</a>
           <a href="shop.html">Shop</a>
-          <a href="news.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="team.html" aria-current="page">AFL TEAM</a>
+          <a href="news.html" hidden>News</a>
+          <a href="contact.html" hidden>Contact</a>
         </nav>
         <div class="nav__actions">
           <button class="cart-btn" type="button" data-open-cart aria-label="Open cart">
@@ -39,15 +40,20 @@
       </div>
     </header>
 
-    <main>
-      <div class="page-banner page-banner--hero page-banner--team media-frame media-frame--bleed">
-        <img data-parallax src="assets/photos/web/team-hero.jpg" alt="Team Bulldogs — the pack" />
-        <div class="page-banner__scrub" aria-hidden="true"></div>
+    <main class="team-page">
+      <div class="page-banner page-banner--hero page-banner--team ph">
+        <img src="assets/photos/web/team-hero.jpg" alt="" />
         <header class="page-hero page-hero--over">
           <div class="wrap">
-            <p class="eyebrow">Roster</p>
-            <h1>2026 AFL Team</h1>
-            <p>Team Bulldogs — Airtox Faceoff League.</p>
+            <div>
+              <p class="eyebrow">Roster</p>
+              <h1>2026 AFL Team</h1>
+              <p class="muted">Team Bulldogs — Airtox Faceoff League.</p>
+            </div>
+            <div class="ph__stats">
+              <div class="glass"><b>12</b><span>On the roster</span></div>
+              <div class="glass"><b data-rounds-done>6/6</b><span>Rounds done</span></div>
+            </div>
           </div>
         </header>
       </div>
@@ -59,23 +65,20 @@
               <p class="eyebrow">Staff</p>
               <h2>Coaching team</h2>
             </header>
-            <ul class="roster roster--coaches">
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Henry Mantel.png" alt="Henry Mantel" /></div>
-                <h3>Henry Mantel</h3>
-                <p>Head Coach</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Lewis Clothier.png" alt="Lewis Clothier" /></div>
-                <h3>Lewis Clothier</h3>
-                <p>#7 · Coach &amp; Athlete</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Chanin Janse Van Rensburg.png" alt="Chanin Janse van Rensburg" /></div>
-                <h3>Chanin Janse van Rensburg</h3>
-                <p>#5 · Coach &amp; Athlete</p>
-              </li>
-            </ul>
+            <div class="coaches">
+              <article class="coach glass">
+                <img src="assets/athletes/Henry Mantel.png" alt="Henry Mantel" />
+                <div><b>Henry Mantel</b><span>Head Coach</span></div>
+              </article>
+              <article class="coach glass">
+                <img src="assets/athletes/Lewis Clothier.png" alt="Lewis Clothier" />
+                <div><b>Lewis Clothier</b><span>#7 · Coach &amp; Athlete</span></div>
+              </article>
+              <article class="coach glass">
+                <img src="assets/athletes/Chanin Janse Van Rensburg.png" alt="Chanin Janse van Rensburg" />
+                <div><b>Chanin Janse van Rensburg</b><span>#5 · Coach &amp; Athlete</span></div>
+              </article>
+            </div>
           </div>
 
           <div class="roster-group reveal">
@@ -83,115 +86,82 @@
               <p class="eyebrow">Squad</p>
               <h2>Athletes</h2>
             </header>
-            <ul class="roster">
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Lewis Bagguley.png" alt="Lewis Bagguley" /></div>
-                <h3>Lewis Bagguley</h3>
-                <p>#1</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Joe Oldham.png" alt="Joe Oldham" /></div>
-                <h3>Joe Oldham</h3>
-                <p>#4</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Peter Goldberg.png" alt="Peter Goldberg" /></div>
-                <h3>Peter Goldberg</h3>
-                <p>#6</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Leo Davidson.png" alt="Leo Davidson" /></div>
-                <h3>Leo Davidson</h3>
-                <p>#8</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Isaac Benninson.png" alt="Isaac Benninson" /></div>
-                <h3>Isaac Benninson</h3>
-                <p>#9</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Will Calder.png" alt="Will Calder" /></div>
-                <h3>Will Calder</h3>
-                <p>#10</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Ebbe Larsen.png" alt="Ebbe Larsen" /></div>
-                <h3>Ebbe Larsen</h3>
-                <p>#11</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Daan Lammertink.png" alt="Daan Lammertink" /></div>
-                <h3>Daan Lammertink</h3>
-                <p>#14</p>
-              </li>
-              <li class="athlete">
-                <div class="athlete__photo media-frame media-frame--soft"><img src="assets/athletes/Matthew Capes.png" alt="Matthew Capes" /></div>
-                <h3>Matthew Capes</h3>
-                <p>Athlete</p>
-              </li>
-            </ul>
+            <div class="squad">
+              <article class="ath" data-num="1"><img src="assets/athletes/Lewis Bagguley.png" alt="Lewis Bagguley" /><div><b>Lewis Bagguley</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="4"><img src="assets/athletes/Joe Oldham.png" alt="Joe Oldham" /><div><b>Joe Oldham</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="6"><img src="assets/athletes/Peter Goldberg.png" alt="Peter Goldberg" /><div><b>Peter Goldberg</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="8"><img src="assets/athletes/Leo Davidson.png" alt="Leo Davidson" /><div><b>Leo Davidson</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="9"><img src="assets/athletes/Isaac Benninson.png" alt="Isaac Benninson" /><div><b>Isaac Benninson</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="10"><img src="assets/athletes/Will Calder.png" alt="Will Calder" /><div><b>Will Calder</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="11"><img src="assets/athletes/Ebbe Larsen.png" alt="Ebbe Larsen" /><div><b>Ebbe Larsen</b><span>Athlete</span></div></article>
+              <article class="ath" data-num="14"><img src="assets/athletes/Daan Lammertink.png" alt="Daan Lammertink" /><div><b>Daan Lammertink</b><span>Athlete</span></div></article>
+              <article class="ath"><img src="assets/athletes/Matthew Capes.png" alt="Matthew Capes" /><div><b>Matthew Capes</b><span>Athlete</span></div></article>
+              <a class="ath ath--join" href="events.html">
+                <img src="assets/logo.png" alt="" />
+                <div><b>Train with the pack</b><span>See what’s coming up</span></div>
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
       <section class="section" id="calendar">
         <div class="wrap reveal">
-          <div class="section-head">
-            <p class="eyebrow">Calendar</p>
-            <h2>League rounds</h2>
-            <p>Two disciplines per round. Points stack toward finals qualification.</p>
+          <div class="section-head rounds-head">
+            <div>
+              <p class="eyebrow">Calendar</p>
+              <h2>League rounds</h2>
+              <p>Two disciplines per round. Points stack toward finals qualification.</p>
+            </div>
+            <div class="arrows">
+              <button type="button" data-team-rail="#team-rounds" data-team-dir="-1" aria-label="Previous rounds">←</button>
+              <button type="button" data-team-rail="#team-rounds" data-team-dir="1" aria-label="Next rounds">→</button>
+            </div>
           </div>
-          <div class="rounds">
-            <article class="round">
-              <span class="round__num">01</span>
+          <div class="rounds" id="team-rounds">
+            <article class="round" data-round-date="2026-04-18">
               <div>
                 <h3>Round 1</h3>
                 <p>Roskilde Kongrescenter</p>
               </div>
               <div class="round__meta">18 Apr 2026</div>
             </article>
-            <article class="round">
-              <span class="round__num">02</span>
+            <article class="round" data-round-date="2026-05-16">
               <div>
                 <h3>Round 2</h3>
                 <p>Sportscenter Herning</p>
               </div>
               <div class="round__meta">16 May 2026</div>
             </article>
-            <article class="round">
-              <span class="round__num">03</span>
+            <article class="round" data-round-date="2026-06-06">
               <div>
                 <h3>Round 3</h3>
                 <p>Odense Idrætspark</p>
               </div>
               <div class="round__meta">6 Jun 2026</div>
             </article>
-            <article class="round">
-              <span class="round__num">04</span>
+            <article class="round" data-round-date="2026-09-26">
               <div>
                 <h3>Round 4</h3>
                 <p>Farum Arena</p>
               </div>
               <div class="round__meta">26 Sep 2026</div>
             </article>
-            <article class="round">
-              <span class="round__num">05</span>
+            <article class="round" data-round-date="2026-10-24">
               <div>
                 <h3>Round 5</h3>
                 <p>Gråkjær Arena, Holstebro</p>
               </div>
               <div class="round__meta">24 Oct 2026</div>
             </article>
-            <article class="round">
-              <span class="round__num">06</span>
+            <article class="round" data-round-date="2026-11-07">
               <div>
                 <h3>Round 6</h3>
                 <p>Arena Svendborg</p>
               </div>
               <div class="round__meta">7 Nov 2026</div>
             </article>
-            <article class="round round--final">
-              <span class="round__num">F</span>
+            <article class="round round--final" data-round-date="2026-12-05">
               <div>
                 <h3>FACEOFF Finals</h3>
                 <p>Jyske Bank Boxen, Herning — top 4 teams</p>
@@ -264,5 +234,14 @@
     <script src="js/auth-ui.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
+    <script>
+      document.querySelectorAll("[data-team-rail]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const rail = document.querySelector(btn.getAttribute("data-team-rail"));
+          if (!rail) return;
+          rail.scrollBy({ left: Number(btn.getAttribute("data-team-dir") || 1) * 280, behavior: "smooth" });
+        });
+      });
+    </script>
   </body>
 </html>

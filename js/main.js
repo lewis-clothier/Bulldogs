@@ -278,6 +278,29 @@
     }
   };
 
+  const rounds = [...document.querySelectorAll("[data-round-date]")];
+  let nextRound = false;
+  rounds.forEach((el) => {
+    const day = new Date(`${el.getAttribute("data-round-date")}T23:59:59Z`);
+    if (Number.isNaN(day.getTime())) return;
+    if (day < new Date()) el.classList.add("round--past");
+    else if (!nextRound) {
+      el.classList.add("round--next");
+      nextRound = true;
+    }
+  });
+  const doneEl = document.querySelector("[data-rounds-done]");
+  if (doneEl) {
+    const league = rounds.filter((el) => !el.classList.contains("round--final"));
+    const done = league.filter((el) => el.classList.contains("round--past")).length;
+    doneEl.textContent = league.length ? `${done}/${league.length}` : "0";
+  }
+  const upcoming = document.querySelector(".round--next");
+  const rail = upcoming?.parentElement;
+  if (upcoming && rail && rail.scrollWidth > rail.clientWidth) {
+    rail.scrollLeft = Math.max(0, upcoming.offsetLeft - (rail.clientWidth - upcoming.offsetWidth));
+  }
+
   document.querySelectorAll("[data-copy-email]").forEach((el) => {
     el.addEventListener("click", () => {
       const email = el.getAttribute("data-copy-email");

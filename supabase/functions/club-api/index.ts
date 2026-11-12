@@ -1,8 +1,32 @@
 import { requireClub } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
-import { formatDate, formatMoney } from "../_shared/email.ts";
-import { email, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
+import { escapeHtml, formatDate, formatMoney, sendHtml } from "../_shared/email.ts";
+import { email, getSiteUrl, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
 import { sendBookingCancelled, sendClubCancelledEvent } from "../_shared/notifications.ts";
+
+async function notifyEventLive(event: { id: string; title: string; starts_at: string; location: string | null }) {
+  try {
+    const { data, error } = await db.from("newsletter_subscribers").select("email").is("unsubscribed_at", null);
+    if (error || !data?.length) return;
+    const when = formatDate(event.starts_at);
+    const where = event.location ? ` · ${event.location}` : "";
+    const link = `${getSiteUrl()}/events.html`;
+    for (const row of data) {
+      await sendHtml({
+        to: row.email,
+        subject: `New Bulldogs event: ${event.title}`,
+        idempotencyKey: `event-live/${event.id}/${row.email}/${event.starts_at}`,
+        html: `<div style="font-family:Outfit,Segoe UI,sans-serif;color:#1e1e23;line-height:1.5;max-width:36rem;">
+          <p>A new Team Bulldogs event is open for booking.</p>
+          <p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${escapeHtml(where)}</p>
+          <p><a href="${escapeHtml(link)}">See events</a></p>
+        </div>`,
+      });
+    }
+  } catch (err) {
+    console.error("event alerts failed", err);
+  }
+}
 
 async function refundIntent(intentId: string | null) {
   if (!intentId) return false;
@@ -66,14 +90,22 @@ Deno.serve(async (req) => {
         age_range: text(body.age_range, "Age range", 80),
         what_to_bring: text(body.what_to_bring, "What to bring", 500),
       };
-      if (body.id) {
-        const { error } = await db.from("events").update(row).eq("id", body.id);
+      let id = typeof body.id === "string" && body.id ? body.id : "";
+      let wasPublished = false;
+      if (id) {
+        const { data: existing } = await db.from("events").select("is_published").eq("id", id).maybeSingle();
+        wasPublished = existing?.is_published === true;
+        const { error } = await db.from("events").update(row).eq("id", id);
         if (error) throw error;
-        return json(req, { ok: true, id: body.id });
+      } else {
+        const { data, error } = await db.from("events").insert(row).select("id").single();
+        if (error) throw error;
+        id = data.id;
       }
-      const { data, error } = await db.from("events").insert(row).select("id").single();
-      if (error) throw error;
-      return json(req, { ok: true, id: data.id });
+      if (row.is_published && !wasPublished) {
+        await notifyEventLive({ id, title: row.title, starts_at: row.starts_at, location: row.location });
+      }
+      return json(req, { ok: true, id });
     }
 
     if (action === "list_attendees") {
@@ -263,6 +295,59 @@ Deno.serve(async (req) => {
       const { error } = await db.from("admins").delete().eq("email", address);
       if (error) throw error;
       return json(req, { ok: true });
+    }
+
+    if (action === "list_waitlist") {
+      const { data, error } = await db
+        .from("event_waitlist")
+        .select("event_id, email, full_name, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return json(req, { rows: data });
+    }
+
+    if (action === "undo_checkin") {
+      const registrationId = text(body.registration_id, "Registration", 36, true)!;
+      const { error } = await db.from("registrations").update({ checked_in_at: null }).eq("id", registrationId);
+      if (error) throw error;
+      return json(req, { ok: true });
+    }
+
+    if (action === "summary") {
+      const now = new Date().toISOString();
+      const { count: live, error: liveError } = await db
+        .from("events")
+        .select("id", { count: "exact", head: true })
+        .eq("is_published", true)
+        .gt("starts_at", now);
+      if (liveError) throw liveError;
+      const { data: upcoming, error: upcomingError } = await db.from("events").select("id").gt("starts_at", now);
+      if (upcomingError) throw upcomingError;
+      const ids = (upcoming ?? []).map((row) => row.id);
+      let booked = 0;
+      if (ids.length) {
+        const { count, error: placesError } = await db
+          .from("registrations")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "paid")
+          .in("event_id", ids);
+        if (placesError) throw placesError;
+        booked = count ?? 0;
+      }
+      const { data: orders, error: ordersError } = await db
+        .from("orders")
+        .select("status, amount_total_pence, amount_subtotal_pence, amount_shipping_pence");
+      if (ordersError) throw ordersError;
+      const revenue = (orders ?? [])
+        .filter((order) => order.status === "paid" || order.status === "fulfilled")
+        .reduce((sum, order) => sum + (order.amount_total_pence ?? (order.amount_subtotal_pence || 0) + (order.amount_shipping_pence || 0)), 0);
+      const toFulfil = (orders ?? []).filter((order) => order.status === "paid").length;
+      return json(req, {
+        live_events: live ?? 0,
+        booked_places: booked,
+        revenue_pence: revenue,
+        orders_to_fulfil: toFulfil,
+      });
     }
 
     if (action === "newsletter_csv") {

@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/floodlight-pages.css" />
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
   <body>
@@ -21,11 +22,11 @@
         </a>
         <nav class="nav__links" aria-label="Primary">
           <a href="index.html">Home</a>
-          <a href="team.html">AFL TEAM</a>
           <a href="events.html">Events</a>
           <a href="shop.html" aria-current="page">Shop</a>
-          <a href="news.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="team.html">AFL TEAM</a>
+          <a href="news.html" hidden>News</a>
+          <a href="contact.html" hidden>Contact</a>
         </nav>
         <div class="nav__actions">
           <button class="cart-btn" type="button" data-open-cart aria-label="Open cart">
@@ -39,130 +40,98 @@
       </div>
     </header>
 
-    <main>
-        <header class="page-hero">
-        <div class="wrap">
-          <p class="booking-banner" data-shop-banner hidden role="status"></p>
-          <p class="eyebrow">First drop</p>
-          <h1>Shop</h1>
-          <p>Official Bulldogs tee. Made to order — typically 2–3 weeks. UK delivery extra at checkout.</p>
-        </div>
-      </header>
-
+    <main class="shop-page">
       <section class="section">
         <div class="wrap">
+          <p class="booking-banner" data-shop-banner hidden role="status"></p>
           <article
-            class="product product--featured reveal"
+            class="product pdp"
             data-name="Bulldogs Tee"
             data-product-id="bulldogs-tee"
             data-price="25"
+            data-colour="orange"
             data-image="assets/products/product_1_orange_front_cutout.png"
             data-front-orange="assets/products/product_1_orange_front_cutout.png"
             data-back-orange="assets/products/product_1_orange_back_cutout.png"
             data-front-blue="assets/products/product_1_blue_front_cutout.png"
             data-back-blue="assets/products/product_1_blue_back_cutout.png"
           >
-            <div class="product__gallery">
-              <div class="product__media product__media--contain product__media--swap">
-                <img
-                  class="product__img product__img--front"
-                  src="assets/products/product_1_orange_front_cutout.png"
-                  alt="Bulldogs Tee — orange print"
-                />
-                <img
-                  class="product__img product__img--back"
-                  src="assets/products/product_1_orange_back_cutout.png"
-                  alt=""
-                  aria-hidden="true"
-                />
+            <div class="pdp__media">
+              <div class="pdp__stage">
+                <div class="product__media product__media--swap">
+                  <img class="product__img product__img--front" src="assets/products/product_1_orange_front_cutout.png" alt="Bulldogs Tee — orange print" />
+                  <img class="product__img product__img--back" src="assets/products/product_1_orange_back_cutout.png" alt="" aria-hidden="true" />
+                </div>
+                <div class="seg pdp__flip" role="group" aria-label="Product view">
+                  <button type="button" class="is-active" data-view="front">Front</button>
+                  <button type="button" data-view="back">Back</button>
+                </div>
+              </div>
+              <div class="thumbs">
+                <button type="button" data-shot="orange:front" aria-label="Orange print, front"><img src="assets/products/product_1_orange_front_cutout.png" alt="" /></button>
+                <button type="button" data-shot="orange:back" aria-label="Orange print, back"><img src="assets/products/product_1_orange_back_cutout.png" alt="" /></button>
+                <button type="button" data-shot="blue:front" aria-label="Blue print, front"><img src="assets/products/product_1_blue_front_cutout.png" alt="" /></button>
+                <button type="button" data-shot="blue:back" aria-label="Blue print, back"><img src="assets/products/product_1_blue_back_cutout.png" alt="" /></button>
               </div>
             </div>
-            <div class="product__body">
-              <p class="eyebrow">Drop 01</p>
-              <h3>Bulldogs Tee</h3>
-              <p class="product__desc muted">
-                Navy tee with chest print and full back graphic. Choose orange or blue print colourway.
-              </p>
-              <p class="product__price">£25</p>
-              <p class="muted">See the <a href="#size-guide" style="color: var(--accent);">size guide</a> and <a href="shop-policy.html" style="color: var(--accent);">shop policy</a>.</p>
+            <div class="pdp__info">
+              <h1>Bulldogs Tee</h1>
+              <p class="muted">Navy tee with a chest print and a full back graphic. Orange or blue.</p>
+              <p class="pdp__price"><b>£25</b></p>
 
-              <fieldset class="product__swatches">
-                <legend class="sr-only">Colourway</legend>
-                <p class="product__option-label">Colour · <span data-colour-label>Orange</span></p>
-                <div class="swatch-row">
-                  <button
-                    type="button"
-                    class="swatch swatch--orange is-active"
-                    data-colour="orange"
-                    aria-label="Orange print"
-                    title="Orange print"
-                  ></button>
-                  <button
-                    type="button"
-                    class="swatch swatch--blue"
-                    data-colour="blue"
-                    aria-label="Blue print"
-                    title="Blue print"
-                  ></button>
-                </div>
-              </fieldset>
-
-              <div class="product__view" role="group" aria-label="Product view">
-                <p class="product__option-label">View</p>
-                <div class="view-toggle">
-                  <button type="button" class="view-toggle__btn is-active" data-view="front">Front</button>
-                  <button type="button" class="view-toggle__btn" data-view="back">Back</button>
-                </div>
+              <p class="opt-label"><span>Colour · <span data-colour-label>Orange</span></span></p>
+              <div class="swatches">
+                <button type="button" class="colour-pill is-active" data-colour="orange"><i></i>Orange</button>
+                <button type="button" class="colour-pill" data-colour="blue"><i></i>Blue</button>
               </div>
 
-              <div class="product__controls product__controls--stack">
-                <div class="product__option-row">
-                  <div class="product__option">
-                    <label class="product__option-label" for="size-tee">Size</label>
-                    <select id="size-tee" data-size>
-                      <option>S</option>
-                      <option selected>M</option>
-                      <option>L</option>
-                      <option>XL</option>
-                    </select>
-                  </div>
-                  <div class="product__option">
-                    <label class="product__option-label" for="pieces-tee">Pieces</label>
-                    <select id="pieces-tee" data-qty>
-                      <option selected>1</option>
-                      <option>2</option>
-                      <option>3</option>
-                      <option>4</option>
-                      <option>5</option>
-                      <option>6</option>
-                      <option>7</option>
-                      <option>8</option>
-                      <option>9</option>
-                      <option>10</option>
-                    </select>
-                  </div>
+              <p class="opt-label"><span>Size</span><a href="#size-guide">Size guide</a></p>
+              <input type="hidden" data-size value="M" />
+              <div class="sizes" data-sizes>
+                <button type="button" data-size-option="S">S</button>
+                <button type="button" class="is-on" data-size-option="M">M</button>
+                <button type="button" data-size-option="L">L</button>
+                <button type="button" data-size-option="XL">XL</button>
+              </div>
+
+              <div class="buy">
+                <div class="qty">
+                  <button type="button" data-qty-delta="-1" aria-label="Fewer">−</button>
+                  <input data-qty type="number" min="1" max="10" value="1" aria-label="Quantity" />
+                  <button type="button" data-qty-delta="1" aria-label="More">+</button>
                 </div>
-                <button class="btn btn--accent" type="button" data-add>Add to bag</button>
+                <button class="btn btn--accent" type="button" data-add>Add to bag · £25</button>
+              </div>
+
+              <div class="assure">
+                <div><b data-stock-title>Made to order</b><span data-stock-detail>Typically 2–3 weeks</span></div>
+                <div><b>UK delivery</b>Added at checkout</div>
+                <div><b>Secure checkout</b>Paid via Stripe</div>
+              </div>
+
+              <div class="acc">
+                <details id="size-guide">
+                  <summary>Details &amp; fit <span>+</span></summary>
+                  <p class="muted">Unisex navy tee. If you’re between sizes, size up. Printed to order — not next-day dispatch.</p>
+                  <table class="standings size-guide">
+                    <thead>
+                      <tr><th>Size</th><th>Chest</th><th>Typical fit</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>S</td><td>36–38"</td><td>Smaller adult / older youth</td></tr>
+                      <tr><td>M</td><td>38–40"</td><td>Average adult</td></tr>
+                      <tr><td>L</td><td>40–42"</td><td>Broader chest</td></tr>
+                      <tr><td>XL</td><td>42–44"</td><td>Roomier fit</td></tr>
+                    </tbody>
+                  </table>
+                </details>
+                <details>
+                  <summary>Delivery <span>+</span></summary>
+                  <p class="muted">In-stock sizes ship from what we already have. If that size is gone, we print it — typically 2–3 weeks. UK delivery is added at checkout. <a href="shop-policy.html">Shop policy</a>.</p>
+                </details>
               </div>
             </div>
           </article>
-
-          <div class="policy-block reveal" id="size-guide">
-            <p class="eyebrow">Fit</p>
-            <h2>Size guide</h2>
-            <p class="muted">Unisex navy tee. If you’re between sizes, size up. Printed to order — not next-day dispatch.</p>
-            <table class="standings size-guide">
-              <thead>
-                <tr><th>Size</th><th>Chest</th><th>Typical fit</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>S</td><td>36–38"</td><td>Smaller adult / older youth</td></tr>
-                <tr><td>M</td><td>38–40"</td><td>Average adult</td></tr>
-                <tr><td>L</td><td>40–42"</td><td>Broader chest</td></tr>
-                <tr><td>XL</td><td>42–44"</td><td>Roomier fit</td></tr>
-              </tbody>
-            </table>
-          </div>
         </div>
       </section>
     </main>

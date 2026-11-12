@@ -1,6 +1,6 @@
 import { canSelfCancel } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
-import { json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
+import { email, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
 import { sendBookingCancelled } from "../_shared/notifications.ts";
 
 function icsEscape(value: string) {
@@ -92,6 +92,37 @@ Deno.serve(async (req) => {
       await db.from("registrations").update({ status, expires_at: null }).eq("booking_id", booking.id);
       await sendBookingCancelled(booking.id, refunded);
       return json(req, { ok: true, refunded }, 200, "GET, POST, OPTIONS");
+    }
+
+    if (action === "join_waitlist") {
+      const eventId = text(body.event_id, "Event", 36, true)!;
+      const address = email(body.email);
+      const name = text(body.full_name, "Name", 200);
+      const { data: event, error: eventError } = await db.from("events").select("id, is_published").eq("id", eventId).maybeSingle();
+      if (eventError || !event?.is_published) throw new ValidationError("That event isn't open");
+      const { error } = await db.from("event_waitlist").upsert(
+        { event_id: eventId, email: address, full_name: name },
+        { onConflict: "event_id,email" },
+      );
+      if (error) {
+        console.error(error);
+        const missing = error.code === "42P01" || error.code === "PGRST205";
+        throw new ValidationError(missing ? "The waitlist isn't available yet." : "Couldn't join the waitlist.");
+      }
+      return json(req, { ok: true }, 200, "GET, POST, OPTIONS");
+    }
+
+    if (action === "subscribe_alerts") {
+      const address = email(body.email);
+      const { error } = await db.from("newsletter_subscribers").upsert({
+        email: address,
+        user_id: null,
+        source: "event-alerts",
+        consented_at: new Date().toISOString(),
+        unsubscribed_at: null,
+      });
+      if (error) throw new ValidationError("Couldn't save that email.");
+      return json(req, { ok: true }, 200, "GET, POST, OPTIONS");
     }
 
     return json(req, { error: "Unknown action" }, 400, "GET, POST, OPTIONS");

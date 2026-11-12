@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/floodlight-pages.css" />
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
   <body>
@@ -21,11 +22,11 @@
         </a>
         <nav class="nav__links" aria-label="Primary">
           <a href="index.html">Home</a>
-          <a href="team.html">AFL TEAM</a>
           <a href="events.html" aria-current="page">Events</a>
           <a href="shop.html">Shop</a>
-          <a href="news.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="team.html">AFL TEAM</a>
+          <a href="news.html" hidden>News</a>
+          <a href="contact.html" hidden>Contact</a>
         </nav>
         <div class="nav__actions">
           <button class="cart-btn" type="button" data-open-cart aria-label="Open cart">
@@ -39,35 +40,47 @@
       </div>
     </header>
 
-    <main>
-      <div class="page-banner page-banner--hero page-banner--events media-frame media-frame--bleed">
-        <img data-parallax src="assets/photos/web/events-hero.jpg" alt="Team Bulldogs — pack moment at Faceoff Herning" />
-        <div class="page-banner__scrub" aria-hidden="true"></div>
+    <main class="events-page">
+      <div class="page-banner page-banner--hero page-banner--events ph">
+        <img src="assets/photos/web/events-hero.jpg" alt="" />
         <header class="page-hero page-hero--over">
           <div class="wrap">
-            <p class="eyebrow">Hosted by Bulldogs</p>
-            <h1>Events</h1>
-            <p>Training days, taster sessions and shows — book a place when dates go live.</p>
+            <div>
+              <p class="eyebrow">Hosted by Bulldogs</p>
+              <h1>Events</h1>
+              <p class="muted">Training days, taster sessions and shows — book a place when dates go live.</p>
+            </div>
+            <div class="ph__stats" data-event-stats></div>
           </div>
         </header>
       </div>
 
       <section class="section">
-        <div class="wrap reveal">
-          <div class="section-head">
-            <p class="eyebrow">What we host</p>
-            <h2>Coming up</h2>
-            <p>A home for everything we put on outside league rounds — for athletes, families, and fans.</p>
-          </div>
+        <div class="wrap">
           <p class="booking-banner" data-booking-banner hidden role="status"></p>
-          <div class="events" data-events>
+          <div class="ev-tools">
+            <div class="chips" data-event-filters role="group" aria-label="Filter events"></div>
+            <div class="seg" data-event-layout role="group" aria-label="Layout">
+              <button type="button" class="is-on" data-layout="grid">Grid</button>
+              <button type="button" data-layout="list">List</button>
+            </div>
+          </div>
+          <div data-events>
             <p class="muted">Loading dates…</p>
           </div>
-          <p class="muted" style="margin-top: 2rem; max-width: 36rem;">
-            Want early notice? Reach out via
-            <a href="contact.html" style="color: var(--accent);">Contact</a>
-            or follow us on socials.
-          </p>
+          <form class="ev-alert glass" data-alerts>
+            <img src="assets/logo.png" alt="" />
+            <div>
+              <b>Never miss a session</b>
+              <p>Get an email when a new event goes live.</p>
+              <p class="form-status" role="status"></p>
+            </div>
+            <div class="ev-alert__form">
+              <label class="sr-only" for="alerts-email">Email</label>
+              <input id="alerts-email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" maxlength="254" />
+              <button class="btn btn--accent" type="submit">Turn on alerts</button>
+            </div>
+          </form>
         </div>
       </section>
     </main>
@@ -128,61 +141,98 @@
 
     <dialog class="booking-dialog" data-booking-dialog>
       <button class="booking-dialog__close" type="button" data-close-booking aria-label="Close booking form">×</button>
-      <form class="contact-form" data-booking-form>
+      <form class="contact-form" data-booking-form novalidate>
         <header class="booking-dialog__head">
           <p class="eyebrow">Book a place</p>
           <h2 data-booking-title>Event</h2>
           <p class="muted" data-booking-when></p>
         </header>
+        <div class="book-steps" data-book-steps>
+          <span class="is-on">1 · Who's coming</span>
+          <span>2 · Details</span>
+          <span>3 · Pay</span>
+        </div>
         <input type="hidden" name="event_id" />
-        <div class="field-row">
-          <div class="field">
-            <label for="full_name">Your name</label>
-            <input id="full_name" name="full_name" type="text" required autocomplete="name" maxlength="200" />
+        <div data-step="0">
+          <div class="field-row">
+            <div class="field">
+              <label for="full_name">Your name</label>
+              <input id="full_name" name="full_name" type="text" required autocomplete="name" maxlength="200" />
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" required autocomplete="email" maxlength="254" />
+            </div>
           </div>
           <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" required autocomplete="email" maxlength="254" />
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" />
           </div>
         </div>
-        <div class="field">
-          <label for="phone">Phone</label>
-          <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" />
+        <div data-step="1" hidden>
+          <div data-attendees></div>
+          <button class="btn btn--ghost" type="button" data-add-attendee>Add another attendee</button>
         </div>
-        <div data-attendees></div>
-        <button class="btn btn--ghost" type="button" data-add-attendee>Add another attendee</button>
-        <label class="field field--check">
-          <input type="checkbox" name="newsletter_opt_in" />
-          <span>Email me about future Bulldogs events and drops</span>
-        </label>
-        <label class="field field--check">
-          <input type="checkbox" name="photo_consent" required />
-          <span>I consent to photos and video from this session being used by Team Bulldogs.</span>
-        </label>
-        <label class="field field--check">
-          <input type="checkbox" name="guardian_confirmed" />
-          <span>If any attendee is under 18, I am their parent or guardian.</span>
-        </label>
-        <label class="field field--check">
-          <input type="checkbox" name="terms_accepted" required />
-          <span>I accept the <a href="terms.html">terms</a> and <a href="booking-policy.html">booking policy</a>. Places are held for 40 minutes while you pay.</span>
-        </label>
-        <div class="auth-checkout" data-auth-checkout>
-          <div data-auth-logged-in hidden>
-            <p class="muted">Paying as <strong data-auth-as></strong></p>
-            <button class="btn btn--ghost" type="button" data-auth-out>Not you? Sign out</button>
-            <button class="btn btn--accent btn--block" type="submit">Continue to payment</button>
+        <div data-step="2" hidden>
+          <label class="field field--check">
+            <input type="checkbox" name="newsletter_opt_in" />
+            <span>Email me about future Bulldogs events and drops</span>
+          </label>
+          <label class="field field--check">
+            <input type="checkbox" name="photo_consent" required />
+            <span>I consent to photos and video from this session being used by Team Bulldogs.</span>
+          </label>
+          <label class="field field--check">
+            <input type="checkbox" name="guardian_confirmed" />
+            <span>If any attendee is under 18, I am their parent or guardian.</span>
+          </label>
+          <label class="field field--check">
+            <input type="checkbox" name="terms_accepted" required />
+            <span>I accept the <a href="terms.html">terms</a> and <a href="booking-policy.html">booking policy</a>. Places are held for 40 minutes while you pay.</span>
+          </label>
+          <div class="auth-checkout" data-auth-checkout>
+            <div data-auth-logged-in hidden>
+              <p class="muted">Paying as <strong data-auth-as></strong></p>
+              <button class="btn btn--ghost" type="button" data-auth-out>Not you? Sign out</button>
+              <button class="btn btn--accent btn--block" type="submit">Continue to payment</button>
+            </div>
+            <div data-auth-guest>
+              <button class="btn btn--accent btn--block" type="submit" data-checkout-guest>Checkout as guest</button>
+              <p class="auth-checkout__alt">
+                <button class="text-btn" type="button" data-open-auth>Sign in</button>
+                ·
+                <button class="text-btn" type="button" data-open-auth="signup">Create account</button>
+              </p>
+            </div>
           </div>
-          <div data-auth-guest>
-            <button class="btn btn--accent btn--block" type="submit" data-checkout-guest>Checkout as guest</button>
-            <p class="auth-checkout__alt">
-              <button class="text-btn" type="button" data-open-auth>Sign in</button>
-              ·
-              <button class="text-btn" type="button" data-open-auth="signup">Create account</button>
-            </p>
-          </div>
+        </div>
+        <div class="book-nav">
+          <button class="btn btn--ghost" type="button" data-step-back hidden>Back</button>
+          <button class="btn btn--accent" type="button" data-step-next>Continue</button>
         </div>
         <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </dialog>
+
+    <dialog class="booking-dialog" data-waitlist-dialog>
+      <button class="booking-dialog__close" type="button" data-close-waitlist aria-label="Close">×</button>
+      <form class="contact-form" data-waitlist-form>
+        <header class="booking-dialog__head">
+          <p class="eyebrow">Waitlist</p>
+          <h2 data-waitlist-title>Join the waitlist</h2>
+          <p class="muted">If a place opens, we’ll email you. This isn’t a booking.</p>
+        </header>
+        <input type="hidden" name="event_id" />
+        <div class="field">
+          <label for="wait_name">Name</label>
+          <input id="wait_name" name="full_name" type="text" maxlength="200" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="wait_email">Email</label>
+          <input id="wait_email" name="email" type="email" required maxlength="254" autocomplete="email" />
+        </div>
+        <button class="btn btn--accent btn--block" type="submit">Join waitlist</button>
+        <p class="form-status" role="status"></p>
       </form>
     </dialog>
 
