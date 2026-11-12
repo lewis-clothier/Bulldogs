@@ -173,7 +173,6 @@ export async function sendRegistrationEmails(bookingId: string) {
   const attendeesHtml = attendees
     .map((person) => `<li>${escapeHtml(person.attendee_name)}</li>`)
     .join("");
-  const codes = await doorCodes(site, attendees);
   const clubQr = attendees
     .filter((person) => person.checkin_token)
     .map((person) => {
@@ -199,24 +198,11 @@ export async function sendRegistrationEmails(bookingId: string) {
     ATTENDEES_HTML: `<ul>${attendeesHtml}</ul>`,
   };
 
-  await sendHtml({
+  await sendTemplate({
+    template: "booking-confirmation",
     to: booking.email,
-    subject: `You're booked — ${event.title}`,
-    idempotencyKey: `booking-confirmation/${booking.id}`,
-    attachments: codes.attachments,
-    html: wrap(`
-      <p>Hi ${escapeHtml(booking.full_name)},</p>
-      <p>You're in for <strong>${escapeHtml(event.title)}</strong> on ${escapeHtml(formatDate(event.starts_at))}.</p>
-      <p>Booking ref <strong>${escapeHtml(reference(booking.id))}</strong>${
-        event.location ? `<br />${escapeHtml(event.location)}` : ""
-      }</p>
-      ${event.what_to_bring ? `<p>Bring: ${escapeHtml(event.what_to_bring)}</p>` : ""}
-      <p>Show one QR per attendee at the door. The same code is under My Bookings when you're signed in.</p>
-      ${codes.html}
-      <p><a href="${escapeHtml(ticketUrl)}">All tickets</a> · <a href="${escapeHtml(`${site}/bookings.html`)}">My Bookings</a> · <a href="${escapeHtml(icsUrl)}">Add to calendar</a>${
-        canSelfCancel(event.starts_at) ? ` · <a href="${escapeHtml(cancelUrl)}">Cancel booking</a>` : ""
-      }</p>
-      <p>Team Bulldogs</p>`),
+    idempotencyKey: `booking-confirmation/${booking.id}/template`,
+    variables: shared,
   });
 
   const clubNotes = attendees
