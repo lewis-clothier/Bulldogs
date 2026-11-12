@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       "your merch order",
       order.stripe_checkout_url,
       "the checkout expires",
-      Deno.env.get("RESEND_FROM_ORDERS") ?? "Team Bulldogs <orders@teambulldogs.co.uk>",
+      Deno.env.get("RESEND_FROM_ORDERS") ?? "Team Bulldogs <orders@mail.teambulldogs.co.uk>",
     );
     await db.from("orders").update({ abandoned_email_sent_at: new Date().toISOString() }).eq("id", order.id);
     unpaid++;

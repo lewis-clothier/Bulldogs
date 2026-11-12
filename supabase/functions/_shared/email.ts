@@ -4,8 +4,8 @@ const apiKey = Deno.env.get("RESEND_API_KEY");
 const resend = apiKey ? new Resend(apiKey) : null;
 
 export const clubEmail = Deno.env.get("CLUB_EMAIL") ?? "bulldogs.limited@gmail.com";
-export const fromBookings = Deno.env.get("RESEND_FROM") ?? "Team Bulldogs <bookings@teambulldogs.co.uk>";
-export const fromOrders = Deno.env.get("RESEND_FROM_ORDERS") ?? "Team Bulldogs <orders@teambulldogs.co.uk>";
+export const fromBookings = Deno.env.get("RESEND_FROM") ?? "Team Bulldogs <bookings@mail.teambulldogs.co.uk>";
+export const fromOrders = Deno.env.get("RESEND_FROM_ORDERS") ?? "Team Bulldogs <orders@mail.teambulldogs.co.uk>";
 
 /** Published template aliases in Resend. Copy, senders and subjects are edited there, not here. */
 export type TemplateAlias = "booking-confirmation" | "booking-club-alert" | "order-confirmation" | "order-club-alert";
