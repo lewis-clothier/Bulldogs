@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/gate.js"></script>
     <link rel="stylesheet" href="css/floodlight-pages.css" />
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
@@ -48,9 +49,8 @@
             <div>
               <p class="eyebrow">Hosted by Bulldogs</p>
               <h1>Events</h1>
-              <p class="muted">Training days, taster sessions and shows — book a place when dates go live.</p>
+              <p class="muted">Book training days, taster sessions and shows when they go live.</p>
             </div>
-            <div class="ph__stats" data-event-stats></div>
           </div>
         </header>
       </div>
@@ -58,21 +58,11 @@
       <section class="section">
         <div class="wrap">
           <p class="booking-banner" data-booking-banner hidden role="status"></p>
-          <div class="ev-tools">
-            <div class="chips" data-event-filters role="group" aria-label="Filter events"></div>
-            <div class="seg" data-event-layout role="group" aria-label="Layout">
-              <button type="button" class="is-on" data-layout="grid">Grid</button>
-              <button type="button" data-layout="list">List</button>
-            </div>
-          </div>
-          <div data-events>
-            <p class="muted">Loading dates…</p>
-          </div>
-          <form class="ev-alert glass" data-alerts>
+          <form class="ev-alert glass" id="alerts" data-alerts>
             <img src="assets/logo.png" alt="" />
             <div>
               <b>Never miss a session</b>
-              <p>Get an email when a new event goes live.</p>
+              <p>Get emailed when new events go live.</p>
               <p class="form-status" role="status"></p>
             </div>
             <div class="ev-alert__form">
@@ -81,6 +71,9 @@
               <button class="btn btn--accent" type="submit">Turn on alerts</button>
             </div>
           </form>
+          <div data-events>
+            <p class="muted">Loading dates…</p>
+          </div>
         </div>
       </section>
     </main>
@@ -108,6 +101,11 @@
               <li>
                 <a href="https://www.youtube.com/@faceoff_team_bulldogs" target="_blank" rel="noopener" aria-label="YouTube — @faceoff_team_bulldogs">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.facebook.com/profile.php?id=61595293824898" target="_blank" rel="noopener" aria-label="Facebook">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.397 20.997v-8.196h2.765l.411-3.209h-3.176V7.548c0-.926.258-1.56 1.587-1.56h1.684V3.127A22.336 22.336 0 0 0 14.201 3c-2.444 0-4.122 1.492-4.122 4.231v2.355H7.332v3.209h2.753v8.202h3.312z"/></svg>
                 </a>
               </li>
               <li>
@@ -234,6 +232,16 @@
         <button class="btn btn--accent btn--block" type="submit">Join waitlist</button>
         <p class="form-status" role="status"></p>
       </form>
+    </dialog>
+
+    <dialog class="booking-dialog" data-alerts-soon>
+      <button class="booking-dialog__close" type="button" data-close-alerts-soon aria-label="Close">×</button>
+      <div class="contact-form">
+        <header class="booking-dialog__head">
+          <h2>Turn on alerts</h2>
+          <p class="muted">Not available yet. We'll build this later.</p>
+        </header>
+      </div>
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

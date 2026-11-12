@@ -2,7 +2,6 @@
   const { supabaseUrl, supabaseKey } = window.BULLDOGS || {};
   const api = window.BULLDOGS_API;
   const listEl = document.querySelector("[data-events]");
-  const filtersEl = document.querySelector("[data-event-filters]");
   const banner = document.querySelector("[data-booking-banner]");
   const dialog = document.querySelector("[data-booking-dialog]");
   const form = document.querySelector("[data-booking-form]");
@@ -55,17 +54,12 @@
   if (params.get("booking") === "success") showBanner("You're booked in. Check your email for tickets.");
   else if (params.get("booking") === "cancelled") showBanner("Payment was cancelled. Your place was not held.", true);
 
-  const KINDS = ["Kids", "Training", "Showcases", "Other"];
   const kindOf = (event) => {
     const title = `${event.title} ${event.summary || ""}`.toLowerCase();
     if (/kid|taster|junior/.test(title)) return "Kids";
     if (/train/.test(title)) return "Training";
     if (/show|showcase|camp/.test(title)) return "Showcases";
     return "Other";
-  };
-  const cityOf = (event) => {
-    const parts = (event.location || "").split(",").map((part) => part.trim()).filter(Boolean);
-    return parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
   };
 
   const spacesLabel = (event) => {
@@ -132,13 +126,22 @@
 
   const clock = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
   const pin = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
+  const person = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 19.5c1.2-3.2 3.5-4.8 6.5-4.8s5.3 1.6 6.5 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  const whoFor = (range) => {
+    const value = String(range || "").trim();
+    if (!value) return "All ages";
+    if (/^ages\b/i.test(value)) return value;
+    return `Ages ${value}`;
+  };
 
   const feature = (event) => {
     const price = event.price_pence ? money(event.price_pence, event.currency) : "Free";
     const full = event.spaces_left === 0;
     const status = event.is_bookable ? untilLabel(event.starts_at) : full ? "Sold out" : "Closed";
     const at = (iso) => parts(iso, { hour: "2-digit", minute: "2-digit" });
-    const time = event.ends_at ? `${at(event.starts_at)} – ${at(event.ends_at)}` : at(event.starts_at);
+    const date = parts(event.starts_at, { weekday: "short", day: "numeric", month: "short" });
+    const clockTime = event.ends_at ? `${at(event.starts_at)} – ${at(event.ends_at)}` : at(event.starts_at);
+    const time = `<span data-when-date>${escapeHtml(date)}</span><span data-when-sep> · </span><span data-when-time>${escapeHtml(clockTime)}</span>`;
     return `
       <article class="ev-feature glass${full ? " is-full" : ""}">
         <figure>
@@ -151,8 +154,8 @@
           ${event.summary ? `<p class="muted">${escapeHtml(event.summary)}</p>` : ""}
           <div class="ev-facts">
             <div><b>${pin}Where</b><p>${escapeHtml(event.location || "TBC")}</p></div>
-            <div><b>${clock}When</b><p>${escapeHtml(time)}</p></div>
-            <div><b>Ages</b><span>${escapeHtml(event.age_range || "All ages")}</span></div>
+            <div><b>${clock}When</b><p class="ev-when" data-when>${time}</p></div>
+            <div><b>${person}Who</b><p>${escapeHtml(whoFor(event.age_range))}</p></div>
           </div>
           ${capacityBar(event)}
           <div class="ev-feature__foot">
@@ -164,8 +167,6 @@
   };
 
   let events = [];
-  let filter = "all";
-  let layout = "grid";
 
   const DECOR = [
     "assets/photos/web/round2-pack.jpg",
@@ -195,57 +196,34 @@
     return `Next up · in ${days} days`;
   };
 
-  const filtered = () =>
-    events.filter((event) => {
-      if (filter === "all") return true;
-      if (filter.startsWith("kind:")) return kindOf(event) === filter.slice(5);
-      if (filter.startsWith("city:")) return cityOf(event) === filter.slice(5);
-      return true;
-    });
-
-  const paintFilters = () => {
-    if (!filtersEl) return;
-    const kinds = KINDS.filter((kind) => events.some((event) => kindOf(event) === kind));
-    const cities = [...new Set(events.map(cityOf).filter(Boolean))];
-    const chips = [["all", "All"], ...kinds.map((kind) => [`kind:${kind}`, kind]), ...cities.map((city) => [`city:${city}`, city])];
-    if (!chips.some(([id]) => id === filter)) filter = "all";
-    filtersEl.hidden = events.length < 2;
-    filtersEl.innerHTML = chips
-      .map(
-        ([id, label]) =>
-          `<button type="button" class="chip${filter === id ? " is-on" : ""}" data-filter="${escapeHtml(id)}">${escapeHtml(label)}</button>`,
-      )
-      .join("");
-  };
-
-  const paintStats = () => {
-    const statsEl = document.querySelector("[data-event-stats]");
-    if (!statsEl) return;
-    const cities = new Set(events.map(cityOf).filter(Boolean));
-    statsEl.innerHTML = `
-      <div class="glass"><b>${events.length}</b><span>Coming up</span></div>
-      <div class="glass"><b>${cities.size}</b><span>${cities.size === 1 ? "City" : "Cities"}</span></div>`;
-  };
-
   const renderEvents = () => {
-    paintFilters();
-    paintStats();
-    const rows = filtered();
     if (!events.length) {
       listEl.innerHTML = `<p class="muted">No dates are open for booking yet. Check back soon.</p>`;
       return;
     }
-    if (!rows.length) {
-      listEl.innerHTML = `<p class="muted">Nothing matches that filter.</p>`;
-      return;
-    }
-    const lead = rows.find((event) => event.is_bookable) || rows[0];
-    const rest = rows.filter((event) => event !== lead);
+    const lead = events.find((event) => event.is_bookable) || events[0];
+    const rest = events.filter((event) => event !== lead);
     const more = rest.length
-      ? `<h2 class="ev-more">All events</h2><div class="posters${layout === "list" ? " posters--list" : ""}">${rest.map(poster).join("")}</div>`
+      ? `<h2 class="ev-more">More</h2><div class="posters">${rest.map(poster).join("")}</div>`
       : `<p class="muted events-only">That's the only date for now.</p>`;
-    listEl.innerHTML = feature(lead) + more;
+    listEl.innerHTML = `<h2 class="ev-more ev-next">Next</h2>${feature(lead)}${more}`;
+    requestAnimationFrame(fitWhen);
   };
+
+  const fitWhen = () => {
+    listEl.querySelectorAll("[data-when]").forEach((line) => {
+      line.classList.remove("is-split");
+      const available = line.clientWidth;
+      if (!available) return;
+      const previous = line.style.whiteSpace;
+      line.style.whiteSpace = "nowrap";
+      const needsSplit = line.scrollWidth > available + 1;
+      line.style.whiteSpace = previous;
+      line.classList.toggle("is-split", needsSplit);
+    });
+  };
+
+  window.addEventListener("resize", fitWhen);
 
   const attendeeBlock = (index) => `
     <fieldset class="attendee-block" data-attendee>
@@ -390,13 +368,6 @@
     renderEvents();
   };
 
-  filtersEl?.addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-filter]");
-    if (!chip) return;
-    filter = chip.getAttribute("data-filter") || "all";
-    renderEvents();
-  });
-
   listEl.addEventListener("click", (e) => {
     const book = e.target.closest("[data-book]");
     if (book) {
@@ -405,14 +376,6 @@
     }
     const wait = e.target.closest("[data-waitlist]");
     if (wait) openWaitlist(events.find((item) => item.id === wait.getAttribute("data-waitlist")));
-  });
-
-  document.querySelector("[data-event-layout]")?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-layout]");
-    if (!btn) return;
-    layout = btn.getAttribute("data-layout") || "grid";
-    document.querySelectorAll("[data-layout]").forEach((el) => el.classList.toggle("is-on", el === btn));
-    renderEvents();
   });
 
   dialog?.querySelectorAll("[data-close-booking]").forEach((btn) => {
@@ -447,26 +410,57 @@
     }
   });
 
+  const alertsEmail = alertsForm?.querySelector('input[name="email"]');
+
+  const signedInEmail = () => window.BULLDOGS_SESSION?.user?.email || "";
+
+  const paintAlerts = () => {
+    if (!alertsForm || !alertsEmail) return;
+    const signedIn = Boolean(signedInEmail());
+    alertsEmail.hidden = signedIn;
+    alertsEmail.required = !signedIn;
+    alertsForm.classList.toggle("is-signed-in", signedIn);
+  };
+
+  window.BULLDOGS_AUTH?.whenReady()
+    .then((sb) => {
+      sb.auth.onAuthStateChange(() => paintAlerts());
+      paintAlerts();
+    })
+    .catch(() => {});
+
   alertsForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (signedInEmail()) {
+      document.querySelector("[data-alerts-soon]")?.showModal();
+      return;
+    }
     const status = alertsForm.querySelector(".form-status");
     const submit = alertsForm.querySelector('[type="submit"]');
+    const address = signedInEmail() || new FormData(alertsForm).get("email");
     status.textContent = "Saving…";
     status.classList.remove("is-error");
     submit.disabled = true;
     try {
       await api.fn("public-booking", {
         action: "subscribe_alerts",
-        email: new FormData(alertsForm).get("email"),
+        email: address,
       });
-      alertsForm.reset();
+      if (!signedInEmail()) alertsForm.reset();
       status.textContent = "You're on the list. We'll email you when a new event goes live.";
     } catch (err) {
       status.textContent = unavailable(err, "Alerts aren't available yet.");
       status.classList.add("is-error");
     } finally {
       submit.disabled = false;
+      paintAlerts();
     }
+  });
+
+  const soonDialog = document.querySelector("[data-alerts-soon]");
+  soonDialog?.querySelector("[data-close-alerts-soon]")?.addEventListener("click", () => soonDialog.close());
+  soonDialog?.addEventListener("click", (event) => {
+    if (event.target === soonDialog) soonDialog.close();
   });
 
   form?.addEventListener("submit", async (e) => {

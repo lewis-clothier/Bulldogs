@@ -1,5 +1,62 @@
 (() => {
   const api = window.BULLDOGS_API;
+
+  const alertsDialog = document.querySelector("[data-alerts-dialog]");
+  const alertsOpen = document.querySelector("[data-home-alerts-open]");
+  const alertsForm = document.querySelector("[data-home-alerts]");
+  const signedIn = () => Boolean(window.BULLDOGS_SESSION?.user?.email);
+
+  const paintAlertsDialog = (soon) => {
+    alertsForm?.querySelector("[data-alerts-guest]")?.toggleAttribute("hidden", soon);
+    alertsForm?.querySelector("[data-alerts-lead]")?.toggleAttribute("hidden", soon);
+    const note = alertsForm?.querySelector("[data-alerts-soon]");
+    if (note) note.hidden = !soon;
+    const status = alertsForm?.querySelector(".form-status");
+    if (status) {
+      status.textContent = "";
+      status.classList.remove("is-error");
+    }
+  };
+
+  alertsOpen?.addEventListener("click", (event) => {
+    if (!alertsDialog) return;
+    event.preventDefault();
+    const soon = signedIn();
+    paintAlertsDialog(soon);
+    alertsDialog.showModal();
+    if (!soon) alertsForm?.querySelector("input[name='email']")?.focus();
+  });
+
+  alertsDialog?.querySelector("[data-close-alerts]")?.addEventListener("click", () => alertsDialog.close());
+  alertsDialog?.addEventListener("click", (event) => {
+    if (event.target === alertsDialog) alertsDialog.close();
+  });
+  alertsDialog?.querySelector("[data-alerts-auth]")?.addEventListener("click", () => {
+    alertsDialog.close();
+    window.BULLDOGS_AUTH?.open({ mode: "signin" });
+  });
+
+  alertsForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = alertsForm.querySelector(".form-status");
+    const submit = alertsForm.querySelector('[type="submit"]');
+    const email = new FormData(alertsForm).get("email");
+    status.textContent = "Saving…";
+    status.classList.remove("is-error");
+    submit.disabled = true;
+    try {
+      await api.fn("public-booking", { action: "subscribe_alerts", email });
+      alertsForm.reset();
+      status.textContent = "You're on the list. We'll email you when a new event goes live.";
+    } catch (err) {
+      const message = /unknown action/i.test(err?.message || "") ? "Alerts aren't available yet." : err?.message || "Alerts aren't available yet.";
+      status.textContent = message;
+      status.classList.add("is-error");
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
   const rail = document.querySelector("[data-home-events]");
   if (!api || !rail) return;
 
@@ -31,26 +88,22 @@
     return `
       <div class="home-slot">
         <article class="home-event${isNext ? " home-event--next" : ""}">
-          <div class="home-event__top">
-            <div class="home-event__when">
-              <div class="home-event__date">
-                <b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b>
-                <span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span>
-              </div>
+          <div class="home-event__photo">
+            <img src="assets/photos/web/events-hero.jpg" alt="" />
+            <p class="home-event__date">
+              <b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b>
+              <span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span>
+            </p>
+          </div>
+          <div class="home-event__copy">
+            <h3>${escapeHtml(event.title)}</h3>
+            <div class="home-event__meta">
               <p class="home-event__time">${clock}<span>${escapeHtml(time)}</span></p>
+              <p class="home-event__where">${pin}<span>${escapeHtml(event.location || "Location to be confirmed")}</span></p>
             </div>
-            <p class="home-event__where">${pin}<span>${escapeHtml(event.location || "Location to be confirmed")}</span></p>
+            ${places || track ? `<div class="home-event__status">${places ? `<p class="home-event__left">${places}</p>` : ""}${track}</div>` : ""}
           </div>
-          <div class="home-event__lower">
-            <div class="home-event__stack">
-              <div class="home-event__main">
-                <h3>${escapeHtml(event.title)}</h3>
-                ${places ? `<p class="home-event__left">${places}</p>` : ""}
-              </div>
-              ${track}
-            </div>
-            <div class="home-event__foot">${action}</div>
-          </div>
+          <div class="home-event__foot">${action}</div>
         </article>
       </div>`;
   };

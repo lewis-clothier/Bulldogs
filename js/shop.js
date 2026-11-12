@@ -122,17 +122,11 @@
       add.textContent = soldOut ? "Sold out" : `Add to bag · £${price}`;
     };
     const paintStock = (size) => {
-      const title = product.querySelector("[data-stock-title]");
-      const detail = product.querySelector("[data-stock-detail]");
-      if (!title || !detail || !size) return;
+      const note = product.querySelector("[data-stock-note]");
+      if (!note || !size) return;
       const available = availableFor(size);
-      if (available > 0) {
-        title.textContent = available === 1 ? "1 in stock" : `${available} in stock`;
-        detail.textContent = "Ships from what we have. A new print takes 2–3 weeks.";
-      } else {
-        title.textContent = "None in stock";
-        detail.textContent = "Made to order — typically 2–3 weeks.";
-      }
+      note.hidden = available <= 0;
+      note.textContent = available === 1 ? "1 in stock" : available > 1 ? `${available} in stock` : "";
     };
     if (select) {
       [...select.options].forEach((opt) => {
@@ -309,6 +303,13 @@
     });
     product.querySelectorAll("[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => applyView(product, btn.getAttribute("data-view")));
+    });
+    product.querySelector('a[href="#size-guide"]')?.addEventListener("click", (event) => {
+      const details = document.getElementById("size-guide");
+      if (!details) return;
+      event.preventDefault();
+      details.open = true;
+      details.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
     product.querySelectorAll("[data-shot]").forEach((btn) => {
       btn.addEventListener("click", () => {

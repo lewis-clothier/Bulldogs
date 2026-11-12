@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cancel booking — Team Bulldogs</title>
     <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/gate.js"></script>
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
   <body>
@@ -22,10 +23,16 @@
     <script>
       (() => {
         const api = window.BULLDOGS_API;
-        const token = new URLSearchParams(location.search).get("c");
+        const query = new URLSearchParams(location.search);
+        const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+        const token = query.get("c") || hash.get("c");
         const status = document.querySelector(".form-status");
         document.querySelector("[data-confirm-cancel]")?.addEventListener("click", async () => {
-          if (!token || !api) return;
+          if (!token || !api) {
+            status.textContent = "This cancel link is missing its booking code.";
+            status.classList.add("is-error");
+            return;
+          }
           status.textContent = "Cancelling…";
           try {
             const result = await api.fn("public-booking", { action: "cancel", token });

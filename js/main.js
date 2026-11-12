@@ -11,6 +11,9 @@
     onHeaderScroll();
   }
 
+  const nav = document.querySelector(".nav");
+  if (toggle && nav && toggle.parentElement !== nav) nav.insertBefore(toggle, nav.firstChild);
+
   if (toggle && links) {
     toggle.addEventListener("click", () => {
       const open = toggle.getAttribute("aria-expanded") === "true";

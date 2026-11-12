@@ -675,7 +675,8 @@
     let token = text;
     try {
       const url = new URL(text);
-      token = url.searchParams.get("t") || url.searchParams.get("c") || text;
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+      token = url.searchParams.get("t") || hash.get("t") || url.searchParams.get("c") || hash.get("c") || text;
     } catch {
       /* raw token */
     }

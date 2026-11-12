@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Next event card — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" href="../assets/logo.png" type="image/png" />
+    <style>
+      :root {
+        --charcoal: #1e1e23;
+        --navy: #2a384f;
+        --steel: #3c739d;
+        --sky: #5598d3;
+        --orange: #e8541a;
+        --orange-deep: #ae3f13;
+        --bone: #f5f5f0;
+        --bone-muted: color-mix(in srgb, var(--bone) 55%, var(--navy));
+        --glass: rgba(23, 27, 36, 0.72);
+        --glass-line: color-mix(in srgb, var(--bone) 14%, transparent);
+        --line: color-mix(in srgb, var(--bone) 12%, transparent);
+        --radius-lg: 16px;
+        --pill: 12px;
+        --display: "Bebas Neue", Impact, sans-serif;
+        --body: "Outfit", "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: var(--body);
+        background: #14161b;
+        color: var(--bone);
+        line-height: 1.5;
+      }
+      img { display: block; max-width: 100%; }
+      a { color: inherit; text-decoration: none; }
+      button, .btn { font: inherit; }
+
+      .board {
+        width: min(100% - 2.5rem, 76rem);
+        margin: 0 auto;
+        padding: 2.5rem 0 4rem;
+      }
+      .intro { margin-bottom: 2.25rem; max-width: 40rem; }
+      .intro p.kicker {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--sky);
+      }
+      .intro h1 {
+        font-family: var(--display);
+        font-size: clamp(2.8rem, 6vw, 4.4rem);
+        letter-spacing: 0.03em;
+        line-height: 0.92;
+        margin: 0.3rem 0 0.7rem;
+      }
+      .intro p { color: var(--bone-muted); }
+
+      .option { margin-top: 2.75rem; }
+      .option header { margin-bottom: 0.7rem; }
+      .option header b {
+        display: block;
+        font-family: var(--display);
+        font-size: 1.7rem;
+        letter-spacing: 0.04em;
+        line-height: 1;
+      }
+      .option header b span { color: var(--orange); margin-right: 0.45rem; }
+      .option header p { color: var(--bone-muted); font-size: 0.92rem; margin-top: 0.3rem; }
+
+      .stage {
+        background:
+          radial-gradient(ellipse 70% 80% at 100% 0%, rgba(85, 152, 211, 0.16), transparent 55%),
+          var(--charcoal);
+        border: 1px solid rgba(245, 245, 240, 0.06);
+        border-radius: 18px;
+        padding: 2rem 0 2.25rem;
+      }
+      .wrap { width: min(100% - 3rem, 72rem); margin: 0 auto; }
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.15rem;
+      }
+      .head h2 {
+        font-family: var(--display);
+        font-size: clamp(2.2rem, 4vw, 3.1rem);
+        letter-spacing: 0.03em;
+        line-height: 0.95;
+      }
+      .see {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-left: auto;
+        padding: 0.55rem 0.95rem;
+        border-radius: var(--pill);
+        border: 1px solid color-mix(in srgb, var(--bone) 22%, transparent);
+        background: color-mix(in srgb, var(--bone) 6%, transparent);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .see svg { width: 1rem; height: 1rem; }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.6rem 1.05rem;
+        border-radius: var(--pill);
+        border: 1px solid transparent;
+        background: var(--orange);
+        color: var(--bone);
+        font-weight: 700;
+        font-size: 0.76rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        box-shadow: 0 10px 34px rgba(232, 84, 26, 0.45);
+      }
+
+      .bar { min-width: 0; }
+      .bar i {
+        display: block;
+        height: 0.3rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--bone) 10%, transparent);
+        overflow: hidden;
+      }
+      .bar i::after {
+        content: "";
+        display: block;
+        height: 100%;
+        width: 25%;
+        background: var(--orange);
+      }
+      .clock, .pin { width: 1.05rem; height: 1.05rem; flex: none; color: var(--orange); }
+
+      /* ---------- 01 current ---------- */
+      .now {
+        display: grid;
+        row-gap: 0.2rem;
+        padding: 1.3rem 1.45rem 1.2rem;
+        border-radius: var(--radius-lg);
+        background: var(--glass);
+        border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
+        backdrop-filter: blur(14px);
+      }
+      .now__top, .now__main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem 1.5rem;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .now__top { margin-bottom: 0.9rem; }
+      .now__when { display: flex; align-items: center; gap: 1.35rem; margin-right: auto; }
+      .now__date, .now h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-family: var(--display);
+        font-size: 1.7rem;
+        line-height: 0.95;
+        letter-spacing: 0.03em;
+        font-weight: 400;
+      }
+      .now__date span { color: var(--orange); }
+      .now__time, .now__where, .now__left {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--bone-muted);
+        font-size: 0.95rem;
+      }
+      .now__left { margin-left: auto; font-size: 0.85rem; }
+      .now__lower { display: flex; align-items: flex-end; gap: 1.25rem; }
+      .now__stack { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+      .now h3 { margin: 0; }
+
+      /* ---------- 02 ticket ---------- */
+      .ticket {
+        display: grid;
+        grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 0.9rem 1.15rem 0.9rem 0;
+        border-radius: var(--radius-lg);
+        background: var(--glass);
+        border: 1px solid var(--glass-line);
+        backdrop-filter: blur(14px);
+        overflow: hidden;
+      }
+      .ticket__day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        align-self: stretch;
+        border-right: 1px dashed color-mix(in srgb, var(--bone) 28%, transparent);
+      }
+      .ticket__day b {
+        font-family: var(--display);
+        font-size: 2.8rem;
+        line-height: 0.85;
+        letter-spacing: 0.03em;
+      }
+      .ticket__day span {
+        font-family: var(--display);
+        font-size: 1.15rem;
+        letter-spacing: 0.12em;
+        color: var(--orange);
+      }
+      .ticket h3 {
+        font-family: var(--display);
+        font-size: 1.85rem;
+        letter-spacing: 0.03em;
+        line-height: 0.95;
+        font-weight: 400;
+      }
+      .ticket__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem 1.1rem;
+        margin-top: 0.35rem;
+        color: var(--bone-muted);
+        font-size: 0.92rem;
+      }
+      .ticket__meta p { display: flex; align-items: center; gap: 0.4rem; }
+      .ticket__foot {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-top: 0.65rem;
+      }
+      .ticket__foot span { color: var(--bone-muted); font-size: 0.82rem; white-space: nowrap; }
+      .ticket__foot .bar { flex: 1; }
+      .ticket .btn { margin-right: 0.15rem; }
+
+      /* ---------- 03 wash ---------- */
+      .wash {
+        position: relative;
+        overflow: hidden;
+        border-radius: var(--radius-lg);
+        border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
+      }
+      .wash > img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
+        object-position: 62% 36%;
+      }
+      .wash::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, rgba(14, 16, 20, 0.92) 0%, rgba(14, 16, 20, 0.7) 36%, rgba(14, 16, 20, 0.12) 68%, rgba(14, 16, 20, 0) 100%);
+      }
+      .wash .now {
+        position: relative;
+        z-index: 1;
+        background: none;
+        border: 0;
+        backdrop-filter: none;
+      }
+      .wash .now__top { justify-content: flex-start; }
+      .wash .now__when { margin-right: 1.35rem; }
+      .wash .now__main { justify-content: flex-start; gap: 1.25rem; }
+      .wash .now__left { margin-left: 0; color: var(--bone); }
+
+      /* ---------- 04 frame ---------- */
+      .frame {
+        display: grid;
+        grid-template-columns: 14rem minmax(0, 1fr) auto;
+        align-items: stretch;
+        min-height: 9.6rem;
+        border-radius: var(--radius-lg);
+        background: var(--glass);
+        border: 1px solid var(--glass-line);
+        overflow: hidden;
+      }
+      .frame__photo { position: relative; min-height: 9.6rem; }
+      .frame__photo img {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
+        object-position: center 28%;
+      }
+      .frame__stamp {
+        position: absolute;
+        left: 0.6rem;
+        bottom: 0.6rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+        padding: 0.28rem 0.5rem 0.2rem;
+        border-radius: 8px;
+        background: rgba(14, 16, 20, 0.62);
+        backdrop-filter: blur(8px);
+      }
+      .frame__stamp b {
+        font-family: var(--display);
+        font-size: 1.55rem;
+        line-height: 0.85;
+        letter-spacing: 0.03em;
+        font-weight: 400;
+      }
+      .frame__stamp span {
+        font-family: var(--display);
+        font-size: 1rem;
+        letter-spacing: 0.1em;
+        color: var(--orange);
+      }
+      .frame__body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.35rem;
+        min-width: 0;
+        padding: 1rem 1.15rem;
+      }
+      .frame h3 {
+        font-family: var(--display);
+        font-size: 1.9rem;
+        letter-spacing: 0.03em;
+        line-height: 0.95;
+        font-weight: 400;
+      }
+      .frame__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1rem;
+        color: var(--bone-muted);
+        font-size: 0.92rem;
+      }
+      .frame__meta p { display: flex; align-items: center; gap: 0.4rem; }
+      .frame__foot {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-top: 0.25rem;
+        color: var(--bone-muted);
+        font-size: 0.82rem;
+      }
+      .frame__foot span { white-space: nowrap; }
+      .frame__foot .bar { flex: 1; }
+      .frame .btn { align-self: center; margin-right: 1.15rem; }
+
+      .frame--chip .frame__stamp {
+        z-index: 1;
+        align-items: center;
+        background: var(--glass);
+        border: 1px solid var(--glass-line);
+        backdrop-filter: blur(14px);
+        text-shadow: none;
+      }
+      .frame--chip.frame--lg { grid-template-columns: 15.5rem minmax(0, 1fr) auto; }
+      .frame--chip.frame--lg .frame__stamp {
+        left: 50%;
+        top: 50%;
+        bottom: auto;
+        flex-direction: column;
+        gap: 0.05rem;
+        padding: 0.55rem 0.9rem 0.45rem;
+        border-radius: 14px;
+        transform: translate(-50%, -50%);
+      }
+      .frame--chip.frame--lg .frame__stamp b { font-size: 3.3rem; line-height: 0.8; }
+      .frame--chip.frame--lg .frame__stamp span { font-size: 1.2rem; letter-spacing: 0.14em; }
+
+      .frame--chip.frame--wide { grid-template-columns: 16.5rem minmax(0, 1fr) auto; }
+      .frame--chip.frame--wide .frame__stamp {
+        left: 50%;
+        top: 50%;
+        bottom: auto;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.4rem;
+        padding: 0.5rem 0.85rem 0.4rem;
+        border-radius: 12px;
+        transform: translate(-50%, -50%);
+      }
+      .frame--chip.frame--wide .frame__stamp b { font-size: 2.5rem; line-height: 0.85; }
+      .frame--chip.frame--wide .frame__stamp span { font-size: 1.15rem; letter-spacing: 0.12em; }
+
+      .frame--chip.frame--top .frame__stamp {
+        left: 0.55rem;
+        top: 0.55rem;
+        bottom: auto;
+        flex-direction: column;
+        gap: 0;
+        padding: 0.4rem 0.65rem 0.32rem;
+        border-radius: 12px;
+      }
+      .frame--chip.frame--top .frame__stamp b { font-size: 2.45rem; line-height: 0.8; }
+      .frame--chip.frame--top .frame__stamp span { font-size: 1.05rem; letter-spacing: 0.12em; }
+
+      .frame--chip.frame--corner .frame__stamp {
+        left: 0.55rem;
+        bottom: 0.55rem;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.35rem;
+        padding: 0.38rem 0.6rem 0.3rem;
+        border-radius: 10px;
+      }
+      .frame--chip.frame--corner .frame__stamp b { font-size: 2.15rem; line-height: 0.85; }
+      .frame--chip.frame--corner .frame__stamp span { font-size: 1.05rem; letter-spacing: 0.1em; }
+
+      .frame--inset .frame__body {
+        gap: 0.9rem;
+        padding: 1.2rem 0.5rem 1.1rem 2.35rem;
+      }
+      .frame--inset .frame__meta { gap: 0.4rem 1.6rem; }
+      .frame--inset .frame__foot { margin-top: 0.15rem; }
+      .frame--inset .btn { margin-right: 2.25rem; }
+
+      .frame--date .frame__body {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        column-gap: 1.15rem;
+        padding: 1rem 1.2rem;
+      }
+      .frame--date .frame__day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-right: 1.15rem;
+        border-right: 1px solid var(--glass-line);
+      }
+      .frame--date .frame__day b {
+        font-family: var(--display);
+        font-size: 2.7rem;
+        line-height: 0.8;
+        letter-spacing: 0.02em;
+        font-weight: 400;
+      }
+      .frame--date .frame__day span {
+        font-family: var(--display);
+        font-size: 1.15rem;
+        letter-spacing: 0.12em;
+        color: var(--orange);
+      }
+
+      .frame--rail .frame__stamp { top: 0.65rem; bottom: auto; }
+      .frame--rail .frame__body {
+        justify-content: space-between;
+        padding: 1.05rem 0.4rem 1rem 1.25rem;
+      }
+      .frame--rail .frame__line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem 1.15rem;
+      }
+      .frame--rail .frame__foot { margin: 0; flex: 1; min-width: 9rem; }
+      .frame--rail .btn { align-self: end; margin: 0 1.15rem 0.95rem 0; }
+
+      .frame--onphoto { grid-template-columns: 17rem minmax(0, 1fr); }
+      .frame--onphoto .frame__photo { min-height: 10.4rem; }
+      .frame--onphoto .btn {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        bottom: auto;
+        margin: 0;
+        transform: translateY(-50%);
+      }
+      .frame--onphoto .frame__body { justify-content: center; padding: 1.1rem 1.4rem; }
+      .frame--onphoto .frame__meta { flex-direction: column; align-items: flex-start; gap: 0.28rem; }
+
+      .frame--facts { grid-template-columns: 12.5rem minmax(0, 1fr) auto; }
+      .frame--facts .frame__body {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem 1.1rem;
+        align-content: center;
+        padding: 1rem 1.25rem;
+      }
+      .frame--facts h3 { grid-column: 1 / -1; }
+      .frame--facts .fact b {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--bone-muted);
+      }
+      .frame--facts .fact p { margin-top: 0.18rem; font-weight: 600; font-size: 0.95rem; }
+      .frame--facts .bar { margin-top: 0.45rem; }
+
+      /* ---------- 05 cutout ---------- */
+      .cut {
+        position: relative;
+        display: grid;
+        grid-template-columns: 8.75rem minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 0.75rem;
+        min-height: 8.4rem;
+        margin-top: 4.6rem;
+        padding: 1rem 1.15rem 0.95rem 0.35rem;
+        border-radius: var(--radius-lg);
+        background:
+          radial-gradient(34% 90% at 10% 80%, color-mix(in srgb, var(--orange) 30%, transparent), transparent 72%),
+          var(--glass);
+        border: 1px solid var(--glass-line);
+      }
+      .cut__person { position: relative; align-self: stretch; }
+      .cut__person img {
+        position: absolute;
+        left: 0.15rem;
+        bottom: 0;
+        height: 178%;
+        width: auto;
+        max-width: none;
+        object-fit: contain;
+        object-position: center bottom;
+      }
+      .cut h3 {
+        font-family: var(--display);
+        font-size: 1.9rem;
+        letter-spacing: 0.03em;
+        line-height: 0.95;
+        font-weight: 400;
+      }
+      .cut__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1rem;
+        margin-top: 0.4rem;
+        color: var(--bone-muted);
+        font-size: 0.92rem;
+      }
+      .cut__meta p { display: flex; align-items: center; gap: 0.4rem; }
+      .cut__foot {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-top: 0.65rem;
+        color: var(--bone-muted);
+        font-size: 0.82rem;
+      }
+      .cut__foot span { white-space: nowrap; }
+      .cut__foot .bar { width: min(100%, 12rem); }
+      .cut .btn { align-self: center; }
+
+      /* ---------- 06 band ---------- */
+      .band {
+        overflow: hidden;
+        border-radius: var(--radius-lg);
+        background: var(--glass);
+        border: 1px solid var(--glass-line);
+      }
+      .band__photo { height: 4.7rem; }
+      .band__photo img {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
+        object-position: center 16%;
+      }
+      .band__body {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 0.95rem 1.2rem 1rem;
+      }
+      .band__copy { flex: 1; min-width: 0; }
+      .band h3 {
+        font-family: var(--display);
+        font-size: 1.85rem;
+        letter-spacing: 0.03em;
+        line-height: 0.95;
+        font-weight: 400;
+      }
+      .band__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 0.9rem;
+        margin-top: 0.3rem;
+        color: var(--bone-muted);
+        font-size: 0.9rem;
+      }
+      .band__meta p { display: flex; align-items: center; gap: 0.35rem; }
+      .band__foot {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        color: var(--bone-muted);
+        font-size: 0.82rem;
+      }
+      .band__foot span { white-space: nowrap; }
+      .band__foot .bar { width: min(100%, 10rem); }
+
+      @media (max-width: 860px) {
+        .ticket { grid-template-columns: 5.5rem minmax(0, 1fr); }
+        .ticket .btn { grid-column: 2; justify-self: start; }
+        .frame { grid-template-columns: 8.5rem minmax(0, 1fr); }
+        .frame--chip.frame--lg .frame__stamp b,
+        .frame--chip.frame--wide .frame__stamp b { font-size: 2rem; }
+        .frame--chip.frame--top .frame__stamp b,
+        .frame--chip.frame--corner .frame__stamp b { font-size: 1.7rem; }
+        .frame .btn { grid-column: 2; justify-self: start; margin: 0 0 1rem; }
+        .cut { grid-template-columns: 6.4rem minmax(0, 1fr); }
+        .cut .btn { grid-column: 2; justify-self: start; }
+      }
+      @media (max-width: 640px) {
+        .now__left { margin-left: 0; }
+        .ticket { grid-template-columns: 1fr; padding: 1rem 1.1rem; }
+        .ticket__day {
+          flex-direction: row;
+          gap: 0.45rem;
+          align-items: baseline;
+          border-right: 0;
+          border-bottom: 1px dashed color-mix(in srgb, var(--bone) 28%, transparent);
+          padding-bottom: 0.65rem;
+        }
+        .ticket .btn { grid-column: auto; }
+        .frame { grid-template-columns: 1fr; }
+        .frame__photo { height: 8.5rem; min-height: 0; }
+        .frame .btn { grid-column: auto; margin: 0 0 1rem 1.1rem; }
+        .frame--onphoto .btn { position: static; }
+        .frame--facts .frame__body { grid-template-columns: 1fr; }
+        .frame--date .frame__body { grid-template-columns: auto minmax(0, 1fr); }
+        .cut { grid-template-columns: 5.4rem minmax(0, 1fr); margin-top: 3.4rem; }
+        .cut .btn { grid-column: auto; }
+        .band__body { align-items: flex-start; flex-direction: column; gap: 0.85rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="intro">
+        <p class="kicker">Homepage · next event</p>
+        <h1>Same frame. Different places.</h1>
+        <p>01 and 04 stay as they are. The others move the date, the button, or the details. Same session throughout: Dummy taster session, 28 Nov, 10:00–12:00, Bulldogs gym, London, 6 spaces left. The live homepage is unchanged.</p>
+      </header>
+
+      <section class="option">
+        <header>
+          <b><span>01</span>Picked</b>
+          <p>Date on the photo. Title, time and place, then the spaces. Book sits on the right.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>07</span>Centred date</b>
+          <p>The same card as 01. A large glass chip, with the day stacked over the month, in the middle of the photo.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--chip frame--lg">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>08</span>Wide centre</b>
+          <p>A wider glass chip, with the day and month on one line, still in the middle of the photo.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--chip frame--wide">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>09</span>Top left</b>
+          <p>A large glass chip in the top-left of the photo.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--chip frame--top">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>10</span>Bottom left</b>
+          <p>The original corner, a step larger, on a glass chip.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--chip frame--corner">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>02</span>Date in the type</b>
+          <p>The date leaves the photo and sits beside the title.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--date">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /></div>
+              <div class="frame__body">
+                <div class="frame__day"><b>28</b><span>NOV</span></div>
+                <div class="frame__copy">
+                  <h3>Dummy taster session</h3>
+                  <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                  <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+                </div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>03</span>Bottom rail</b>
+          <p>The date moves to the top of the photo. Time, place and spaces share one line along the bottom, with the button.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--rail">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__line">
+                  <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                  <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+                </div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>04</span>Inset</b>
+          <p>The one you liked: more room after the photo, a wider gap under the title, and the button further in.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--inset">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>05</span>Book on the photo</b>
+          <p>The button sits on the picture. Time and place stack under the title.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--onphoto">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p><a class="btn" href="../events.html">Book</a></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="frame__meta">
+                  <p><svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10:00 – 12:00</p>
+                  <p><svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Bulldogs gym, London</p>
+                </div>
+                <div class="frame__foot"><span>6 spaces left</span><div class="bar"><i></i></div></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="option">
+        <header>
+          <b><span>06</span>Three facts</b>
+          <p>When, where and spaces become three columns under the title.</p>
+        </header>
+        <div class="stage">
+          <div class="wrap">
+            <div class="head">
+              <h2>Next event</h2>
+              <span class="see"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</span>
+            </div>
+            <article class="frame frame--facts">
+              <div class="frame__photo"><img src="../assets/photos/web/events-hero.jpg" alt="" /><p class="frame__stamp"><b>28</b><span>NOV</span></p></div>
+              <div class="frame__body">
+                <h3>Dummy taster session</h3>
+                <div class="fact"><b>When</b><p>28 Nov · 10:00 – 12:00</p></div>
+                <div class="fact"><b>Where</b><p>Bulldogs gym, London</p></div>
+                <div class="fact"><b>Spaces</b><p>6 left</p><div class="bar"><i></i></div></div>
+              </div>
+              <a class="btn" href="../events.html">Book</a>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
