@@ -28,7 +28,7 @@
           <header class="booking-dialog__head">
             <p class="eyebrow">Checkout</p>
             <h2>Delivery details</h2>
-            <p class="muted">You’ll add your address on the next screen. Made to order — typically 2–3 weeks.</p>
+            <p class="muted">You’ll add your address on the next screen. In-stock tees ship from what we have. A new print is typically 2–3 weeks.</p>
           </header>
           <div class="field">
             <label for="checkout_full_name">Your name</label>
@@ -104,23 +104,61 @@
   const applyStock = (product) => {
     const id = product.getAttribute("data-product-id");
     const row = catalogCache.find((item) => item.id === id);
-    const select = product.querySelector("[data-size]");
+    const select = product.querySelector("select[data-size]");
+    const sizeInput = product.querySelector("input[data-size]");
+    const sizeButtons = [...product.querySelectorAll("[data-size-option]")];
     const add = product.querySelector("[data-add]");
-    if (!row || !select) return;
+    if (!row) return;
     const colour = product.getAttribute("data-colour") || "orange";
     const variants = row.variants || [];
-    [...select.options].forEach((opt) => {
-      const size = opt.value || opt.textContent.trim();
+    const availableFor = (size) => {
       const match = variants.find((v) => v.colour === colour && v.size === size);
-      const available = match ? Number(match.available) : 0;
-      opt.disabled = available <= 0;
-      opt.textContent = available <= 0 ? `${size} — sold out` : size;
-    });
-    if (select.selectedOptions[0]?.disabled) {
-      const first = [...select.options].find((opt) => !opt.disabled);
-      if (first) select.value = first.value;
+      return match ? Number(match.available) : 0;
+    };
+    const labelAdd = (soldOut) => {
+      if (!add) return;
+      add.disabled = soldOut;
+      const price = product.getAttribute("data-price") || "";
+      add.textContent = soldOut ? "Sold out" : `Add to bag · £${price}`;
+    };
+    const paintStock = (size) => {
+      const note = product.querySelector("[data-stock-note]");
+      if (!note || !size) return;
+      const available = availableFor(size);
+      note.hidden = available <= 0;
+      note.textContent = available === 1 ? "1 in stock" : available > 1 ? `${available} in stock` : "";
+    };
+    if (select) {
+      [...select.options].forEach((opt) => {
+        const size = opt.value || opt.textContent.trim();
+        const available = availableFor(size);
+        opt.disabled = available <= 0;
+        opt.textContent = available <= 0 ? `${size} — sold out` : size;
+      });
+      if (select.selectedOptions[0]?.disabled) {
+        const first = [...select.options].find((opt) => !opt.disabled);
+        if (first) select.value = first.value;
+      }
+      if (add) add.disabled = [...select.options].every((opt) => opt.disabled);
+      paintStock(select.value);
+      return;
     }
-    if (add) add.disabled = [...select.options].every((opt) => opt.disabled);
+    if (!sizeButtons.length || !sizeInput) return;
+    sizeButtons.forEach((btn) => {
+      const available = availableFor(btn.getAttribute("data-size-option"));
+      btn.disabled = available <= 0;
+      btn.classList.toggle("is-off", available <= 0);
+    });
+    const current = sizeButtons.find((btn) => btn.getAttribute("data-size-option") === sizeInput.value);
+    if (!current || current.disabled) {
+      const first = sizeButtons.find((btn) => !btn.disabled);
+      if (first) sizeInput.value = first.getAttribute("data-size-option");
+    }
+    sizeButtons.forEach((btn) => {
+      btn.classList.toggle("is-on", btn.getAttribute("data-size-option") === sizeInput.value && !btn.disabled);
+    });
+    labelAdd(sizeButtons.every((btn) => btn.disabled));
+    paintStock(sizeInput.value);
   };
 
   const renderCart = () => {
@@ -142,8 +180,8 @@
     const note = document.querySelector(".cart-note");
     if (note) {
       note.textContent = shippingPence
-        ? `UK delivery ${moneyPence(shippingPence)}. Made to order — typically 2–3 weeks.`
-        : "Made to order — typically 2–3 weeks.";
+        ? `UK delivery ${moneyPence(shippingPence)}. In-stock tees ship from what we have. A new print is typically 2–3 weeks.`
+        : "In-stock tees ship from what we have. A new print is typically 2–3 weeks.";
     }
 
     if (!cartBody) return;
@@ -202,6 +240,15 @@
     if (label) label.textContent = colour === "blue" ? "Blue" : "Orange";
   };
 
+  const syncShots = (product) => {
+    const colour = product.getAttribute("data-colour") || "orange";
+    const back = product.querySelector(".product__media--swap")?.classList.contains("is-showing-back");
+    const shot = `${colour}:${back ? "back" : "front"}`;
+    product.querySelectorAll("[data-shot]").forEach((btn) => {
+      btn.classList.toggle("is-on", btn.getAttribute("data-shot") === shot);
+    });
+  };
+
   const applyColour = (product, colour) => {
     if (colour !== "blue" && colour !== "orange") return;
     product.setAttribute("data-colour", colour);
@@ -210,6 +257,7 @@
     });
     syncProductImage(product);
     applyStock(product);
+    syncShots(product);
   };
 
   const applyView = (product, view) => {
@@ -218,6 +266,7 @@
     product.querySelectorAll("[data-view]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.getAttribute("data-view") === side);
     });
+    syncShots(product);
   };
 
   const params = new URLSearchParams(window.location.search);
@@ -254,6 +303,36 @@
     });
     product.querySelectorAll("[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => applyView(product, btn.getAttribute("data-view")));
+    });
+    product.querySelector('a[href="#size-guide"]')?.addEventListener("click", (event) => {
+      const details = document.getElementById("size-guide");
+      if (!details) return;
+      event.preventDefault();
+      details.open = true;
+      details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    product.querySelectorAll("[data-shot]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const [colour, view] = (btn.getAttribute("data-shot") || "").split(":");
+        applyColour(product, colour);
+        applyView(product, view);
+      });
+    });
+    product.querySelectorAll("[data-size-option]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const input = product.querySelector("input[data-size]");
+        if (input) input.value = btn.getAttribute("data-size-option");
+        applyStock(product);
+      });
+    });
+    product.querySelectorAll("[data-qty-delta]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const input = product.querySelector("[data-qty]");
+        if (!input) return;
+        const next = Math.min(10, Math.max(1, Number(input.value) + Number(btn.getAttribute("data-qty-delta"))));
+        input.value = String(next);
+      });
     });
 
     const media = product.querySelector(".product__media--swap");

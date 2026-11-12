@@ -100,6 +100,13 @@ export async function sendTemplate(message: {
   }
 }
 
+export type MailAttachment = {
+  filename: string;
+  content: string;
+  contentType?: string;
+  contentId?: string;
+};
+
 export async function sendHtml(message: {
   to: string;
   subject: string;
@@ -107,6 +114,7 @@ export async function sendHtml(message: {
   idempotencyKey: string;
   replyTo?: string;
   from?: string;
+  attachments?: MailAttachment[];
 }) {
   if (!resend) {
     console.warn(`RESEND_API_KEY not set; skipped html mail to ${message.to}`);
@@ -121,6 +129,7 @@ export async function sendHtml(message: {
           subject: message.subject,
           html: message.html,
           ...(message.replyTo && { replyTo: message.replyTo }),
+          ...(message.attachments?.length ? { attachments: message.attachments } : {}),
         },
         { idempotencyKey: message.idempotencyKey },
       );

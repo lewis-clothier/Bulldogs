@@ -15,7 +15,9 @@
   const ordersList = document.querySelector("[data-orders-list]");
   const newsBody = document.querySelector("[data-news-body]");
   const adminsList = document.querySelector("[data-admins-list]");
-  const eventDialog = document.querySelector("[data-event-dialog]");
+  const eventEditor = document.querySelector("[data-event-editor]");
+  const kpis = document.querySelector("[data-admin-kpis]");
+  const undoBox = document.querySelector("[data-undo]");
   const eventForm = document.querySelector("[data-event-form]");
   const fld = (name) => eventForm.elements.namedItem(name);
 
@@ -83,6 +85,111 @@
   let scanner = null;
   let orderFilter = "paid";
   let slugLocked = false;
+  let waitCounts = {};
+  let undoTimer = 0;
+  let undoRun = null;
+
+  const orderPence = (order) =>
+    Number(order.amount_total_pence ?? Number(order.amount_subtotal_pence || 0) + Number(order.amount_shipping_pence || 0));
+
+  function showUndo(message, action) {
+    if (!undoBox) return;
+    undoBox.hidden = false;
+    undoBox.querySelector("[data-undo-text]").textContent = message;
+    const button = undoBox.querySelector("[data-undo-btn]");
+    if (button) button.hidden = !action;
+    undoRun = action || null;
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => {
+      undoBox.hidden = true;
+      undoRun = null;
+    }, 8000);
+  }
+
+  undoBox?.querySelector("[data-undo-btn]")?.addEventListener("click", async () => {
+    const run = undoRun;
+    undoRun = null;
+    clearTimeout(undoTimer);
+    undoBox.hidden = true;
+    if (!run) return;
+    try {
+      await run();
+    } catch (err) {
+      showUndo(err.message || "Couldn't undo that");
+    }
+  });
+
+  const payloadFromEvent = (ev) => ({
+    action: "upsert_event",
+    id: ev.id,
+    title: ev.title,
+    slug: ev.slug,
+    summary: ev.summary,
+    description: ev.description,
+    starts_at: ev.starts_at,
+    ends_at: ev.ends_at,
+    price_pence: ev.price_pence || 0,
+    capacity: ev.capacity,
+    location: ev.location,
+    age_range: ev.age_range,
+    what_to_bring: ev.what_to_bring,
+    is_published: Boolean(ev.is_published),
+    is_signup_open: Boolean(ev.is_signup_open),
+  });
+
+  const kpi = (label, value, note, warn) =>
+    `<article class="kpi glass"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${note ? `<small class="${warn ? "warn" : ""}">${escapeHtml(note)}</small>` : ""}</article>`;
+
+  const paintTabCounts = () => {
+    const n = ordersCache.filter((order) => order.status === "paid").length;
+    const badge = document.querySelector("[data-tab-count='orders']");
+    if (!badge) return;
+    badge.hidden = n < 1;
+    badge.textContent = String(n);
+  };
+
+  async function paintKpis() {
+    if (!kpis) return;
+    let summary = null;
+    try {
+      summary = await club({ action: "summary" });
+    } catch {
+      summary = null;
+    }
+    const live =
+      summary?.live_events ??
+      eventsCache.filter((ev) => ev.is_published && new Date(ev.starts_at).getTime() > Date.now()).length;
+    const places = summary ? summary.booked_places : null;
+    const fulfil = summary?.orders_to_fulfil ?? ordersCache.filter((order) => order.status === "paid").length;
+    const revenuePence = summary
+      ? summary.revenue_pence
+      : ordersCache.length
+        ? ordersCache
+            .filter((order) => order.status === "paid" || order.status === "fulfilled")
+            .reduce((sum, order) => sum + orderPence(order), 0)
+        : null;
+    const drafts = eventsCache.filter((ev) => !ev.is_published).length;
+    let oldestNote = "";
+    let oldestWarn = false;
+    if (fulfil > 0) {
+      const times = ordersCache
+        .filter((order) => order.status === "paid" && order.created_at)
+        .map((order) => new Date(order.created_at).getTime())
+        .filter((n) => !Number.isNaN(n));
+      if (times.length) {
+        const days = Math.max(0, Math.floor((Date.now() - Math.min(...times)) / 86400000));
+        oldestNote = days === 0 ? "Oldest today" : `Oldest ${days} day${days === 1 ? "" : "s"}`;
+        oldestWarn = days >= 4;
+      }
+    }
+    kpis.innerHTML = [
+      kpi("Live events", String(live), drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "On the site"),
+      kpi("Booked places", places == null ? "—" : String(places), places == null ? "" : "On upcoming events"),
+      kpi("Revenue", revenuePence == null ? "—" : gbp(revenuePence), revenuePence == null ? "" : "Paid and fulfilled"),
+      kpi("Orders to fulfil", String(fulfil), oldestNote, oldestWarn),
+    ].join("");
+    paintTabCounts();
+  }
 
   const hideAdmin = () => {
     document.title = "Team Bulldogs";
@@ -133,9 +240,12 @@
 
   const setTab = (name) => {
     document.querySelectorAll("[data-tab]").forEach((btn) => btn.classList.toggle("is-active", btn.dataset.tab === name));
+    const show = name === "stock" ? "orders" : name;
     document.querySelectorAll("[data-panel]").forEach((panel) => {
-      panel.hidden = panel.getAttribute("data-panel") !== name;
+      panel.hidden = panel.getAttribute("data-panel") !== show;
     });
+    const layout = document.querySelector("[data-orders-layout]");
+    if (layout) layout.dataset.mode = name === "stock" ? "stock" : "both";
     if (name !== "door") stopScanner();
     if (name === "door") fillDoorSelect();
     if (name === "admins") loadAdmins();
@@ -146,36 +256,83 @@
     btn.addEventListener("click", () => setTab(btn.dataset.tab));
   });
 
+  document.querySelector("[data-event-admin-filters]")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-admin-filter]");
+    if (!btn) return;
+    eventFilter = btn.dataset.adminFilter;
+    document.querySelectorAll("[data-admin-filter]").forEach((el) => el.classList.toggle("is-on", el === btn));
+    renderEvents();
+  });
+
+  document.querySelector("[data-admin-search]")?.addEventListener("input", (event) => {
+    eventQuery = event.target.value;
+    renderEvents();
+  });
+
   async function loadEvents() {
     if (!eventsList) return;
     try {
       const { events } = await club({ action: "list_events" });
       eventsCache = events || [];
+      try {
+        const { rows } = await club({ action: "list_waitlist" });
+        waitCounts = {};
+        for (const row of rows || []) waitCounts[row.event_id] = (waitCounts[row.event_id] || 0) + 1;
+      } catch {
+        waitCounts = {};
+      }
       renderEvents();
       fillDoorSelect();
+      paintKpis();
     } catch (err) {
       fail(eventsList, err);
     }
   }
 
+  let eventFilter = "upcoming";
+  let eventQuery = "";
+
+  const eventMatches = (ev) => {
+    const q = eventQuery.trim().toLowerCase();
+    if (q && !`${ev.title || ""} ${ev.location || ""}`.toLowerCase().includes(q)) return false;
+    if (eventFilter === "all") return true;
+    if (eventFilter === "drafts") return !ev.is_published;
+    const start = new Date(ev.starts_at).getTime();
+    const past = !Number.isNaN(start) && start < Date.now();
+    if (eventFilter === "past") return Boolean(ev.is_published) && past;
+    return Boolean(ev.is_published) && !past;
+  };
+
   function renderEvents() {
+    const rows = eventsCache.filter(eventMatches);
     if (!eventsCache.length) {
       eventsList.innerHTML = empty("No events yet. Create one to put it on the site.");
       return;
     }
-    eventsList.innerHTML = `<div class="admin-cards">${eventsCache
+    if (!rows.length) {
+      eventsList.innerHTML = empty("Nothing in this view.");
+      return;
+    }
+    const editingId = eventEditor && !eventEditor.hidden ? fld("id").value : "";
+    eventsList.innerHTML = `<div class="ev-rows">${rows
       .map((ev) => {
         const status = eventStatus(ev);
         const price = Number(ev.price_pence || 0) === 0 ? "Free" : gbp(ev.price_pence);
         const cap = ev.capacity == null ? "Open capacity" : `${ev.capacity} places`;
-        return `<article class="admin-card">
-          <div class="admin-card__top">
-            <h3>${escapeHtml(ev.title)}</h3>
-            <span class="admin-pill admin-pill--${status.kind}">${status.label}</span>
+        const waiting = waitCounts[ev.id] || 0;
+        const when = ev.starts_at ? new Date(ev.starts_at) : null;
+        const day = when && !Number.isNaN(when.getTime()) ? pad(when.getDate()) : "—";
+        const mon = when && !Number.isNaN(when.getTime()) ? when.toLocaleDateString("en-GB", { month: "short" }).toUpperCase() : "";
+        const pill = status.kind === "live" ? "pill pill--live" : status.kind === "closed" ? "pill pill--hot" : "pill";
+        const time = ev.starts_at ? whenFmt(ev.starts_at) : "No date yet";
+        return `<article class="ev-row glass${editingId === ev.id ? " is-on" : ""}">
+          <span class="tile"><b>${day}</b><span>${escapeHtml(mon)}</span></span>
+          <div>
+            <h4>${escapeHtml(ev.title)} <span class="${pill}">${status.label}</span></h4>
+            <p>${escapeHtml(time)}${ev.location ? ` · ${escapeHtml(ev.location)}` : ""} · ${price}</p>
           </div>
-          <p class="muted">${escapeHtml(whenFmt(ev.starts_at))}${ev.location ? ` · ${escapeHtml(ev.location)}` : ""}</p>
-          <p class="muted">${price} · ${escapeHtml(cap)}</p>
-          <div class="admin-actions">
+          <div class="ev-row__cap">${escapeHtml(cap)}${waiting ? `<br>${waiting} waiting` : ""}</div>
+          <div class="acts">
             <button class="btn btn--ghost btn--small" type="button" data-edit-event="${ev.id}">Edit</button>
             <button class="btn btn--ghost btn--small" type="button" data-door-event="${ev.id}">Door</button>
             <button class="btn btn--ghost btn--small" type="button" data-csv-event="${ev.id}" data-csv-slug="${escapeHtml(ev.slug || "attendees")}">CSV</button>
@@ -220,19 +377,38 @@
     document.querySelector("[data-event-dialog-title]").textContent = "Edit event";
   };
 
+  const saveBar = eventForm?.querySelector("[data-save-bar]");
+  const formSnapshot = () => (eventForm ? JSON.stringify([...new FormData(eventForm).entries()]) : "");
+  let cleanSnapshot = "";
+  const syncSaveBar = () => {
+    if (saveBar) saveBar.hidden = formSnapshot() === cleanSnapshot;
+  };
+  const markClean = () => {
+    cleanSnapshot = formSnapshot();
+    syncSaveBar();
+  };
+  eventForm?.addEventListener("input", syncSaveBar);
+  eventForm?.addEventListener("change", syncSaveBar);
+
   const openEventDialog = () => {
-    if (!eventDialog.open) eventDialog.showModal();
+    if (!eventEditor) return;
+    eventEditor.hidden = false;
+    renderEvents();
+    markClean();
+    eventEditor.scrollIntoView({ block: "nearest" });
+    fld("title").focus();
   };
 
   const closeEventDialog = () => {
-    if (eventDialog.open) eventDialog.close();
+    if (!eventEditor) return;
+    eventEditor.hidden = true;
+    renderEvents();
   };
 
   app.addEventListener("click", async (event) => {
     if (event.target.closest("[data-new-event]")) {
       resetEventForm();
       openEventDialog();
-      fld("title").focus();
       return;
     }
     const edit = event.target.closest("[data-edit-event]");
@@ -260,6 +436,7 @@
   fld("title").addEventListener("input", () => {
     if (slugLocked || fld("slug").dataset.locked) return;
     fld("slug").value = slugify(fld("title").value);
+    syncSaveBar();
   });
   fld("slug").addEventListener("input", () => {
     slugLocked = Boolean(fld("slug").value);
@@ -272,7 +449,9 @@
     const submit = eventForm.querySelector('button[type="submit"]');
     try {
       submit.disabled = true;
-      await club({
+      const previous = fld("id").value ? eventsCache.find((item) => item.id === fld("id").value) : null;
+      const snapshot = previous ? { ...previous } : null;
+      const result = await club({
         action: "upsert_event",
         id: fld("id").value || undefined,
         title: fld("title").value,
@@ -289,9 +468,23 @@
         is_published: fld("is_published").checked,
         is_signup_open: fld("is_signup_open").checked,
       });
+      if (!fld("id").value && result?.id) {
+        fld("id").value = result.id;
+        const cancel = eventForm.querySelector("[data-cancel-event]");
+        cancel.hidden = false;
+        cancel.dataset.cancelEvent = result.id;
+      }
       st.textContent = "Saved.";
       st.classList.remove("is-error");
-      closeEventDialog();
+      markClean();
+      if (snapshot) {
+        showUndo("Event saved", async () => {
+          await club(payloadFromEvent(snapshot));
+          await loadEvents();
+        });
+      } else {
+        showUndo("Event saved");
+      }
       loadEvents();
     } catch (err) {
       st.textContent = err.message;
@@ -308,6 +501,7 @@
       await club({ action: "cancel_event", event_id: id });
       closeEventDialog();
       loadEvents();
+      showUndo("Event cancelled");
     } catch (err) {
       const st = eventForm.querySelector(".form-status");
       st.textContent = err.message;
@@ -316,9 +510,6 @@
   });
 
   document.querySelector("[data-event-close]")?.addEventListener("click", closeEventDialog);
-  eventDialog?.addEventListener("click", (event) => {
-    if (event.target === eventDialog) closeEventDialog();
-  });
 
   function fillDoorSelect() {
     if (!doorSelect) return;
@@ -393,21 +584,25 @@
   };
 
   function ensureDoorShell() {
-    if (doorBody.querySelector(".admin-door")) return;
+    if (doorBody.querySelector(".door")) return;
     doorBody.innerHTML = `
-      <div class="admin-door">
-        <div class="admin-door__tools">
-          <form data-search-door>
-            <div class="field">
-              <input name="query" type="search" placeholder="Search name or email" aria-label="Search attendees" />
-            </div>
-          </form>
+      <div class="door">
+        <div class="scan glass">
+          <div class="scan__view">
+            <div id="club-qr" class="admin-qr" hidden></div>
+            <p class="scan__hint">Search a name, or scan a ticket.</p>
+          </div>
           <button class="btn btn--accent btn--small" type="button" data-start-scan>Scan ticket</button>
+          <div data-scan-result></div>
         </div>
-        <div id="club-qr" class="admin-qr" hidden></div>
-        <div data-scan-result></div>
-        <p class="muted" data-door-counts></p>
-        <div class="admin-people" data-door-people></div>
+        <div class="panel glass">
+          <div class="door__count" data-door-counts></div>
+          <div class="meter"><i data-door-meter></i></div>
+          <form data-search-door>
+            <input name="query" type="search" placeholder="Search by name or email" aria-label="Search attendees" />
+          </form>
+          <div class="people" data-door-people></div>
+        </div>
       </div>`;
   }
 
@@ -419,22 +614,46 @@
     const inCount = people.filter((p) => p.checked_in_at).length;
     const counts = doorBody.querySelector("[data-door-counts]");
     const list = doorBody.querySelector("[data-door-people]");
-    if (counts) counts.textContent = `${waiting} waiting · ${inCount} in`;
+    const meter = doorBody.querySelector("[data-door-meter]");
+    if (counts) {
+      counts.innerHTML = `
+        <div><b>${inCount}</b><span>In</span></div>
+        <div><b>${waiting}</b><span>Waiting</span></div>
+        <div><b>${people.length}</b><span>Shown</span></div>`;
+    }
+    if (meter) meter.style.width = `${people.length ? Math.round((inCount / people.length) * 100) : 0}%`;
     if (!list) return;
+    const initials = (name) =>
+      String(name || "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase();
     list.innerHTML = people.length
       ? people
           .map((p) => {
             const inDoor = Boolean(p.checked_in_at);
-            const medical = p.medical_notes ? `<p class="admin-flag">${escapeHtml(p.medical_notes)}</p>` : "";
+            const note = p.medical_notes
+              ? p.medical_notes.length > 28
+                ? `${p.medical_notes.slice(0, 28)}…`
+                : p.medical_notes
+              : "";
+            const whenIn = p.checked_in_at
+              ? new Date(p.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+              : "";
             const action = inDoor
-              ? `<span class="admin-pill admin-pill--live">In</span>`
+              ? `<span class="tick">✓ ${escapeHtml(whenIn)}</span>`
               : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(p.checkin_token || "")}">Check in</button>`;
-            return `<article class="admin-person">
+            const meta = [p.attendee_date_of_birth && `DOB ${p.attendee_date_of_birth}`, p.email].filter(Boolean).join(" · ");
+            return `<article class="person${inDoor ? " in" : ""}">
+              <span class="av">${escapeHtml(initials(p.attendee_name) || "·")}</span>
               <div>
-                <strong>${escapeHtml(p.attendee_name)}</strong>
-                <p class="muted">${escapeHtml(p.email || "")}${p.attendee_date_of_birth ? ` · ${escapeHtml(p.attendee_date_of_birth)}` : ""}</p>
-                ${medical}
+                <b>${escapeHtml(p.attendee_name)}</b>
+                <small>${escapeHtml(meta)}</small>
               </div>
+              ${note ? `<span class="flag">${escapeHtml(note)}</span>` : "<span></span>"}
               ${action}
             </article>`;
           })
@@ -456,7 +675,8 @@
     let token = text;
     try {
       const url = new URL(text);
-      token = url.searchParams.get("t") || url.searchParams.get("c") || text;
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+      token = url.searchParams.get("t") || hash.get("t") || url.searchParams.get("c") || hash.get("c") || text;
     } catch {
       /* raw token */
     }
@@ -472,6 +692,12 @@
           <p class="muted">Emergency: ${escapeHtml(person.emergency_contact_name || "—")} ${escapeHtml(person.emergency_contact_phone || "")}</p>`,
       );
       await loadDoor(doorEventId);
+      if (!result.already && person?.id) {
+        showUndo(`${person.attendee_name || "Attendee"} checked in`, async () => {
+          await club({ action: "undo_checkin", registration_id: person.id });
+          if (doorEventId) await loadDoor(doorEventId);
+        });
+      }
     } catch (err) {
       paintScan("admin-result admin-result--err", escapeHtml(err.message));
     } finally {
@@ -519,48 +745,72 @@
       const rows = variants || [];
       if (!rows.length) {
         stockTable.innerHTML = empty("No product variants yet.");
-        stockSave.hidden = true;
+        setStockDirty(false);
         return;
       }
-      stockTable.innerHTML = `<div class="admin-table-wrap"><table class="admin-table">
-        <thead><tr><th>Product</th><th>Colour</th><th>Size</th><th>On hand</th><th>Reserved</th><th>Sold</th><th>Available</th></tr></thead>
+      stockTable.innerHTML = `<table class="stock">
+        <thead><tr><th>Variant</th><th>Sold</th><th>On hand</th></tr></thead>
         <tbody>${rows
           .map((v) => {
-            const avail = v.on_hand - v.reserved - v.sold;
+            const colour = String(v.colour || "");
+            const dot = colour.toLowerCase() === "blue" ? "var(--sky)" : "var(--orange)";
+            const low = `<span class="low"${Number(v.on_hand) > 2 ? " hidden" : ""}>Low</span>`;
+            const held = Number(v.reserved) > 0 ? `<small class="muted">${v.reserved} reserved</small>` : "";
             return `<tr>
-              <td>${escapeHtml(v.product?.name || v.product_id)}</td>
-              <td>${escapeHtml(v.colour)}</td>
-              <td>${escapeHtml(v.size)}</td>
-              <td><input class="admin-num" data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" type="number" min="0" value="${v.on_hand}" /></td>
-              <td>${v.reserved}</td>
-              <td>${v.sold}</td>
-              <td data-avail>${avail}</td>
+              <td><span class="dot" style="--dot: ${dot}"></span>${escapeHtml(colour)} · ${escapeHtml(v.size)}${low}${held ? `<br>${held}` : ""}</td>
+              <td class="muted">${v.sold}</td>
+              <td><span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${v.reserved}" data-sold="${v.sold}" type="number" min="0" value="${v.on_hand}" aria-label="On hand" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span></td>
             </tr>`;
           })
-          .join("")}</tbody></table></div>`;
-      stockSave.hidden = true;
+          .join("")}</tbody></table>`;
+      setStockDirty(false);
       if (stockStatus) stockStatus.textContent = "";
     } catch (err) {
       fail(stockTable, err);
     }
   }
 
+  const stockBar = document.querySelector("[data-stock-bar]");
   const stockDirty = () =>
-    [...stockTable.querySelectorAll("[data-onhand]")].some((input) => input.value !== input.dataset.original);
+    [...(stockTable?.querySelectorAll("[data-onhand]") || [])].some((input) => input.value !== input.dataset.original);
+  const setStockDirty = (dirty) => {
+    const host = stockBar || stockSave;
+    if (host) host.hidden = !dirty;
+    const text = document.querySelector("[data-stock-bar-text]");
+    if (text && dirty && stockTable) {
+      const n = [...stockTable.querySelectorAll("[data-onhand]")].filter((input) => input.value !== input.dataset.original).length;
+      text.textContent = n === 1 ? "1 size changed" : `${n} sizes changed`;
+    }
+  };
 
   stockTable?.addEventListener("input", (event) => {
     const input = event.target.closest("[data-onhand]");
     if (!input) return;
-    const row = input.closest("tr");
-    const reserved = Number(row?.children[4]?.textContent || 0);
-    const sold = Number(row?.children[5]?.textContent || 0);
-    const avail = row?.querySelector("[data-avail]");
-    if (avail) avail.textContent = Number(input.value || 0) - reserved - sold;
-    if (stockSave) stockSave.hidden = !stockDirty();
+    input.closest(".step")?.classList.toggle("is-dirty", input.value !== input.dataset.original);
+    const low = input.closest("tr")?.querySelector(".low");
+    if (low) low.hidden = Number(input.value || 0) > 2;
+    setStockDirty(stockDirty());
+  });
+
+  stockTable?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-step]");
+    if (!btn) return;
+    const input = btn.parentElement?.querySelector("[data-onhand]");
+    if (!input) return;
+    input.value = String(Math.max(0, Number(input.value || 0) + Number(btn.dataset.step)));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 
   stockSave?.addEventListener("click", async () => {
-    if (stockSave.hidden) return;
+    if ((stockBar || stockSave).hidden) return;
+    const changes = [...stockTable.querySelectorAll("[data-onhand]")]
+      .filter((input) => input.value !== input.dataset.original)
+      .map((input) => ({
+        product_id: input.dataset.product,
+        colour: input.dataset.colour,
+        size: input.dataset.size,
+        previous: Number(input.dataset.original),
+      }));
     try {
       stockSave.disabled = true;
       for (const input of stockTable.querySelectorAll("[data-onhand]")) {
@@ -578,6 +828,20 @@
         stockStatus.classList.remove("is-error");
       }
       await loadStock();
+      if (changes.length) {
+        showUndo("Stock saved", async () => {
+          for (const row of changes) {
+            await club({
+              action: "set_on_hand",
+              product_id: row.product_id,
+              colour: row.colour,
+              size: row.size,
+              on_hand: row.previous,
+            });
+          }
+          await loadStock();
+        });
+      }
     } catch (err) {
       if (stockStatus) {
         stockStatus.textContent = err.message;
@@ -594,54 +858,71 @@
       const { orders } = await club({ action: "list_orders" });
       ordersCache = orders || [];
       renderOrders();
+      paintKpis();
     } catch (err) {
       fail(ordersList, err);
     }
   }
 
+  const paintOrderFilters = () => {
+    const counts = { paid: 0, fulfilled: 0, refunded: 0, all: ordersCache.length };
+    for (const order of ordersCache) {
+      if (counts[order.status] != null) counts[order.status] += 1;
+    }
+    const labels = { paid: "To fulfil", fulfilled: "Fulfilled", refunded: "Refunded", all: "All" };
+    document.querySelectorAll("[data-order-filter]").forEach((btn) => {
+      const key = btn.dataset.orderFilter;
+      btn.textContent = `${labels[key] || key} · ${counts[key] ?? 0}`;
+    });
+  };
+
   function renderOrders() {
+    paintOrderFilters();
     const rows = orderFilter === "all" ? ordersCache : ordersCache.filter((o) => o.status === orderFilter);
     if (!rows.length) {
-      ordersList.innerHTML = empty(orderFilter === "all" ? "No orders yet." : `No ${orderFilter} orders.`);
+      ordersList.innerHTML = empty(orderFilter === "all" ? "No orders yet." : "Nothing in this view.");
       return;
     }
-    ordersList.innerHTML = `<div class="admin-cards">${rows
+    ordersList.innerHTML = rows
       .map((o) => {
         const items = (o.items || [])
-          .map((i) => `${i.quantity}× ${escapeHtml(i.product_name)} ${escapeHtml(i.colour || "")} ${escapeHtml(i.size || "")}`)
-          .join("<br>");
+          .map((i) => `${escapeHtml(i.product_name)} — ${escapeHtml(i.colour || "")} · ${escapeHtml(i.size || "")} ×${i.quantity}`)
+          .join(", ");
         const addr = o.shipping_address
           ? [o.shipping_address.line1, o.shipping_address.city, o.shipping_address.postal_code].filter(Boolean).join(", ")
           : "";
-        const pillKind = o.status === "paid" ? "live" : o.status === "fulfilled" ? "closed" : "draft";
+        const who = o.customer_name || o.customer_email || "Order";
+        const pill =
+          o.status === "paid" ? `<span class="pill pill--sky">Paid</span>` : `<span class="pill">${escapeHtml(o.status)}</span>`;
         const actions =
           o.status === "paid"
-            ? `<div class="admin-fulfil">
-                <input placeholder="Tapstitch / note" data-note="${o.id}" />
+            ? `<div class="acts">
+                <input placeholder="Tracking or note (optional)" data-note="${o.id}" />
                 <button class="btn btn--accent btn--small" type="button" data-fulfil="${o.id}">Mark fulfilled</button>
-                <button class="text-btn admin-danger" type="button" data-refund="${o.id}">Refund</button>
+                <button class="btn btn--ghost btn--small" type="button" data-refund="${o.id}">Refund</button>
               </div>`
             : "";
-        return `<article class="admin-card">
-          <div class="admin-card__top">
-            <h3>${escapeHtml((o.customer_name || o.customer_email || o.id).toString())}</h3>
-            <span class="admin-pill admin-pill--${pillKind}">${escapeHtml(o.status)}</span>
+        return `<article class="order">
+          <div>
+            <h4>#${escapeHtml((o.id || "").slice(0, 8).toUpperCase())} <small>${escapeHtml(who)} · ${escapeHtml(whenFmt(o.created_at))}</small> ${pill}</h4>
+            <p>${items || escapeHtml(o.customer_email || "")}</p>
+            ${addr ? `<p>${escapeHtml(addr)}</p>` : ""}
           </div>
-          <p class="muted">${escapeHtml((o.id || "").slice(0, 8).toUpperCase())} · ${escapeHtml(whenFmt(o.created_at))}</p>
-          <p>${escapeHtml(o.customer_email || "")} ${escapeHtml(o.customer_phone || "")}</p>
-          <p>${items}</p>
-          ${addr ? `<p class="muted">${escapeHtml(addr)}</p>` : ""}
+          <strong>${gbp(orderPence(o))}</strong>
           ${actions}
         </article>`;
       })
-      .join("")}</div>`;
+      .join("");
   }
 
   document.querySelector("[data-order-filters]")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-order-filter]");
     if (!btn) return;
     orderFilter = btn.dataset.orderFilter;
-    document.querySelectorAll("[data-order-filter]").forEach((el) => el.classList.toggle("is-active", el === btn));
+    document.querySelectorAll("[data-order-filter]").forEach((el) => {
+      el.classList.toggle("is-active", el === btn);
+      el.classList.toggle("is-on", el === btn);
+    });
     renderOrders();
   });
 
@@ -654,12 +935,14 @@
         await club({ action: "fulfil_order", order_id: fulfil.dataset.fulfil, fulfilment_notes: notes });
         await loadOrders();
         await loadStock();
+        showUndo("Order marked fulfilled");
       }
       if (refund) {
         if (!confirm("Refund this order? Only do this if it hasn’t gone to print.")) return;
         await club({ action: "refund_order", order_id: refund.dataset.refund });
         await loadOrders();
         await loadStock();
+        showUndo("Order refunded");
       }
     } catch (err) {
       alert(err.message);

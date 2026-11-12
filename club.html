@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/gate.js"></script>
+    <link rel="stylesheet" href="css/floodlight-pages.css" />
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
   <body>
@@ -20,11 +22,11 @@
         </a>
         <nav class="nav__links" aria-label="Primary">
           <a href="index.html">Home</a>
-          <a href="team.html">AFL TEAM</a>
           <a href="events.html">Events</a>
           <a href="shop.html">Shop</a>
-          <a href="news.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="team.html">AFL TEAM</a>
+          <a href="news.html" hidden>News</a>
+          <a href="contact.html" hidden>Contact</a>
         </nav>
         <div class="nav__actions">
           <button class="cart-btn" type="button" data-open-cart aria-label="Open cart">
@@ -55,26 +57,117 @@
       <div class="section admin-page" data-club-app hidden>
         <div class="wrap">
           <header class="admin-head">
-            <p class="eyebrow">Staff</p>
-            <h1>Admin</h1>
-            <p>Events, door, stock and orders.</p>
+            <div>
+              <p class="eyebrow">Staff</p>
+              <h1>Admin tools</h1>
+            </div>
+            <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
           </header>
+
+          <div class="admin-kpis" data-admin-kpis></div>
 
           <div class="club-tabs" role="tablist">
             <button type="button" data-tab="events" class="is-active">Events</button>
             <button type="button" data-tab="door">Door</button>
             <button type="button" data-tab="stock">Stock</button>
-            <button type="button" data-tab="orders">Orders</button>
+            <button type="button" data-tab="orders">Orders <em data-tab-count="orders" hidden></em></button>
             <button type="button" data-tab="news">Newsletter</button>
             <button type="button" data-tab="admins">Admins</button>
           </div>
 
           <section data-panel="events">
-            <div class="admin-toolbar">
-              <h2>Events</h2>
-              <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
+            <div class="admin-split">
+              <div>
+                <div class="ad-bar">
+                  <div class="chips" data-event-admin-filters>
+                    <button type="button" class="chip is-on" data-admin-filter="upcoming">Upcoming</button>
+                    <button type="button" class="chip" data-admin-filter="drafts">Drafts</button>
+                    <button type="button" class="chip" data-admin-filter="past">Past</button>
+                    <button type="button" class="chip" data-admin-filter="all">All</button>
+                  </div>
+                  <input class="admin-search" type="search" data-admin-search placeholder="Search events" aria-label="Search events" />
+                </div>
+                <div data-events-list></div>
+              </div>
+              <aside class="admin-editor glass" data-event-editor hidden>
+                <form class="contact-form" data-event-form>
+                  <header class="editor__head">
+                    <div>
+                      <p class="eyebrow">Editing</p>
+                      <h2 id="event-dialog-title" data-event-dialog-title>New event</h2>
+                    </div>
+                    <button class="booking-dialog__close" type="button" data-event-close aria-label="Close">×</button>
+                  </header>
+                  <input type="hidden" name="id" />
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="event_title">Title</label>
+                      <input id="event_title" name="title" required maxlength="200" />
+                    </div>
+                    <div class="field">
+                      <label for="event_slug">Link slug</label>
+                      <input id="event_slug" name="slug" required maxlength="80" placeholder="kids-taster-may" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="event_summary">Summary</label>
+                    <input id="event_summary" name="summary" maxlength="500" />
+                  </div>
+                  <div class="field">
+                    <label for="event_description">Description</label>
+                    <textarea id="event_description" name="description" maxlength="5000"></textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="event_starts">Starts</label>
+                      <input id="event_starts" name="starts_at" type="datetime-local" required />
+                    </div>
+                    <div class="field">
+                      <label for="event_ends">Ends</label>
+                      <input id="event_ends" name="ends_at" type="datetime-local" />
+                    </div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="event_price">Price (£)</label>
+                      <input id="event_price" name="price_pounds" type="number" min="0" step="0.01" value="0" />
+                    </div>
+                    <div class="field">
+                      <label for="event_capacity">Capacity</label>
+                      <input id="event_capacity" name="capacity" type="number" min="1" placeholder="Unlimited" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="event_location">Location</label>
+                    <input id="event_location" name="location" maxlength="300" />
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="event_age">Age range</label>
+                      <input id="event_age" name="age_range" maxlength="80" />
+                    </div>
+                    <div class="field">
+                      <label for="event_bring">What to bring</label>
+                      <input id="event_bring" name="what_to_bring" maxlength="500" />
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <span>Published<small>Visible on the events page</small></span>
+                    <span class="sw"><input type="checkbox" name="is_published" /></span>
+                  </label>
+                  <label class="switch">
+                    <span>Sign-ups open<small>People can book places</small></span>
+                    <span class="sw"><input type="checkbox" name="is_signup_open" checked /></span>
+                  </label>
+                  <div class="savebar" data-save-bar hidden>
+                    <span>Unsaved changes</span>
+                    <button class="btn btn--accent btn--small" type="submit">Save</button>
+                  </div>
+                  <button class="text-btn admin-danger" type="button" data-cancel-event hidden>Cancel event &amp; refund all</button>
+                  <p class="form-status"></p>
+                </form>
+              </aside>
             </div>
-            <div data-events-list></div>
           </section>
 
           <section data-panel="door" hidden>
@@ -92,26 +185,32 @@
             </div>
           </section>
 
-          <section data-panel="stock" hidden>
-            <div class="admin-toolbar">
-              <h2>Stock</h2>
-              <button class="btn btn--accent btn--small" type="button" data-save-stock hidden>Save changes</button>
-            </div>
-            <p class="form-status" data-stock-status></p>
-            <div data-stock-table></div>
-          </section>
-
           <section data-panel="orders" hidden>
-            <div class="admin-toolbar">
-              <h2>Orders</h2>
-              <div class="admin-filters" data-order-filters>
-                <button type="button" class="is-active" data-order-filter="paid">Paid</button>
-                <button type="button" data-order-filter="fulfilled">Fulfilled</button>
-                <button type="button" data-order-filter="refunded">Refunded</button>
-                <button type="button" data-order-filter="all">All</button>
+            <div class="ad-two" data-orders-layout data-mode="both">
+              <div class="panel glass" data-orders-col>
+                <div class="panel__head">
+                  <h2>Orders</h2>
+                  <div class="admin-filters chips" data-order-filters>
+                    <button type="button" class="chip is-on" data-order-filter="paid">To fulfil</button>
+                    <button type="button" class="chip" data-order-filter="fulfilled">Fulfilled</button>
+                    <button type="button" class="chip" data-order-filter="refunded">Refunded</button>
+                    <button type="button" class="chip" data-order-filter="all">All</button>
+                  </div>
+                </div>
+                <div data-orders-list></div>
+              </div>
+              <div class="panel glass" data-stock-col>
+                <div class="panel__head">
+                  <h2>Stock</h2>
+                </div>
+                <p class="form-status" data-stock-status></p>
+                <div data-stock-table></div>
+                <div class="savebar" data-stock-bar hidden>
+                  <span data-stock-bar-text>Changes not saved</span>
+                  <button class="btn btn--accent btn--small" type="button" data-save-stock>Save stock</button>
+                </div>
               </div>
             </div>
-            <div data-orders-list></div>
           </section>
 
           <section data-panel="news" hidden>
@@ -141,76 +240,6 @@
       </div>
     </main>
 
-    <dialog class="booking-dialog" data-event-dialog aria-labelledby="event-dialog-title">
-      <button class="booking-dialog__close" type="button" data-event-close aria-label="Close">×</button>
-      <form class="contact-form" data-event-form>
-        <header class="booking-dialog__head">
-          <h2 id="event-dialog-title" data-event-dialog-title>New event</h2>
-          <p class="muted">Times are local to this device. Price is in pounds.</p>
-        </header>
-        <input type="hidden" name="id" />
-        <div class="field-row">
-          <div class="field">
-            <label for="event_title">Title</label>
-            <input id="event_title" name="title" required maxlength="200" />
-          </div>
-          <div class="field">
-            <label for="event_slug">Link slug</label>
-            <input id="event_slug" name="slug" required maxlength="80" placeholder="kids-taster-may" />
-          </div>
-        </div>
-        <div class="field">
-          <label for="event_summary">Summary</label>
-          <input id="event_summary" name="summary" maxlength="500" />
-        </div>
-        <div class="field">
-          <label for="event_description">Description</label>
-          <textarea id="event_description" name="description" maxlength="5000"></textarea>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="event_starts">Starts</label>
-            <input id="event_starts" name="starts_at" type="datetime-local" required />
-          </div>
-          <div class="field">
-            <label for="event_ends">Ends</label>
-            <input id="event_ends" name="ends_at" type="datetime-local" />
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="event_price">Price (£)</label>
-            <input id="event_price" name="price_pounds" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="event_capacity">Capacity</label>
-            <input id="event_capacity" name="capacity" type="number" min="1" placeholder="Unlimited" />
-          </div>
-        </div>
-        <div class="field">
-          <label for="event_location">Location</label>
-          <input id="event_location" name="location" maxlength="300" />
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="event_age">Age range</label>
-            <input id="event_age" name="age_range" maxlength="80" />
-          </div>
-          <div class="field">
-            <label for="event_bring">What to bring</label>
-            <input id="event_bring" name="what_to_bring" maxlength="500" />
-          </div>
-        </div>
-        <label class="field field--check"><input type="checkbox" name="is_published" /><span>Published on the site</span></label>
-        <label class="field field--check"><input type="checkbox" name="is_signup_open" checked /><span>Signup open</span></label>
-        <div class="admin-dialog-actions">
-          <button class="btn btn--accent" type="submit">Save event</button>
-          <button class="text-btn admin-danger" type="button" data-cancel-event hidden>Cancel event &amp; refund all</button>
-        </div>
-        <p class="form-status"></p>
-      </form>
-    </dialog>
-
     <footer class="site-footer">
       <div class="wrap">
         <div class="footer__bottom"><span>© 2026 Team Bulldogs</span></div>
@@ -229,6 +258,11 @@
         <p class="cart-note"></p>
       </div>
     </aside>
+
+    <div class="undo" data-undo hidden>
+      <p data-undo-text></p>
+      <button class="btn btn--ghost btn--small" type="button" data-undo-btn>Undo</button>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>

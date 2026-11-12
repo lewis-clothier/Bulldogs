@@ -1,6 +1,7 @@
+import QRCode from "npm:qrcode@1.5.4";
 import { canSelfCancel, reference } from "./auth.ts";
 import { db } from "./clients.ts";
-import { clubEmail, escapeHtml, formatDate, formatMoney, fromOrders, plain, sendHtml, sendTemplate } from "./email.ts";
+import { clubEmail, escapeHtml, formatDate, formatMoney, fromOrders, plain, sendHtml, sendTemplate, type MailAttachment } from "./email.ts";
 import { getSiteUrl } from "./http.ts";
 
 type Address = {
@@ -28,6 +29,53 @@ function formatDateOnly(date: string | null): string | null {
 
 function wrap(body: string) {
   return `<div style="font-family:Outfit,Segoe UI,sans-serif;color:#1e1e23;line-height:1.5;max-width:36rem;">${body}</div>`;
+}
+
+function ticketLink(site: string, key: "t" | "c", token: string) {
+  const value = encodeURIComponent(token);
+  return `${site}/ticket.html?${key}=${value}#${key}=${value}`;
+}
+
+async function qrPng(data: string): Promise<string | null> {
+  try {
+    const buf = await QRCode.toBuffer(data, { type: "png", width: 360, margin: 1, errorCorrectionLevel: "M" });
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+  } catch (err) {
+    console.error("QR render failed", err);
+    return null;
+  }
+}
+
+async function doorCodes(site: string, attendees: { attendee_name: string; checkin_token: string }[]) {
+  const attachments: MailAttachment[] = [];
+  const blocks: string[] = [];
+  for (let i = 0; i < attendees.length; i++) {
+    const person = attendees[i];
+    if (!person.checkin_token) continue;
+    const personTicket = ticketLink(site, "t", person.checkin_token);
+    const cid = `door-qr-${i}`;
+    const png = await qrPng(personTicket);
+    const src = png
+      ? `cid:${cid}`
+      : `https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(personTicket)}`;
+    if (png) {
+      attachments.push({
+        filename: `door-qr-${i + 1}.png`,
+        content: png,
+        contentType: "image/png",
+        contentId: cid,
+      });
+    }
+    blocks.push(`<p style="margin:16px 0;"><strong>${escapeHtml(person.attendee_name)}</strong><br />
+      <img src="${src}" alt="Door QR for ${escapeHtml(person.attendee_name)}" width="180" height="180" style="display:block;margin:8px 0;background:#ffffff;" /><br />
+      <a href="${escapeHtml(personTicket)}">Open this ticket</a></p>`);
+  }
+  return { html: blocks.join(""), attachments };
 }
 
 const authCopy: Record<string, { subject: string; intro: string; cta: string }> = {
@@ -119,19 +167,19 @@ export async function sendRegistrationEmails(bookingId: string) {
   }[];
 
   const site = getSiteUrl();
-  const ticketUrl = `${site}/ticket.html?c=${booking.cancel_token}`;
-  const cancelUrl = `${site}/cancel.html?c=${booking.cancel_token}`;
+  const ticketUrl = ticketLink(site, "c", booking.cancel_token);
+  const cancelUrl = `${site}/cancel.html?c=${encodeURIComponent(booking.cancel_token)}#c=${encodeURIComponent(booking.cancel_token)}`;
   const icsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/public-booking?action=ics&c=${booking.cancel_token}`;
   const attendeesHtml = attendees
     .map((person) => `<li>${escapeHtml(person.attendee_name)}</li>`)
     .join("");
-  const qrHtml = attendees
+  const codes = await doorCodes(site, attendees);
+  const clubQr = attendees
+    .filter((person) => person.checkin_token)
     .map((person) => {
-      const personTicket = `${site}/ticket.html?t=${person.checkin_token}`;
+      const personTicket = ticketLink(site, "t", person.checkin_token);
       const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(personTicket)}`;
-      return `<p style="margin:16px 0;"><strong>${escapeHtml(person.attendee_name)}</strong><br />
-        <img src="${qr}" alt="Door QR for ${escapeHtml(person.attendee_name)}" width="180" height="180" style="display:block;margin:8px 0;" /><br />
-        <a href="${escapeHtml(personTicket)}">Open this ticket</a></p>`;
+      return `<p><strong>${escapeHtml(person.attendee_name)}</strong><br /><img src="${qr}" alt="Door QR for ${escapeHtml(person.attendee_name)}" width="180" height="180" /></p>`;
     })
     .join("");
 
@@ -145,7 +193,7 @@ export async function sendRegistrationEmails(bookingId: string) {
     TICKET_URL: ticketUrl,
     CANCEL_URL: cancelUrl,
     ICS_URL: icsUrl,
-    QR_HTML: qrHtml,
+    QR_HTML: clubQr,
     WHAT_TO_BRING: plain(event.what_to_bring),
     EVENT_LOCATION: plain(event.location),
     ATTENDEES_HTML: `<ul>${attendeesHtml}</ul>`,
@@ -155,6 +203,7 @@ export async function sendRegistrationEmails(bookingId: string) {
     to: booking.email,
     subject: `You're booked — ${event.title}`,
     idempotencyKey: `booking-confirmation/${booking.id}`,
+    attachments: codes.attachments,
     html: wrap(`
       <p>Hi ${escapeHtml(booking.full_name)},</p>
       <p>You're in for <strong>${escapeHtml(event.title)}</strong> on ${escapeHtml(formatDate(event.starts_at))}.</p>
@@ -162,9 +211,9 @@ export async function sendRegistrationEmails(bookingId: string) {
         event.location ? `<br />${escapeHtml(event.location)}` : ""
       }</p>
       ${event.what_to_bring ? `<p>Bring: ${escapeHtml(event.what_to_bring)}</p>` : ""}
-      <p>Show one QR per attendee at the door. If the image is blocked, open the ticket link.</p>
-      ${qrHtml}
-      <p><a href="${escapeHtml(ticketUrl)}">All tickets</a> · <a href="${escapeHtml(icsUrl)}">Add to calendar</a>${
+      <p>Show one QR per attendee at the door. The same code is under My Bookings when you're signed in.</p>
+      ${codes.html}
+      <p><a href="${escapeHtml(ticketUrl)}">All tickets</a> · <a href="${escapeHtml(`${site}/bookings.html`)}">My Bookings</a> · <a href="${escapeHtml(icsUrl)}">Add to calendar</a>${
         canSelfCancel(event.starts_at) ? ` · <a href="${escapeHtml(cancelUrl)}">Cancel booking</a>` : ""
       }</p>
       <p>Team Bulldogs</p>`),
@@ -331,7 +380,7 @@ export async function sendCartReminder(to: string, name: string) {
 export async function sendDayBeforeReminder(bookingId: string) {
   const { data: booking, error } = await db
     .from("bookings")
-    .select("email, full_name, cancel_token, event:events(title, starts_at, location, what_to_bring)")
+    .select("email, full_name, cancel_token, event:events(title, starts_at, location, what_to_bring), attendees:registrations(attendee_name, checkin_token, status)")
     .eq("id", bookingId)
     .single();
   if (error) throw error;
@@ -341,17 +390,24 @@ export async function sendDayBeforeReminder(bookingId: string) {
     location: string | null;
     what_to_bring: string | null;
   };
-  const ticketUrl = `${getSiteUrl()}/ticket.html?c=${booking.cancel_token}`;
+  const site = getSiteUrl();
+  const ticketUrl = ticketLink(site, "c", booking.cancel_token);
+  const people = ((booking.attendees ?? []) as { attendee_name: string; checkin_token: string; status: string }[])
+    .filter((person) => person.checkin_token && person.status === "paid");
+  const codes = await doorCodes(site, people);
   await sendHtml({
     to: booking.email,
     subject: `Tomorrow: ${event.title}`,
     idempotencyKey: `day-before/${bookingId}`,
+    attachments: codes.attachments,
     html: wrap(
       `<p>Hi ${escapeHtml(booking.full_name)},</p>
       <p>See you tomorrow for <strong>${escapeHtml(event.title)}</strong> — ${escapeHtml(formatDate(event.starts_at))}.</p>
       ${event.location ? `<p>${escapeHtml(event.location)}</p>` : ""}
       ${event.what_to_bring ? `<p>Bring: ${escapeHtml(event.what_to_bring)}</p>` : ""}
-      <p><a href="${ticketUrl}">Your tickets / QR codes</a></p>
+      <p>Show one QR per attendee at the door.</p>
+      ${codes.html}
+      <p><a href="${escapeHtml(ticketUrl)}">All tickets</a></p>
       <p>Team Bulldogs</p>`,
     ),
   });

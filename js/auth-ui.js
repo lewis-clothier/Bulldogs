@@ -386,9 +386,6 @@
     });
   };
 
-  const whenFmt = (iso) =>
-    new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" }).format(new Date(iso));
-
   const ensureMenu = () => {
     let menu = document.querySelector("[data-account-menu]");
     if (menu) return menu;
@@ -437,24 +434,11 @@
     }
   };
 
-  const renderUserPanel = (session, profile, bookings = []) => {
+  const renderUserPanel = (session, profile) => {
     const panel = document.querySelector("[data-account-panel]");
     if (!panel) return;
     const name = profile?.profile?.full_name || session?.user?.user_metadata?.full_name || "";
     const email = profile?.email || session?.user?.email || "";
-    const rows = (bookings || []).filter((b) => b.status === "paid" || b.status === "pending");
-    const bookingHtml = rows.length
-      ? rows
-          .map((b) => {
-            const event = b.event || {};
-            const eligible =
-              b.status === "paid" && event.starts_at && Date.now() <= new Date(event.starts_at).getTime() - 24 * 60 * 60 * 1000;
-            const cancel = eligible ? `<button class="text-btn" type="button" data-cancel-booking="${b.id}">Cancel</button>` : "";
-            const ticket = b.cancel_token ? `<a href="ticket.html?c=${b.cancel_token}">Tickets</a>` : "";
-            return `<article class="account-menu__booking"><strong>${event.title || "Event"}</strong><p class="muted">${event.starts_at ? whenFmt(event.starts_at) : ""} · ${b.status}</p><p>${ticket} ${cancel}</p></article>`;
-          })
-          .join("")
-      : `<p class="muted">No bookings yet.</p>`;
     const club = profile?.is_admin ? `<a class="account-menu__item" href="club.html">Admin tools</a>` : "";
     panel.innerHTML = `<div class="account-menu__who">
         <span class="account-menu__avatar"></span>
@@ -477,10 +461,8 @@
           <p class="muted" data-account-email></p>
         </div>
       </div>
-      <div class="account-menu__bookings">
-        <p class="account-menu__label">Bookings</p>
-        ${bookingHtml}
-      </div>
+      <a class="account-menu__item" href="bookings.html">My Bookings</a>
+      <a class="account-menu__item" href="orders.html">My Orders</a>
       ${club}
       <button class="account-menu__item account-menu__item--out" type="button" data-account-out>Sign out</button>`;
     panel.querySelector(".account-menu__avatar").textContent = initialsOf(name, email);
@@ -512,14 +494,13 @@
     const keepEdit = nameFormDirty();
     if (profileCache && !keepEdit) {
       renderUserChrome(session, profileCache);
-      renderUserPanel(session, profileCache, profileCache.bookings || []);
+      renderUserPanel(session, profileCache);
     }
     try {
       const profile = await api()?.fn("me-api", { action: "profile" });
-      const bookings = await api()?.fn("me-api", { action: "bookings" });
-      profileCache = { ...profile, bookings: bookings?.bookings || [] };
+      profileCache = profile;
       renderUserChrome(session, profileCache);
-      if (!nameFormDirty()) renderUserPanel(session, profileCache, profileCache.bookings);
+      if (!nameFormDirty()) renderUserPanel(session, profileCache);
     } catch (err) {
       const status = panel.querySelector(".form-status");
       if (status) {
@@ -549,7 +530,7 @@
       api()
         ?.fn("me-api", { action: "profile" })
         .then((profile) => {
-          profileCache = { ...profile, bookings: profileCache?.bookings || [] };
+          profileCache = profile;
           renderUserChrome(session, profileCache);
         })
         .catch(() => renderUserChrome(session, null));
@@ -572,7 +553,6 @@
     });
     menu.addEventListener("click", async (event) => {
       const out = event.target.closest("[data-account-out]");
-      const cancel = event.target.closest("[data-cancel-booking]");
       const edit = event.target.closest("[data-account-edit]");
       const editCancel = event.target.closest("[data-account-edit-cancel]");
       if (out) {
@@ -602,16 +582,6 @@
           if (st) st.textContent = "";
         }
         if (view) view.hidden = false;
-      }
-      if (cancel) {
-        event.preventDefault();
-        if (!confirm("Cancel this booking and refund if you're outside 24 hours?")) return;
-        try {
-          await api().fn("me-api", { action: "cancel_booking", booking_id: cancel.dataset.cancelBooking });
-          await loadAccountPanel();
-        } catch (err) {
-          alert(err.message);
-        }
       }
     });
     menu.addEventListener("input", (event) => {
