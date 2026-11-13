@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
           phone_number_collection: { enabled: true },
           metadata,
           payment_intent_data: { metadata },
-          success_url: `${siteUrl}/confirm.html?type=order&ref=${reference(id)}&order=success`,
+          success_url: `${siteUrl}/confirm.html?type=order&ref=${reference(id)}&order=success#type=order&ref=${reference(id)}&order=success`,
           cancel_url: `${siteUrl}/shop.html?order=cancelled`,
         },
         { idempotencyKey: `order-${id}` },

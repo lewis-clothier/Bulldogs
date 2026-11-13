@@ -124,7 +124,13 @@
               <label for="auth_password">Password</label>
               <button class="text-btn" type="button" data-auth-goto="forgot" data-signin-only>Forgot?</button>
             </span>
-            <input id="auth_password" name="password" type="password" minlength="6" autocomplete="current-password" />
+            <span class="password-field">
+              <input id="auth_password" name="password" type="password" minlength="6" autocomplete="current-password" />
+              <button class="password-field__toggle" type="button" data-password-toggle aria-controls="auth_password" aria-pressed="false" aria-label="Show password">
+                <svg viewBox="0 0 24 24" aria-hidden="true" data-eye-open><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true" data-eye-shut hidden><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.4 18.4 0 0 1-3.2 4.2"/><path d="M6.1 6.1C3.8 7.8 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 4.1-.8"/></svg>
+              </button>
+            </span>
             <p class="field-hint">At least 6 characters.</p>
           </div>
           <button class="btn btn--accent btn--block" type="submit" data-auth-submit>Sign in</button>
@@ -206,9 +212,35 @@
     if (main && document.querySelector("[data-auth-dialog]")?.open) mountGoogle(name);
   };
 
+  const setPasswordVisible = (form, visible) => {
+    const input = form?.querySelector("#auth_password");
+    const toggle = form?.querySelector("[data-password-toggle]");
+    if (!input || !toggle) return;
+    input.type = visible ? "text" : "password";
+    toggle.setAttribute("aria-pressed", visible ? "true" : "false");
+    toggle.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+    const openEye = toggle.querySelector("[data-eye-open]");
+    const shutEye = toggle.querySelector("[data-eye-shut]");
+    if (openEye) openEye.hidden = visible;
+    if (shutEye) shutEye.hidden = !visible;
+  };
+
   const close = () => {
     const dialog = document.querySelector("[data-auth-dialog]");
     if (dialog?.open) dialog.close();
+    setPasswordVisible(dialog?.querySelector("[data-auth-modal-form]"), false);
+  };
+
+  const backdropClose = (dialog, dismiss) => {
+    if (!dialog) return;
+    let pressedBackdrop = false;
+    dialog.addEventListener("pointerdown", (event) => {
+      pressedBackdrop = event.target === dialog;
+    });
+    dialog.addEventListener("click", (event) => {
+      if (pressedBackdrop && event.target === dialog) dismiss();
+      pressedBackdrop = false;
+    });
   };
 
   const mountGoogle = async (view = currentView()) => {
@@ -307,15 +339,19 @@
 
   const bindDialog = (dialog) => {
     const form = dialog.querySelector("[data-auth-modal-form]");
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) close();
-    });
+    backdropClose(dialog, close);
     dialog.querySelector("[data-auth-close]")?.addEventListener("click", close);
     dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
       close();
     });
     form.addEventListener("click", (event) => {
+      const toggle = event.target.closest("[data-password-toggle]");
+      if (toggle) {
+        const input = form.querySelector("#auth_password");
+        setPasswordVisible(form, input?.type === "password");
+        return;
+      }
       const goto = event.target.closest("[data-auth-goto]");
       if (!goto) return;
       event.preventDefault();
@@ -690,5 +726,6 @@
     close,
     openMenu,
     closeMenu,
+    backdropClose,
   };
 })();

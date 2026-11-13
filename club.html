@@ -67,7 +67,6 @@
 
           <nav class="club-nav" aria-label="Admin sections">
             <button type="button" data-tab="events" class="is-active">Events</button>
-            <button type="button" data-tab="door">Door</button>
             <button type="button" data-tab="orders">Orders <em data-tab-count="orders" hidden></em></button>
             <button type="button" data-tab="stock">Stock</button>
             <button type="button" data-tab="news">Newsletter</button>
@@ -75,19 +74,46 @@
           </nav>
 
           <section data-panel="events">
-                <div class="ad-bar">
+                <div class="event-bar">
                   <div class="chips" data-event-admin-filters>
-                    <button type="button" class="chip is-on" data-admin-filter="upcoming">Upcoming</button>
-                    <button type="button" class="chip" data-admin-filter="drafts">Drafts</button>
+                    <button type="button" class="chip is-on" data-admin-filter="today">Today</button>
+                    <button type="button" class="chip" data-admin-filter="upcoming">Upcoming</button>
                     <button type="button" class="chip" data-admin-filter="past">Past</button>
+                    <button type="button" class="chip" data-admin-filter="drafts">Drafts</button>
+                    <button type="button" class="chip" data-admin-filter="cancelled">Cancelled</button>
                     <button type="button" class="chip" data-admin-filter="all">All</button>
                   </div>
-                  <div class="ad-bar__tools">
+                  <div class="event-bar__tools">
                     <input class="admin-search" type="search" data-admin-search placeholder="Search events" aria-label="Search events" />
                     <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
                   </div>
                 </div>
                 <div data-events-list></div>
+                <dialog class="booking-dialog confirm-dialog" data-checkin-confirm>
+                  <button class="booking-dialog__close" type="button" data-checkin-confirm-cancel aria-label="Close">×</button>
+                  <form method="dialog" class="confirm-dialog__body">
+                    <header class="booking-dialog__head">
+                      <p class="eyebrow">Check in</p>
+                      <h2>Open check ins</h2>
+                    </header>
+                    <p data-checkin-confirm-copy></p>
+                    <div class="confirm-dialog__acts">
+                      <button class="btn btn--ghost" type="submit" value="cancel">Cancel</button>
+                      <button class="btn btn--accent" type="submit" value="ok">Open anyway</button>
+                    </div>
+                  </form>
+                </dialog>
+                <dialog class="booking-dialog scan-dialog" data-scan-dialog>
+                  <button class="booking-dialog__close" type="button" data-scan-close aria-label="Close">×</button>
+                  <div class="scan-dialog__body">
+                    <header class="booking-dialog__head">
+                      <p class="eyebrow">Check in</p>
+                      <h2 data-scan-title>Scan ticket</h2>
+                    </header>
+                    <div id="club-scan-qr" class="scan-camera"></div>
+                    <div data-scan-person aria-live="polite"></div>
+                  </div>
+                </dialog>
               <dialog class="booking-dialog" data-event-editor>
                 <button class="booking-dialog__close" type="button" data-event-close aria-label="Close">×</button>
                 <form class="contact-form" data-event-form>
@@ -158,6 +184,19 @@
                     </div>
                   </fieldset>
                   <fieldset class="editor-group">
+                    <legend>Cover image</legend>
+                    <input type="hidden" name="cover_image" value="" />
+                    <div class="cover-picks" data-cover-picks></div>
+                    <div class="cover-preview-head">
+                      <p class="eyebrow">Events page preview</p>
+                      <div class="chips" data-cover-view>
+                        <button type="button" class="chip is-on" data-cover-mode="poster">Card</button>
+                        <button type="button" class="chip" data-cover-mode="feature">Next</button>
+                      </div>
+                    </div>
+                    <div class="events-page cover-preview-stage" data-cover-preview></div>
+                  </fieldset>
+                  <fieldset class="editor-group">
                     <legend>On the site</legend>
                     <label class="switch">
                       <span>Published<small>Visible on the events page</small></span>
@@ -180,37 +219,37 @@
               </dialog>
           </section>
 
-          <section data-panel="door" hidden>
-            <div class="door-setup panel glass">
-              <label class="admin-select">
-                <span>Session</span>
-                <select data-door-select>
-                  <option value="">Choose an event</option>
-                </select>
-              </label>
-              <p class="muted">Scan tickets on the left, or search the list on the right.</p>
-            </div>
-            <div data-door-body>
-              <p class="admin-empty">Choose a session to check people in.</p>
-            </div>
-          </section>
-
           <section data-panel="orders" hidden>
-            <div class="panel glass">
-              <div class="panel__head">
-                <div>
-                  <h2>Orders</h2>
-                  <p class="muted">Paid tees waiting to be printed or posted.</p>
+            <div class="orders-stack">
+              <div class="panel glass" data-order-summary-panel hidden>
+                <div class="panel__head">
+                  <div>
+                    <h2>Products</h2>
+                    <p class="muted">Ordered, shipped and reserved across open checkouts and paid orders.</p>
+                  </div>
                 </div>
-                <div class="admin-filters chips" data-order-filters>
-                  <button type="button" class="chip is-on" data-order-filter="paid">To fulfil</button>
-                  <button type="button" class="chip" data-order-filter="fulfilled">Fulfilled</button>
-                  <button type="button" class="chip" data-order-filter="refunded">Refunded</button>
-                  <button type="button" class="chip" data-order-filter="all">All</button>
-                </div>
+                <div class="order-summary" data-order-summary></div>
               </div>
-              <div data-orders-list></div>
+              <div class="panel glass">
+                <div class="panel__head">
+                  <div>
+                    <h2>Orders</h2>
+                    <p class="muted">Open an order to pack it, add a note, then mark it fulfilled.</p>
+                  </div>
+                  <div class="admin-filters chips" data-order-filters>
+                    <button type="button" class="chip is-on" data-order-filter="paid">To fulfil</button>
+                    <button type="button" class="chip" data-order-filter="fulfilled">Fulfilled</button>
+                    <button type="button" class="chip" data-order-filter="refunded">Refunded</button>
+                    <button type="button" class="chip" data-order-filter="all">All</button>
+                  </div>
+                </div>
+                <div class="order-rows" data-orders-list></div>
+              </div>
             </div>
+            <dialog class="booking-dialog order-dialog" data-order-dialog>
+              <button class="booking-dialog__close" type="button" data-order-close aria-label="Close">×</button>
+              <div class="order-dialog__body" data-order-body></div>
+            </dialog>
           </section>
 
           <section data-panel="stock" hidden>
@@ -218,7 +257,7 @@
               <div class="panel__head">
                 <div>
                   <h2>Stock</h2>
-                  <p class="muted">Open an item to change how many are stocked. Left is what shoppers can still buy.</p>
+                  <p class="muted">Counted is what’s still here. Checkout and to-fulfil orders hold stock for the shop; marking fulfilled takes it off the count.</p>
                 </div>
               </div>
               <p class="form-status" data-stock-status></p>

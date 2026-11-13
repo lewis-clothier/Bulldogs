@@ -73,6 +73,15 @@ Deno.serve(async (req) => {
     }
 
     if (action === "upsert_event") {
+      const allowedCovers = new Set([
+        "assets/photos/web/round2-pack.jpg",
+        "assets/photos/web/round2-herning.jpg",
+        "assets/photos/web/arena-fear.jpg",
+        "assets/photos/web/team-hero.jpg",
+        "assets/photos/web/events-hero.jpg",
+      ]);
+      const coverRaw = text(body.cover_image, "Cover image", 200);
+      const coverImage = coverRaw && allowedCovers.has(coverRaw) ? coverRaw : null;
       const row = {
         title: text(body.title, "Title", 200, true)!,
         slug: text(body.slug, "Slug", 80, true)!,
@@ -89,13 +98,15 @@ Deno.serve(async (req) => {
         is_signup_open: body.is_signup_open !== false,
         age_range: text(body.age_range, "Age range", 80),
         what_to_bring: text(body.what_to_bring, "What to bring", 500),
+        cover_image: coverImage,
       };
       let id = typeof body.id === "string" && body.id ? body.id : "";
       let wasPublished = false;
       if (id) {
         const { data: existing } = await db.from("events").select("is_published").eq("id", id).maybeSingle();
         wasPublished = existing?.is_published === true;
-        const { error } = await db.from("events").update(row).eq("id", id);
+        const patch = row.is_published ? { ...row, cancelled_at: null } : row;
+        const { error } = await db.from("events").update(patch).eq("id", id);
         if (error) throw error;
       } else {
         const { data, error } = await db.from("events").insert(row).select("id").single();
@@ -158,11 +169,13 @@ Deno.serve(async (req) => {
       if (!person) return json(req, { error: "Unknown ticket" }, 404);
       if (eventId && person.event_id !== eventId) return json(req, { error: "This ticket is for a different event." }, 409);
       if (person.status !== "paid") return json(req, { error: `This booking is ${person.status}` }, 409);
-      const event = person.event as { starts_at: string; ends_at: string | null; title: string };
-      const start = new Date(event.starts_at).getTime();
-      const end = new Date(event.ends_at ?? event.starts_at).getTime() + 6 * 60 * 60 * 1000;
-      if (Date.now() < start - 12 * 60 * 60 * 1000 || Date.now() > end) {
-        return json(req, { error: "This ticket is not for a session happening now." }, 409);
+      if (body.opened !== true) {
+        const event = person.event as { starts_at: string; ends_at: string | null; title: string };
+        const start = new Date(event.starts_at).getTime();
+        const end = new Date(event.ends_at ?? event.starts_at).getTime() + 6 * 60 * 60 * 1000;
+        if (Date.now() < start - 12 * 60 * 60 * 1000 || Date.now() > end) {
+          return json(req, { error: "This ticket is not for a session happening now." }, 409);
+        }
       }
       if (person.checked_in_at) {
         return json(req, { already: true, attendee: person });
@@ -209,14 +222,39 @@ Deno.serve(async (req) => {
       }
       await db.from("bookings").update({ status: "cancelled", expires_at: null }).eq("event_id", eventId).eq("status", "pending");
       await db.from("registrations").update({ status: "cancelled", expires_at: null }).eq("event_id", eventId).eq("status", "pending");
-      await db.from("events").update({ is_signup_open: false, is_published: false }).eq("id", eventId);
+      await db
+        .from("events")
+        .update({ is_signup_open: false, is_published: false, cancelled_at: new Date().toISOString() })
+        .eq("id", eventId);
       return json(req, { ok: true, refunded: paid?.length ?? 0 });
     }
 
     if (action === "list_stock") {
       const { data, error } = await db.from("product_variants").select("*, product:products(name)").order("colour").order("size");
       if (error) throw error;
-      return json(req, { variants: data });
+      const { data: openOrders, error: openError } = await db
+        .from("orders")
+        .select("status, items:order_items(product_id, colour, size, quantity)")
+        .in("status", ["pending", "paid"]);
+      if (openError) throw openError;
+      const toFulfil = new Map<string, number>();
+      const checkoutReserved = new Map<string, number>();
+      for (const order of openOrders ?? []) {
+        const bucket = order.status === "paid" ? toFulfil : checkoutReserved;
+        for (const item of order.items ?? []) {
+          const key = `${item.product_id}|${item.colour}|${item.size}`;
+          bucket.set(key, (bucket.get(key) || 0) + Number(item.quantity || 0));
+        }
+      }
+      const variants = (data ?? []).map((row) => {
+        const key = `${row.product_id}|${row.colour}|${row.size}`;
+        return {
+          ...row,
+          to_fulfil: toFulfil.get(key) || 0,
+          checkout_reserved: checkoutReserved.get(key) || 0,
+        };
+      });
+      return json(req, { variants });
     }
 
     if (action === "set_on_hand") {
@@ -246,7 +284,7 @@ Deno.serve(async (req) => {
       const { data: order, error } = await db.from("orders").select("*").eq("id", orderId).single();
       if (error || !order) throw new ValidationError("Order not found");
       if (order.status !== "paid") throw new ValidationError("Only paid orders can be marked fulfilled");
-      await db.rpc("fulfil_shop_order_stock", { p_order_id: orderId });
+      // Status change drops counted stock via on_shop_order_status (reserved hold clears too).
       await db.from("orders").update({
         status: "fulfilled",
         fulfilled_at: new Date().toISOString(),

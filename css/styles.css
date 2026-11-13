@@ -2638,7 +2638,8 @@ main:has(.photo-band:last-child) + .site-footer {
   color: var(--bone-muted);
 }
 
-.footer__bottom a {
+.footer__bottom a,
+.footer__grid .muted a {
   color: var(--accent);
 }
 
@@ -2804,6 +2805,13 @@ main:has(.photo-band:last-child) + .site-footer {
   font-size: 0.92rem;
 }
 
+.booking-card__aside {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .booking-card__status {
   flex: none;
   font-size: 0.72rem;
@@ -2816,6 +2824,24 @@ main:has(.photo-band:last-child) + .site-footer {
 .booking-card__status[data-status="paid"],
 .booking-card__status[data-status="fulfilled"] {
   color: var(--accent);
+}
+
+.booking-card__cta {
+  flex: none;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--pill);
+  background: rgba(245, 245, 240, 0.06);
+  color: var(--bone);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.booking-card__toggle:hover .booking-card__cta,
+.booking-card__toggle[aria-expanded="true"] .booking-card__cta {
+  border-color: rgba(232, 84, 26, 0.55);
+  color: var(--bone);
 }
 
 .order-card__head {
@@ -2978,7 +3004,32 @@ main:has(.photo-band:last-child) + .site-footer {
 }
 
 .auth-dialog .contact-form {
-  gap: 0.9rem;
+  gap: 1.5rem;
+  padding: 2rem 2rem 1.85rem;
+}
+
+.auth-dialog .booking-dialog__head {
+  gap: 0.55rem;
+  padding-right: 2.5rem;
+}
+
+.auth-dialog .field > label,
+.auth-dialog .field-label-row {
+  margin-bottom: 0.6rem;
+}
+
+.auth-dialog [data-auth-view]:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.auth-dialog .field-hint {
+  margin-top: 0.6rem;
+}
+
+.auth-dialog .auth-or {
+  margin: 0.15rem 0;
 }
 
 .auth-google {
@@ -3009,6 +3060,48 @@ main:has(.photo-band:last-child) + .site-footer {
   letter-spacing: 0;
   font-size: 0.8rem;
   font-weight: 500;
+}
+
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: 2.85rem;
+}
+
+.password-field__toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--bone-muted);
+  cursor: pointer;
+}
+
+.password-field__toggle:hover,
+.password-field__toggle[aria-pressed="true"] {
+  color: var(--bone);
+  background: color-mix(in srgb, var(--bone) 12%, transparent);
+}
+
+.password-field__toggle svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .auth-switch {

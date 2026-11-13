@@ -111,15 +111,17 @@ Deno.serve(async (req) => {
     await recordNewsletter(bookerEmail, userId, "event-checkout", body.newsletter_opt_in === true);
 
     const siteUrl = checkoutSiteUrl(req);
+    const bookingRef = reference(reservation.booking_id);
+    const ticketCode = encodeURIComponent(reservation.cancel_token);
     const successUrl =
-      `${siteUrl}/confirm.html?type=event&ref=${reference(reservation.booking_id)}&c=${reservation.cancel_token}`;
+      `${siteUrl}/confirm.html?type=event&ref=${bookingRef}&c=${ticketCode}&booking=success#type=event&ref=${bookingRef}&c=${ticketCode}&booking=success`;
 
     if (reservation.amount_pence === 0) {
       const paidAt = new Date().toISOString();
       await db.from("bookings").update({ status: "paid", paid_at: paidAt, expires_at: null }).eq("id", reservation.booking_id);
       await db.from("registrations").update({ status: "paid", paid_at: paidAt, expires_at: null }).eq("booking_id", reservation.booking_id);
       await sendRegistrationEmails(reservation.booking_id);
-      return json(req, { url: `${successUrl}&booking=success` });
+      return json(req, { url: successUrl });
     }
 
     try {
@@ -145,7 +147,7 @@ Deno.serve(async (req) => {
           metadata,
           payment_intent_data: { metadata },
           expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_MINUTES * 60,
-          success_url: `${successUrl}&booking=success`,
+          success_url: successUrl,
           cancel_url: `${siteUrl}/events.html?booking=cancelled`,
         },
         { idempotencyKey: `booking-${reservation.booking_id}` },

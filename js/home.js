@@ -28,9 +28,7 @@
   });
 
   alertsDialog?.querySelector("[data-close-alerts]")?.addEventListener("click", () => alertsDialog.close());
-  alertsDialog?.addEventListener("click", (event) => {
-    if (event.target === alertsDialog) alertsDialog.close();
-  });
+  window.BULLDOGS_AUTH?.backdropClose(alertsDialog, () => alertsDialog.close());
   alertsDialog?.querySelector("[data-alerts-auth]")?.addEventListener("click", () => {
     alertsDialog.close();
     window.BULLDOGS_AUTH?.open({ mode: "signin" });
