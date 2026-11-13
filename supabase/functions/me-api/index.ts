@@ -45,6 +45,20 @@ Deno.serve(async (req) => {
       return json(req, { ok: true });
     }
 
+    if (action === "subscribe_alerts") {
+      await recordNewsletter(user.email, user.id, "event-alerts", true);
+      return json(req, { ok: true, email: user.email });
+    }
+
+    if (action === "unsubscribe_alerts") {
+      await recordNewsletter(user.email, user.id, "event-alerts", false);
+      await db
+        .from("newsletter_subscribers")
+        .update({ unsubscribed_at: new Date().toISOString() })
+        .eq("email", user.email);
+      return json(req, { ok: true, email: user.email });
+    }
+
     if (action === "bookings") {
       const { data, error } = await db
         .from("bookings")

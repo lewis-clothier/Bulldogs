@@ -4,12 +4,29 @@ import { escapeHtml, formatDate, formatMoney, sendHtml } from "../_shared/email.
 import { email, getSiteUrl, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
 import { sendBookingCancelled, sendClubCancelledEvent } from "../_shared/notifications.ts";
 
-async function notifyEventLive(event: { id: string; title: string; starts_at: string; location: string | null }) {
+async function notifyEventLive(event: {
+  id: string;
+  title: string;
+  starts_at: string;
+  location: string | null;
+  summary?: string | null;
+  price_pence?: number | null;
+  currency?: string | null;
+  age_range?: string | null;
+}) {
   try {
     const { data, error } = await db.from("newsletter_subscribers").select("email").is("unsubscribed_at", null);
     if (error || !data?.length) return;
     const when = formatDate(event.starts_at);
-    const where = event.location ? ` · ${event.location}` : "";
+    const where = event.location || "";
+    const price =
+      event.price_pence == null
+        ? ""
+        : Number(event.price_pence) === 0
+          ? "Free"
+          : formatMoney(Number(event.price_pence), event.currency || "gbp");
+    const bits = [when, where, price, event.age_range ? `Ages ${event.age_range}` : ""].filter(Boolean);
+    const summary = event.summary ? `<p>${escapeHtml(event.summary)}</p>` : "";
     const link = `${getSiteUrl()}/events.html`;
     for (const row of data) {
       await sendHtml({
@@ -17,9 +34,13 @@ async function notifyEventLive(event: { id: string; title: string; starts_at: st
         subject: `New Bulldogs event: ${event.title}`,
         idempotencyKey: `event-live/${event.id}/${row.email}/${event.starts_at}`,
         html: `<div style="font-family:Outfit,Segoe UI,sans-serif;color:#1e1e23;line-height:1.5;max-width:36rem;">
-          <p>A new Team Bulldogs event is open for booking.</p>
-          <p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${escapeHtml(where)}</p>
-          <p><a href="${escapeHtml(link)}">See events</a></p>
+          <p>A new Team Bulldogs event just went live.</p>
+          <p style="font-size:1.25rem;margin:0 0 0.35rem;"><strong>${escapeHtml(event.title)}</strong></p>
+          <p style="color:#5b6472;margin:0 0 1rem;">${escapeHtml(bits.join(" · "))}</p>
+          ${summary}
+          <p><a href="${escapeHtml(link)}" style="display:inline-block;background:#e4572e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:4px;">See events &amp; book</a></p>
+          <p style="color:#5b6472;font-size:13px;">Or open <a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p>
+          <p>Team Bulldogs</p>
         </div>`,
       });
     }
@@ -114,7 +135,16 @@ Deno.serve(async (req) => {
         id = data.id;
       }
       if (row.is_published && !wasPublished) {
-        await notifyEventLive({ id, title: row.title, starts_at: row.starts_at, location: row.location });
+        await notifyEventLive({
+          id,
+          title: row.title,
+          starts_at: row.starts_at,
+          location: row.location,
+          summary: row.summary,
+          price_pence: row.price_pence,
+          currency: row.currency,
+          age_range: row.age_range,
+        });
       }
       return json(req, { ok: true, id });
     }
