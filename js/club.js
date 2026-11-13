@@ -137,8 +137,8 @@
     is_signup_open: Boolean(ev.is_signup_open),
   });
 
-  const kpi = (label, value, note, warn) =>
-    `<article class="kpi glass"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${note ? `<small class="${warn ? "warn" : ""}">${escapeHtml(note)}</small>` : ""}</article>`;
+  const kpi = (label, value, note, warn, tab) =>
+    `<button type="button" class="kpi glass" data-kpi="${tab}"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${note ? `<small class="${warn ? "warn" : ""}">${escapeHtml(note)}</small>` : ""}</button>`;
 
   const paintTabCounts = () => {
     const n = ordersCache.filter((order) => order.status === "paid").length;
@@ -183,10 +183,10 @@
       }
     }
     kpis.innerHTML = [
-      kpi("Live events", String(live), drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "On the site"),
-      kpi("Booked places", places == null ? "—" : String(places), places == null ? "" : "On upcoming events"),
-      kpi("Revenue", revenuePence == null ? "—" : gbp(revenuePence), revenuePence == null ? "" : "Paid and fulfilled"),
-      kpi("Orders to fulfil", String(fulfil), oldestNote, oldestWarn),
+      kpi("Live events", String(live), drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "On the site", false, "events"),
+      kpi("Booked places", places == null ? "—" : String(places), places == null ? "" : "On upcoming events", false, "events"),
+      kpi("Revenue", revenuePence == null ? "—" : gbp(revenuePence), revenuePence == null ? "" : "Paid and fulfilled", false, "orders"),
+      kpi("Orders to fulfil", String(fulfil), oldestNote, oldestWarn, "orders"),
     ].join("");
     paintTabCounts();
   }
@@ -223,6 +223,7 @@
     try {
       await club({ action: "whoami" });
       revealAdmin();
+      setTab(tabs.includes(location.hash.slice(1)) ? location.hash.slice(1) : "events");
       loadEvents();
       loadStock();
       loadOrders();
@@ -238,19 +239,26 @@
     sb.auth.getSession().then(({ data }) => show(data.session));
   });
 
+  const tabs = ["events", "door", "orders", "stock", "news", "admins"];
+
   const setTab = (name) => {
+    if (!tabs.includes(name)) name = "events";
     document.querySelectorAll("[data-tab]").forEach((btn) => btn.classList.toggle("is-active", btn.dataset.tab === name));
-    const show = name === "stock" ? "orders" : name;
     document.querySelectorAll("[data-panel]").forEach((panel) => {
-      panel.hidden = panel.getAttribute("data-panel") !== show;
+      panel.hidden = panel.getAttribute("data-panel") !== name;
     });
-    const layout = document.querySelector("[data-orders-layout]");
-    if (layout) layout.dataset.mode = name === "stock" ? "stock" : "both";
+    if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
+    if (name !== "events" && eventEditor?.open) eventEditor.close();
     if (name !== "door") stopScanner();
     if (name === "door") fillDoorSelect();
     if (name === "admins") loadAdmins();
     if (name === "news") loadNews();
   };
+
+  kpis?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-kpi]");
+    if (btn) setTab(btn.dataset.kpi);
+  });
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
     btn.addEventListener("click", () => setTab(btn.dataset.tab));
@@ -313,7 +321,7 @@
       eventsList.innerHTML = empty("Nothing in this view.");
       return;
     }
-    const editingId = eventEditor && !eventEditor.hidden ? fld("id").value : "";
+    const editingId = eventEditor?.open ? fld("id").value : "";
     eventsList.innerHTML = `<div class="ev-rows">${rows
       .map((ev) => {
         const status = eventStatus(ev);
@@ -392,17 +400,14 @@
 
   const openEventDialog = () => {
     if (!eventEditor) return;
-    eventEditor.hidden = false;
-    renderEvents();
+    if (!eventEditor.open) eventEditor.showModal();
     markClean();
-    eventEditor.scrollIntoView({ block: "nearest" });
+    renderEvents();
     fld("title").focus();
   };
 
   const closeEventDialog = () => {
-    if (!eventEditor) return;
-    eventEditor.hidden = true;
-    renderEvents();
+    if (eventEditor?.open) eventEditor.close();
   };
 
   app.addEventListener("click", async (event) => {
@@ -510,6 +515,10 @@
   });
 
   document.querySelector("[data-event-close]")?.addEventListener("click", closeEventDialog);
+  eventEditor?.addEventListener("close", () => renderEvents());
+  eventEditor?.addEventListener("click", (event) => {
+    if (event.target === eventEditor) eventEditor.close();
+  });
 
   function fillDoorSelect() {
     if (!doorSelect) return;
@@ -748,21 +757,58 @@
         setStockDirty(false);
         return;
       }
-      stockTable.innerHTML = `<table class="stock">
-        <thead><tr><th>Variant</th><th>Sold</th><th>On hand</th></tr></thead>
-        <tbody>${rows
-          .map((v) => {
-            const colour = String(v.colour || "");
-            const dot = colour.toLowerCase() === "blue" ? "var(--sky)" : "var(--orange)";
-            const low = `<span class="low"${Number(v.on_hand) > 2 ? " hidden" : ""}>Low</span>`;
-            const held = Number(v.reserved) > 0 ? `<small class="muted">${v.reserved} reserved</small>` : "";
-            return `<tr>
-              <td><span class="dot" style="--dot: ${dot}"></span>${escapeHtml(colour)} · ${escapeHtml(v.size)}${low}${held ? `<br>${held}` : ""}</td>
-              <td class="muted">${v.sold}</td>
-              <td><span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${v.reserved}" data-sold="${v.sold}" type="number" min="0" value="${v.on_hand}" aria-label="On hand" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span></td>
-            </tr>`;
-          })
-          .join("")}</tbody></table>`;
+      const sizeRank = { S: 0, M: 1, L: 2, XL: 3 };
+      const colourRank = { orange: 0, blue: 1 };
+      const byItem = new Map();
+      for (const variant of rows) {
+        const colour = String(variant.colour || "Other");
+        const key = `${variant.product_id}|${colour}`;
+        if (!byItem.has(key)) byItem.set(key, []);
+        byItem.get(key).push(variant);
+      }
+      const itemName = (variant) => {
+        const product = variant.product;
+        return product && typeof product === "object" && product.name ? String(product.name) : "Item";
+      };
+      const items = [...byItem.values()].sort((a, b) => {
+        const name = itemName(a[0]).localeCompare(itemName(b[0]));
+        if (name) return name;
+        return (colourRank[String(a[0].colour || "").toLowerCase()] ?? 9) - (colourRank[String(b[0].colour || "").toLowerCase()] ?? 9)
+          || String(a[0].colour || "").localeCompare(String(b[0].colour || ""));
+      });
+      const rowHtml = (v) => {
+        const colour = String(v.colour || "");
+        const left = Math.max(0, Number(v.on_hand) - Number(v.reserved) - Number(v.sold));
+        const low = `<span class="low"${left > 2 ? " hidden" : ""}>Low</span>`;
+        return `<tr>
+          <td>${escapeHtml(v.size)}${low}</td>
+          <td data-left>${left}</td>
+          <td class="muted">${v.sold}</td>
+          <td class="muted">${v.reserved || 0}</td>
+          <td><span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${v.reserved}" data-sold="${v.sold}" type="number" min="0" value="${v.on_hand}" aria-label="On hand" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span></td>
+        </tr>`;
+      };
+      stockTable.innerHTML = `<div class="stock-list">${items
+        .map((sizes) => {
+          const sample = sizes[0];
+          const colour = String(sample.colour || "Other");
+          const dot = colour.toLowerCase() === "blue" ? "var(--sky)" : "var(--orange)";
+          const ordered = sizes.slice().sort((a, b) => (sizeRank[a.size] ?? 9) - (sizeRank[b.size] ?? 9));
+          const left = ordered.reduce((sum, v) => sum + Math.max(0, Number(v.on_hand) - Number(v.reserved) - Number(v.sold)), 0);
+          const anyLow = ordered.some((v) => Math.max(0, Number(v.on_hand) - Number(v.reserved) - Number(v.sold)) <= 2);
+          return `<details class="stock-item">
+            <summary>
+              <span class="dot" style="--dot: ${dot}"></span>
+              <span class="stock-item__name"><b>${escapeHtml(itemName(sample))}</b><small>${escapeHtml(colour)}</small></span>
+              <span class="stock-item__meta"><span data-item-left>${left === 1 ? "1 left" : `${left} left`}</span><span class="low" data-item-low${anyLow ? "" : " hidden"}>Low</span></span>
+            </summary>
+            <table class="stock">
+              <thead><tr><th>Size</th><th>Left</th><th>Sold</th><th>Reserved</th><th>On hand</th></tr></thead>
+              <tbody>${ordered.map(rowHtml).join("")}</tbody>
+            </table>
+          </details>`;
+        })
+        .join("")}</div>`;
       setStockDirty(false);
       if (stockStatus) stockStatus.textContent = "";
     } catch (err) {
@@ -787,8 +833,25 @@
     const input = event.target.closest("[data-onhand]");
     if (!input) return;
     input.closest(".step")?.classList.toggle("is-dirty", input.value !== input.dataset.original);
+    const left = Math.max(0, Number(input.value || 0) - Number(input.dataset.reserved || 0) - Number(input.dataset.sold || 0));
+    const leftCell = input.closest("tr")?.querySelector("[data-left]");
+    if (leftCell) leftCell.textContent = String(left);
     const low = input.closest("tr")?.querySelector(".low");
-    if (low) low.hidden = Number(input.value || 0) > 2;
+    if (low) low.hidden = left > 2;
+    const item = input.closest(".stock-item");
+    if (item) {
+      let total = 0;
+      let anyLow = false;
+      item.querySelectorAll("[data-onhand]").forEach((field) => {
+        const n = Math.max(0, Number(field.value || 0) - Number(field.dataset.reserved || 0) - Number(field.dataset.sold || 0));
+        total += n;
+        if (n <= 2) anyLow = true;
+      });
+      const label = item.querySelector("[data-item-left]");
+      if (label) label.textContent = total === 1 ? "1 left" : `${total} left`;
+      const badge = item.querySelector("[data-item-low]");
+      if (badge) badge.hidden = !anyLow;
+    }
     setStockDirty(stockDirty());
   });
 

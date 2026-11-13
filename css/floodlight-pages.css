@@ -417,39 +417,17 @@
   line-height: 1.3;
 }
 
-.events-page .ev-alert .form-status {
-  margin: 0.4rem 0 0;
-  min-height: 0;
-  color: var(--bone-muted);
-  font-size: 0.9rem;
-}
-
-.events-page .ev-alert .form-status:empty {
-  display: none;
-}
-
-.events-page .ev-alert__form {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0;
-}
-
-.events-page .ev-alert__form input,
-.events-page .ev-alert__form .btn {
+.events-page .ev-alert .btn {
+  justify-self: end;
   height: 2.75rem;
   padding-top: 0;
   padding-bottom: 0;
 }
 
-.events-page .ev-alert__form input {
-  border-radius: var(--pill);
-  border: 1px solid var(--glass-line);
-  background: rgba(245, 245, 240, 0.06);
-  padding: 0.7rem 1rem;
-  width: 14rem;
-  min-width: 0;
-  flex: 0 1 14rem;
+.booking-dialog [data-alerts-or] {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
 }
 
 .booking-dialog {
@@ -1083,10 +1061,6 @@
   line-height: 0.9;
 }
 
-.admin-page:not(:has([data-panel="events"]:not([hidden]))) [data-new-event] {
-  display: none;
-}
-
 .admin-page .admin-kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1123,32 +1097,174 @@
   color: #ff8a5c;
 }
 
-.admin-page .club-tabs {
+.admin-page .club-nav {
   display: flex;
-  gap: 0.25rem;
-  width: max-content;
-  max-width: 100%;
-  padding: 0.3rem;
-  border-radius: var(--pill);
-  background: var(--glass);
-  border: 1px solid var(--glass-line);
-  overflow-x: auto;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 1.35rem;
 }
 
-.admin-page .club-tabs button {
+.admin-page button.kpi {
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.admin-page button.kpi:hover {
+  border-color: rgba(232, 84, 26, 0.5);
+}
+
+.admin-page .editor-group {
+  border: 0;
+  margin: 0 0 1.15rem;
+  padding: 0;
+}
+
+.admin-page .editor-group legend {
+  margin-bottom: 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bone-muted);
+}
+
+.admin-page .editor-danger:not(:has([data-cancel-event]:not([hidden]))) {
+  display: none;
+}
+
+.admin-page .editor-danger {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.admin-page .door-setup {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  flex-wrap: wrap;
+}
+
+.admin-page .door-setup p {
+  margin: 0;
+  max-width: 26rem;
+}
+
+.admin-page .panel__head p {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+
+.admin-page .narrow-panel {
+  max-width: 40rem;
+}
+
+.admin-page .stock-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.admin-page .stock-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(245, 245, 240, 0.03);
+}
+
+.admin-page .stock-item summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-page .stock-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-page .stock-item:not([open]) > :not(summary) {
+  display: none;
+}
+
+.admin-page .stock-item summary::after {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-right: 2px solid var(--bone-muted);
+  border-bottom: 2px solid var(--bone-muted);
+  transform: rotate(45deg) translateY(-0.1rem);
+}
+
+.admin-page .stock-item[open] summary {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.85rem;
+}
+
+.admin-page .stock-item[open] summary::after {
+  transform: rotate(-135deg) translateY(-0.1rem);
+}
+
+.admin-page .stock-item__name {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.admin-page .stock-item__name b {
+  font-weight: 600;
+}
+
+.admin-page .stock-item__name small {
+  color: var(--bone-muted);
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.admin-page .stock-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.admin-page .stock-item__meta .low {
+  margin-left: 0;
+}
+
+.admin-page .stock-item .stock {
+  width: calc(100% - 2rem);
+  margin: 0 1rem 0.35rem;
+}
+
+.admin-page .club-nav button {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line);
   border-radius: var(--pill);
+  background: transparent;
+  color: var(--bone);
+  cursor: pointer;
 }
 
-.admin-page .club-tabs button.is-active {
+.admin-page .club-nav button.is-active {
   background: var(--orange);
+  border-color: transparent;
   color: var(--bone);
   box-shadow: var(--glow-accent);
 }
 
-.admin-page .club-tabs em {
+.admin-page .club-nav em {
   font-style: normal;
   font-size: 0.68rem;
   padding: 0.05rem 0.45rem;
@@ -1165,6 +1281,19 @@
   flex-wrap: wrap;
 }
 
+.admin-page .ad-bar__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-page .ad-bar__tools .btn {
+  flex: none;
+}
+
 .admin-page .admin-search,
 .admin-page .door input[type="search"],
 .admin-page .order .acts input {
@@ -1175,7 +1304,10 @@
 }
 
 .admin-page .admin-search {
-  min-width: min(18rem, 100%);
+  width: 18rem;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 18rem;
 }
 
 .admin-page .ev-rows {
@@ -1696,9 +1828,12 @@
     background: linear-gradient(180deg, transparent 45%, rgba(23, 27, 36, 0.95));
   }
 
-  .events-page .posters,
   .admin-page .admin-kpis {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .events-page .posters {
+    grid-template-columns: 1fr;
   }
 
   .events-page .ev-facts {
@@ -1747,32 +1882,26 @@
     font-size: 0.85rem;
   }
 
-  .events-page .ev-alert__form .btn {
-    height: 2.35rem;
-    padding-left: 0.7rem;
-    padding-right: 0.7rem;
-    font-size: 0.68rem;
-  }
-
-  .events-page .ev-alert__form input {
-    width: 8rem;
-    flex-basis: 8rem;
+  .events-page .ev-alert .btn {
+    height: 2.45rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
   }
 }
 
-@media (max-width: 420px) {
-  .events-page .ev-alert__form .btn {
-    height: 2.1rem;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    font-size: 0.6rem;
-    letter-spacing: 0.02em;
+@media (max-width: 520px) {
+  .events-page .ev-alert {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .events-page .ev-alert .btn {
+    grid-column: 1 / -1;
+    justify-self: end;
   }
 }
 
 @media (max-width: 700px) {
   .team-page .squad,
-  .events-page .posters,
   .admin-page .admin-kpis {
     grid-template-columns: 1fr 1fr;
   }

@@ -76,6 +76,7 @@ async function markPaid(session: Stripe.Checkout.Session) {
       .in("status", ["pending", "expired", "cancelled"])
       .select("id");
     if (error) throw error;
+    // shop_order_stock moves the reserved units to sold in this same update.
     if (data.length) await sendOrderEmails(id);
   }
 }
@@ -119,10 +120,8 @@ async function markRefunded(charge: Stripe.Charge) {
 
   const { data: order } = await db.from("orders").select("id, status").eq("stripe_payment_intent_id", intent).maybeSingle();
   if (order && order.status !== "fulfilled") {
+    if (order.status === "pending") await db.rpc("release_shop_order_stock", { p_order_id: order.id });
     await db.from("orders").update({ status: "refunded" }).eq("id", order.id);
-    if (order.status === "paid" || order.status === "pending") {
-      await db.rpc("release_shop_order_stock", { p_order_id: order.id });
-    }
   } else if (order?.status === "fulfilled") {
     await db.from("orders").update({ status: "refunded" }).eq("id", order.id);
   }

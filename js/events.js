@@ -8,7 +8,6 @@
   const attendeesEl = document.querySelector("[data-attendees]");
   const waitDialog = document.querySelector("[data-waitlist-dialog]");
   const waitForm = document.querySelector("[data-waitlist-form]");
-  const alertsForm = document.querySelector("[data-alerts]");
   if (!listEl || !supabaseUrl || !supabaseKey || !api) return;
 
   const money = (pence, currency = "gbp") =>
@@ -410,16 +409,16 @@
     }
   });
 
-  const alertsEmail = alertsForm?.querySelector('input[name="email"]');
-
+  const alertsDialog = document.querySelector("[data-alerts-dialog]");
+  const alertsModal = document.querySelector("[data-event-alerts]");
   const signedInEmail = () => window.BULLDOGS_SESSION?.user?.email || "";
 
   const paintAlerts = () => {
-    if (!alertsForm || !alertsEmail) return;
     const signedIn = Boolean(signedInEmail());
-    alertsEmail.hidden = signedIn;
-    alertsEmail.required = !signedIn;
-    alertsForm.classList.toggle("is-signed-in", signedIn);
+    alertsDialog?.querySelector("[data-alerts-auth]")?.toggleAttribute("hidden", signedIn);
+    alertsDialog?.querySelector("[data-alerts-or]")?.toggleAttribute("hidden", signedIn);
+    const email = alertsModal?.querySelector('input[name="email"]');
+    if (email && signedIn && !email.value) email.value = signedInEmail();
   };
 
   window.BULLDOGS_AUTH?.whenReady()
@@ -429,38 +428,48 @@
     })
     .catch(() => {});
 
-  alertsForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (signedInEmail()) {
-      document.querySelector("[data-alerts-soon]")?.showModal();
-      return;
+  document.querySelector("[data-alerts-open]")?.addEventListener("click", () => {
+    if (!alertsDialog) return;
+    paintAlerts();
+    const status = alertsModal?.querySelector(".form-status");
+    if (status) {
+      status.textContent = "";
+      status.classList.remove("is-error");
     }
-    const status = alertsForm.querySelector(".form-status");
-    const submit = alertsForm.querySelector('[type="submit"]');
-    const address = signedInEmail() || new FormData(alertsForm).get("email");
+    alertsDialog.showModal();
+    alertsModal?.querySelector('input[name="email"]')?.focus();
+  });
+
+  alertsDialog?.querySelector("[data-close-alerts]")?.addEventListener("click", () => alertsDialog.close());
+  alertsDialog?.addEventListener("click", (event) => {
+    if (event.target === alertsDialog) alertsDialog.close();
+  });
+  alertsDialog?.querySelector("[data-alerts-auth]")?.addEventListener("click", () => {
+    alertsDialog.close();
+    window.BULLDOGS_AUTH?.open({ mode: "signin" });
+  });
+
+  alertsModal?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status = alertsModal.querySelector(".form-status");
+    const submit = alertsModal.querySelector('[type="submit"]');
     status.textContent = "Saving…";
     status.classList.remove("is-error");
     submit.disabled = true;
     try {
       await api.fn("public-booking", {
         action: "subscribe_alerts",
-        email: address,
+        email: new FormData(alertsModal).get("email"),
       });
-      if (!signedInEmail()) alertsForm.reset();
+      alertsModal.reset();
       status.textContent = "You're on the list. We'll email you when a new event goes live.";
+      paintAlerts();
     } catch (err) {
       status.textContent = unavailable(err, "Alerts aren't available yet.");
       status.classList.add("is-error");
     } finally {
       submit.disabled = false;
-      paintAlerts();
     }
-  });
-
-  const soonDialog = document.querySelector("[data-alerts-soon]");
-  soonDialog?.querySelector("[data-close-alerts-soon]")?.addEventListener("click", () => soonDialog.close());
-  soonDialog?.addEventListener("click", (event) => {
-    if (event.target === soonDialog) soonDialog.close();
   });
 
   form?.addEventListener("submit", async (e) => {
