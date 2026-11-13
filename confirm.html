@@ -24,13 +24,14 @@
       <header class="page-hero">
         <div class="wrap" data-confirm>
           <p class="eyebrow">Done</p>
-          <h1>You’re booked</h1>
+          <h1 data-confirm-title>You’re booked</h1>
           <p class="muted" data-confirm-ref></p>
-          <p>Check your email for the confirmation. Create an account if you want tickets in one place next time.</p>
-          <p>
+          <p data-confirm-copy>Check your email for the confirmation.</p>
+          <p data-confirm-acts>
             <a class="btn btn--accent" data-ticket-link hidden href="ticket.html">View tickets</a>
-            <button class="btn btn--ghost" type="button" data-open-auth="signup">Create an account</button>
-            <a class="btn btn--ghost" href="events.html">Back to events</a>
+            <a class="btn btn--ghost" data-orders-link hidden href="orders.html">Your orders</a>
+            <button class="btn btn--ghost" type="button" data-open-auth="signup" data-confirm-signup hidden>Create an account</button>
+            <a class="btn btn--ghost" data-confirm-back href="events.html">Back to events</a>
           </p>
         </div>
       </header>
@@ -41,29 +42,97 @@
     <script src="js/auth.js"></script>
     <script src="js/auth-ui.js"></script>
     <script>
-      const params = new URLSearchParams(location.search);
-      const type = params.get("type");
-      const ref = params.get("ref");
-      const token = params.get("c");
-      const title = document.querySelector("[data-confirm] h1");
-      const line = document.querySelector("[data-confirm-ref]");
-      const ticket = document.querySelector("[data-ticket-link]");
-      if (type === "order") {
-        title.textContent = "Order received";
-        document.querySelector("[data-confirm] p:nth-of-type(3)").textContent =
-          "We’ll email you and place the Tapstitch order. Dispatch is typically 2–3 weeks.";
-        document.querySelector('a[href="events.html"]').href = "shop.html";
-        document.querySelector('a[href="shop.html"]').textContent = "Back to shop";
-      }
-      if (ref && line) line.textContent = `Reference ${ref}`;
-      if (token && ticket) {
-        ticket.hidden = false;
-        const code = encodeURIComponent(token);
-        ticket.href = `ticket.html?c=${code}#c=${code}`;
-      }
-      if (type === "order" || params.get("order") === "success") {
-        try { localStorage.removeItem("bulldogs-cart"); } catch { /* ignore */ }
-      }
+      (() => {
+        const query = new URLSearchParams(location.search);
+        const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+        const param = (key) => query.get(key) || hash.get(key);
+        const type = param("type");
+        const ref = param("ref");
+        const token = param("c") || param("t");
+        const isOrder = type === "order" || param("order") === "success";
+        const isEvent = !isOrder && (type === "event" || param("booking") === "success" || Boolean(token));
+
+        const title = document.querySelector("[data-confirm-title]");
+        const line = document.querySelector("[data-confirm-ref]");
+        const copy = document.querySelector("[data-confirm-copy]");
+        const ticket = document.querySelector("[data-ticket-link]");
+        const orders = document.querySelector("[data-orders-link]");
+        const signup = document.querySelector("[data-confirm-signup]");
+        const back = document.querySelector("[data-confirm-back]");
+
+        const orderCopy = (guest) =>
+          guest
+            ? "Check your email for the confirmation. Create an account if you want orders in one place next time. In-stock tees ship from what we have. A new print is typically 2–3 weeks."
+            : "Check your email for the confirmation. In-stock tees ship from what we have. A new print is typically 2–3 weeks.";
+        const eventCopy = (guest) =>
+          guest
+            ? "Check your email for the confirmation and your ticket. Create an account if you want tickets in one place next time."
+            : "Check your email for the confirmation and your ticket.";
+
+        if (isOrder) {
+          document.title = "Order received — Team Bulldogs";
+          if (title) title.textContent = "Order received";
+          if (back) {
+            back.href = "shop.html";
+            back.textContent = "Back to shop";
+          }
+          const clearBag = () => {
+            try {
+              localStorage.removeItem("bulldogs-cart");
+              sessionStorage.setItem("bulldogs-cart-cleared", "1");
+            } catch {
+              /* ignore */
+            }
+            if (window.BULLDOGS_SESSION && window.BULLDOGS_API) {
+              window.BULLDOGS_API.fn("me-api", { action: "save_cart", items: [] }).catch(() => {});
+            }
+          };
+          clearBag();
+          let clearTries = 0;
+          const clearWait = setInterval(() => {
+            clearTries += 1;
+            if (window.BULLDOGS_SESSION && window.BULLDOGS_API) {
+              clearBag();
+              clearInterval(clearWait);
+            } else if (clearTries > 25) {
+              clearInterval(clearWait);
+            }
+          }, 120);
+        } else if (isEvent) {
+          document.title = "You’re booked — Team Bulldogs";
+          if (title) title.textContent = "You’re booked";
+          if (back) {
+            back.href = "events.html";
+            back.textContent = "Back to events";
+          }
+        }
+
+        if (ref && line) line.textContent = `Reference ${ref}`;
+
+        if (token && ticket) {
+          ticket.hidden = false;
+          const code = encodeURIComponent(token);
+          ticket.href = `ticket.html?c=${code}#c=${code}`;
+        }
+
+        const paintAuth = () => {
+          const signedIn = Boolean(window.BULLDOGS_SESSION);
+          if (signup) signup.hidden = signedIn;
+          if (orders) orders.hidden = !(isOrder && signedIn);
+          if (!copy) return;
+          if (isOrder) copy.textContent = orderCopy(!signedIn);
+          else if (isEvent) copy.textContent = eventCopy(!signedIn);
+          else copy.textContent = "Check your email for the confirmation.";
+        };
+
+        paintAuth();
+        let tries = 0;
+        const wait = setInterval(() => {
+          tries += 1;
+          paintAuth();
+          if (window.BULLDOGS_SESSION !== undefined || tries > 25) clearInterval(wait);
+        }, 120);
+      })();
     </script>
   </body>
 </html>

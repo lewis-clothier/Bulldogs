@@ -53,14 +53,6 @@
   if (params.get("booking") === "success") showBanner("You're booked in. Check your email for tickets.");
   else if (params.get("booking") === "cancelled") showBanner("Payment was cancelled. Your place was not held.", true);
 
-  const kindOf = (event) => {
-    const title = `${event.title} ${event.summary || ""}`.toLowerCase();
-    if (/kid|taster|junior/.test(title)) return "Kids";
-    if (/train/.test(title)) return "Training";
-    if (/show|showcase|camp/.test(title)) return "Showcases";
-    return "Other";
-  };
-
   const spacesLabel = (event) => {
     if (event.spaces_left == null) return "Places available";
     if (event.spaces_left === 0) return "Full";
@@ -85,7 +77,7 @@
     return `<div class="bar" style="--bar: ${fill}%">${escapeHtml(booked)} of ${escapeHtml(event.capacity)} booked<i></i></div>`;
   };
 
-  const poster = (event) => {
+  const poster = (event, photo) => {
     const meta = [
       escapeHtml(event.location),
       escapeHtml(parts(event.starts_at, { hour: "numeric", minute: "2-digit" })),
@@ -95,13 +87,12 @@
       .join(" · ");
     const price = event.price_pence ? money(event.price_pence, event.currency) : "Free";
     const full = event.spaces_left === 0;
-    const tag = full
-      ? `<span class="tag pill pill--hot">Sold out</span>`
-      : `<span class="tag pill">${escapeHtml(kindOf(event))}</span>`;
+    const tag = full ? `<span class="tag pill pill--hot">Sold out</span>` : "";
     return `
       <article class="poster${full ? " poster--full" : ""}">
         <figure>
-          <img src="${photoFor(event.id)}" alt="" />
+          <img src="${photo}" alt="" />
+          <div class="date"><b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b><span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span></div>
           ${tag}
         </figure>
         <div class="poster__body">
@@ -133,7 +124,7 @@
     return `Ages ${value}`;
   };
 
-  const feature = (event) => {
+  const feature = (event, photo) => {
     const price = event.price_pence ? money(event.price_pence, event.currency) : "Free";
     const full = event.spaces_left === 0;
     const status = event.is_bookable ? untilLabel(event.starts_at) : full ? "Sold out" : "Closed";
@@ -144,7 +135,7 @@
     return `
       <article class="ev-feature glass${full ? " is-full" : ""}">
         <figure>
-          <img src="${photoFor(event.id)}" alt="" />
+          <img src="${photo}" alt="" />
           <div class="date"><b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b><span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span></div>
         </figure>
         <div class="ev-feature__body">
@@ -167,18 +158,23 @@
 
   let events = [];
 
-  const DECOR = [
-    "assets/photos/web/round2-pack.jpg",
-    "assets/photos/web/round2-herning.jpg",
-    "assets/photos/web/arena-fear.jpg",
-    "assets/photos/web/team-hero.jpg",
-    "assets/photos/web/events-hero.jpg",
-  ];
+  const DECOR = (window.BULLDOGS?.eventPhotos || []).map((photo) => photo.src).filter(Boolean);
+  const photoPool = DECOR.length
+    ? DECOR
+    : [
+        "assets/photos/web/round2-pack.jpg",
+        "assets/photos/web/round2-herning.jpg",
+        "assets/photos/web/arena-fear.jpg",
+        "assets/photos/web/team-hero.jpg",
+        "assets/photos/web/events-hero.jpg",
+      ];
+  const allowedPhotos = new Set(photoPool);
 
-  const photoFor = (id) => {
+  const photoFor = (event) => {
+    if (event?.cover_image && allowedPhotos.has(event.cover_image)) return event.cover_image;
     let n = 0;
-    for (const ch of String(id || "")) n = (n + ch.charCodeAt(0)) % DECOR.length;
-    return DECOR[n];
+    for (const ch of String(event?.id || "")) n = (n + ch.charCodeAt(0)) % photoPool.length;
+    return photoPool[n];
   };
 
   const untilLabel = (iso) => {
@@ -203,9 +199,9 @@
     const lead = events.find((event) => event.is_bookable) || events[0];
     const rest = events.filter((event) => event !== lead);
     const more = rest.length
-      ? `<h2 class="ev-more">More</h2><div class="posters">${rest.map(poster).join("")}</div>`
+      ? `<h2 class="ev-more">More</h2><div class="posters">${rest.map((event) => poster(event, photoFor(event))).join("")}</div>`
       : `<p class="muted events-only">That's the only date for now.</p>`;
-    listEl.innerHTML = `<h2 class="ev-more ev-next">Next</h2>${feature(lead)}${more}`;
+    listEl.innerHTML = `<h2 class="ev-more ev-next">Next</h2>${feature(lead, photoFor(lead))}${more}`;
     requestAnimationFrame(fitWhen);
   };
 
@@ -441,9 +437,7 @@
   });
 
   alertsDialog?.querySelector("[data-close-alerts]")?.addEventListener("click", () => alertsDialog.close());
-  alertsDialog?.addEventListener("click", (event) => {
-    if (event.target === alertsDialog) alertsDialog.close();
-  });
+  window.BULLDOGS_AUTH?.backdropClose(alertsDialog, () => alertsDialog.close());
   alertsDialog?.querySelector("[data-alerts-auth]")?.addEventListener("click", () => {
     alertsDialog.close();
     window.BULLDOGS_AUTH?.open({ mode: "signin" });

@@ -7,12 +7,18 @@
 
   const club = (body) => api.fn("club-api", body);
   const eventsList = document.querySelector("[data-events-list]");
-  const doorSelect = document.querySelector("[data-door-select]");
-  const doorBody = document.querySelector("[data-door-body]");
+  const scanDialog = document.querySelector("[data-scan-dialog]");
   const stockTable = document.querySelector("[data-stock-table]");
   const stockSave = document.querySelector("[data-save-stock]");
   const stockStatus = document.querySelector("[data-stock-status]");
   const ordersList = document.querySelector("[data-orders-list]");
+  const orderSummary = document.querySelector("[data-order-summary]");
+  const orderSummaryPanel = document.querySelector("[data-order-summary-panel]");
+  const orderDialog = document.querySelector("[data-order-dialog]");
+  const orderBody = document.querySelector("[data-order-body]");
+  const openSummaryKeys = new Set();
+  const openStockKeys = new Set();
+  const stockHold = (n) => (Number(n) > 0 ? String(n) : "—");
   const newsBody = document.querySelector("[data-news-body]");
   const adminsList = document.querySelector("[data-admins-list]");
   const eventEditor = document.querySelector("[data-event-editor]");
@@ -20,6 +26,30 @@
   const undoBox = document.querySelector("[data-undo]");
   const eventForm = document.querySelector("[data-event-form]");
   const fld = (name) => eventForm.elements.namedItem(name);
+
+  const productImage = (colour, productId = "", productName = "") => {
+    const id = String(productId || "");
+    const name = String(productName || "").toLowerCase();
+    const tone = String(colour || "").toLowerCase();
+    if (id === "bulldogs-tee" || name.includes("tee") || !id) {
+      if (tone === "blue") return "assets/products/product_1_blue_front_cutout.png";
+      if (tone === "orange") return "assets/products/product_1_orange_front_cutout.png";
+    }
+    if (tone === "blue") return "assets/products/product_1_blue_front_cutout.png";
+    if (tone === "orange") return "assets/products/product_1_orange_front_cutout.png";
+    return "assets/products/product_1_orange_front_cutout.png";
+  };
+
+  const colourLabel = (colour) => {
+    const value = String(colour || "").trim();
+    if (!value) return "Print";
+    return `${value.charAt(0).toUpperCase()}${value.slice(1)} print`;
+  };
+
+  const formatAddress = (addr) => {
+    if (!addr || typeof addr !== "object") return "";
+    return [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean).join(", ");
+  };
 
   const escapeHtml = (value) =>
     String(value ?? "")
@@ -59,10 +89,29 @@
       .replace(/^-+|-+$/g, "")
       .slice(0, 80);
 
+  const CHECKIN_KEY = "bulldogs-checkins";
+  const checkinOpen = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(CHECKIN_KEY) || "[]");
+    if (Array.isArray(saved)) saved.forEach((id) => checkinOpen.add(String(id)));
+  } catch {
+    /* this browser is keeping check-ins for the session only */
+  }
+  const saveCheckins = () => {
+    try {
+      localStorage.setItem(CHECKIN_KEY, JSON.stringify([...checkinOpen]));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const isCancelled = (ev) => Boolean(ev.cancelled_at);
+
   const eventStatus = (ev) => {
+    if (isCancelled(ev)) return { label: "Cancelled", kind: "cancelled" };
     if (!ev.is_published) return { label: "Draft", kind: "draft" };
-    if (ev.is_signup_open) return { label: "Live", kind: "live" };
-    return { label: "Closed", kind: "closed" };
+    if (checkinOpen.has(ev.id)) return { label: "Live", kind: "live" };
+    return { label: "Published", kind: "published" };
   };
 
   const empty = (message) => `<p class="admin-empty">${escapeHtml(message)}</p>`;
@@ -80,9 +129,10 @@
 
   let eventsCache = [];
   let ordersCache = [];
-  let doorEventId = null;
-  let doorAttendees = [];
+  let attendanceCache = {};
+  let bookingQuery = {};
   let scanner = null;
+  let scanEventId = null;
   let orderFilter = "paid";
   let slugLocked = false;
   let waitCounts = {};
@@ -119,6 +169,17 @@
     }
   });
 
+  const eventPhotos = window.BULLDOGS?.eventPhotos || [];
+  const defaultCover = eventPhotos[0]?.src || "";
+  const coverAllowed = new Set(eventPhotos.map((photo) => photo.src));
+  const coverFor = (ev) => {
+    if (ev?.cover_image && coverAllowed.has(ev.cover_image)) return ev.cover_image;
+    if (!ev?.id || !eventPhotos.length) return defaultCover;
+    let n = 0;
+    for (const ch of String(ev.id)) n = (n + ch.charCodeAt(0)) % eventPhotos.length;
+    return eventPhotos[n].src;
+  };
+
   const payloadFromEvent = (ev) => ({
     action: "upsert_event",
     id: ev.id,
@@ -133,6 +194,7 @@
     location: ev.location,
     age_range: ev.age_range,
     what_to_bring: ev.what_to_bring,
+    cover_image: coverFor(ev) || null,
     is_published: Boolean(ev.is_published),
     is_signup_open: Boolean(ev.is_signup_open),
   });
@@ -168,7 +230,7 @@
             .filter((order) => order.status === "paid" || order.status === "fulfilled")
             .reduce((sum, order) => sum + orderPence(order), 0)
         : null;
-    const drafts = eventsCache.filter((ev) => !ev.is_published).length;
+    const drafts = eventsCache.filter((ev) => !ev.is_published && !isCancelled(ev)).length;
     let oldestNote = "";
     let oldestWarn = false;
     if (fulfil > 0) {
@@ -223,7 +285,7 @@
     try {
       await club({ action: "whoami" });
       revealAdmin();
-      setTab(tabs.includes(location.hash.slice(1)) ? location.hash.slice(1) : "events");
+      setTab(location.hash.slice(1) || "events");
       loadEvents();
       loadStock();
       loadOrders();
@@ -239,18 +301,20 @@
     sb.auth.getSession().then(({ data }) => show(data.session));
   });
 
-  const tabs = ["events", "door", "orders", "stock", "news", "admins"];
+  const tabs = ["events", "orders", "stock", "news", "admins"];
 
   const setTab = (name) => {
+    if (name === "door") name = "events";
     if (!tabs.includes(name)) name = "events";
     document.querySelectorAll("[data-tab]").forEach((btn) => btn.classList.toggle("is-active", btn.dataset.tab === name));
     document.querySelectorAll("[data-panel]").forEach((panel) => {
       panel.hidden = panel.getAttribute("data-panel") !== name;
     });
     if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
-    if (name !== "events" && eventEditor?.open) eventEditor.close();
-    if (name !== "door") stopScanner();
-    if (name === "door") fillDoorSelect();
+    if (name !== "events") {
+      if (eventEditor?.open) eventEditor.close();
+      void stopScanner();
+    }
     if (name === "admins") loadAdmins();
     if (name === "news") loadNews();
   };
@@ -268,6 +332,7 @@
     const btn = event.target.closest("[data-admin-filter]");
     if (!btn) return;
     eventFilter = btn.dataset.adminFilter;
+    soleClosed = "";
     document.querySelectorAll("[data-admin-filter]").forEach((el) => el.classList.toggle("is-on", el === btn));
     renderEvents();
   });
@@ -289,66 +354,295 @@
       } catch {
         waitCounts = {};
       }
+      await Promise.all(
+        eventsCache.map(async (ev) => {
+          try {
+            await refreshAttendance(ev.id);
+          } catch {
+            if (!(ev.id in attendanceCache)) attendanceCache[ev.id] = null;
+          }
+        }),
+      );
       renderEvents();
-      fillDoorSelect();
       paintKpis();
     } catch (err) {
       fail(eventsList, err);
     }
   }
 
-  let eventFilter = "upcoming";
+  let eventFilter = "today";
   let eventQuery = "";
+  let soleClosed = "";
+
+  const dayBounds = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return { today: today.getTime(), tomorrow: tomorrow.getTime() };
+  };
+
+  const eventSpan = (ev) => {
+    const start = new Date(ev.starts_at).getTime();
+    if (Number.isNaN(start)) return null;
+    const endRaw = ev.ends_at ? new Date(ev.ends_at).getTime() : start;
+    return { start, end: Number.isNaN(endRaw) ? start : endRaw };
+  };
+
+  const eventOnToday = (ev) => {
+    const span = eventSpan(ev);
+    if (!span) return false;
+    const { today, tomorrow } = dayBounds();
+    return span.start < tomorrow && span.end >= today;
+  };
 
   const eventMatches = (ev) => {
     const q = eventQuery.trim().toLowerCase();
     if (q && !`${ev.title || ""} ${ev.location || ""}`.toLowerCase().includes(q)) return false;
     if (eventFilter === "all") return true;
+    if (eventFilter === "cancelled") return isCancelled(ev);
+    if (isCancelled(ev)) return false;
     if (eventFilter === "drafts") return !ev.is_published;
-    const start = new Date(ev.starts_at).getTime();
-    const past = !Number.isNaN(start) && start < Date.now();
-    if (eventFilter === "past") return Boolean(ev.is_published) && past;
-    return Boolean(ev.is_published) && !past;
+    if (!ev.is_published) return false;
+    const span = eventSpan(ev);
+    if (!span) return eventFilter === "upcoming";
+    const { today, tomorrow } = dayBounds();
+    if (eventFilter === "today") return eventOnToday(ev);
+    if (eventFilter === "past") return span.end < today;
+    return span.start >= tomorrow;
   };
 
+  const heldPlace = (row) => row.status === "pending" && row.expires_at && new Date(row.expires_at).getTime() > Date.now();
+
+  const placeCounts = (ev) => {
+    const rows = attendanceCache[ev.id];
+    if (!rows) return null;
+    const paid = rows.filter((row) => row.status === "paid");
+    const held = rows.filter(heldPlace);
+    const cap = ev.capacity == null || ev.capacity === "" ? null : Number(ev.capacity);
+    return {
+      paid,
+      held: held.length,
+      taken: paid.length + held.length,
+      checked: paid.filter((row) => row.checked_in_at).length,
+      left: cap == null || Number.isNaN(cap) ? null : Math.max(0, cap - paid.length - held.length),
+    };
+  };
+
+  const barWidths = (places) => {
+    const capacity = places.left == null ? null : places.left + places.taken;
+    const booked = places.paid.length;
+    const checked = places.checked;
+    if (capacity) {
+      return {
+        capacity,
+        booked,
+        checked,
+        bookedPct: Math.min(100, Math.round((places.taken / capacity) * 100)),
+        inPct: Math.min(100, Math.round((checked / capacity) * 100)),
+      };
+    }
+    return {
+      capacity: null,
+      booked,
+      checked,
+      bookedPct: booked ? 100 : 0,
+      inPct: booked ? Math.min(100, Math.round((checked / booked) * 100)) : 0,
+    };
+  };
+
+  const seatTrack = (places) => {
+    const bar = barWidths(places);
+    return `<i style="--booked: ${bar.bookedPct}%; --in: ${bar.inPct}%" aria-hidden="true"><span></span><span></span></i>`;
+  };
+
+  function spacesHtml(ev) {
+    const places = placeCounts(ev);
+    const waiting = waitCounts[ev.id] || 0;
+    if (!places) return `<b>Places unavailable</b>`;
+    const bar = barWidths(places);
+    const spaces = bar.capacity == null ? "Open" : String(bar.capacity);
+    const spaceWord = bar.capacity === 1 ? "space" : "spaces";
+    return `<div class="seat-bar">
+      <p>
+        <span><b>${escapeHtml(spaces)}</b> ${spaceWord}</span>
+        <span><b>${bar.booked}</b> booked</span>
+        <span><b>${bar.checked}</b> checked in</span>
+      </p>
+      ${seatTrack(places)}
+      ${places.held ? `<span class="seat-bar__note">${places.held} unpaid</span>` : ""}
+      ${waiting ? `<span class="seat-bar__note">${waiting} on the waitlist</span>` : ""}
+    </div>`;
+  }
+
   function renderEvents() {
-    const rows = eventsCache.filter(eventMatches);
+    const openId = eventsList?.querySelector("details[open]")?.dataset.eventItem || "";
+    const liveQuery = eventsList?.querySelector("details[open] [name=query]");
+    if (openId && liveQuery) bookingQuery[openId] = liveQuery.value;
+    void stopScanner();
+    const startTime = (ev) => {
+      const n = new Date(ev.starts_at).getTime();
+      return Number.isNaN(n) ? null : n;
+    };
+    const rows = eventsCache.filter(eventMatches).sort((a, b) => {
+      const aStart = startTime(a);
+      const bStart = startTime(b);
+      if (aStart == null && bStart == null) return 0;
+      if (aStart == null) return 1;
+      if (bStart == null) return -1;
+      if (eventFilter === "upcoming" || eventFilter === "today" || eventFilter === "all") return aStart - bStart;
+      if (eventFilter === "past") return bStart - aStart;
+      return 0;
+    });
     if (!eventsCache.length) {
       eventsList.innerHTML = empty("No events yet. Create one to put it on the site.");
       return;
     }
     if (!rows.length) {
-      eventsList.innerHTML = empty("Nothing in this view.");
+      const note = {
+        today: "Nothing on today.",
+        upcoming: "Nothing coming up.",
+        past: "Nothing in the past.",
+        drafts: "No drafts.",
+        cancelled: "No cancelled events.",
+      };
+      eventsList.innerHTML = empty(note[eventFilter] || "Nothing in this view.");
       return;
     }
     const editingId = eventEditor?.open ? fld("id").value : "";
+    const soleId = rows.length === 1 ? rows[0].id : "";
+    const keptOpen = openId && rows.some((ev) => ev.id === openId) ? openId : "";
+    const shownOpen = keptOpen || (eventFilter === "today" && soleId && soleId !== soleClosed ? soleId : "");
     eventsList.innerHTML = `<div class="ev-rows">${rows
       .map((ev) => {
         const status = eventStatus(ev);
         const price = Number(ev.price_pence || 0) === 0 ? "Free" : gbp(ev.price_pence);
-        const cap = ev.capacity == null ? "Open capacity" : `${ev.capacity} places`;
-        const waiting = waitCounts[ev.id] || 0;
         const when = ev.starts_at ? new Date(ev.starts_at) : null;
         const day = when && !Number.isNaN(when.getTime()) ? pad(when.getDate()) : "—";
         const mon = when && !Number.isNaN(when.getTime()) ? when.toLocaleDateString("en-GB", { month: "short" }).toUpperCase() : "";
-        const pill = status.kind === "live" ? "pill pill--live" : status.kind === "closed" ? "pill pill--hot" : "pill";
+        const pill =
+          status.kind === "live"
+            ? "pill pill--live"
+            : status.kind === "published"
+              ? "pill pill--sky"
+              : status.kind === "cancelled"
+                ? "pill pill--cancelled"
+                : "pill";
         const time = ev.starts_at ? whenFmt(ev.starts_at) : "No date yet";
-        return `<article class="ev-row glass${editingId === ev.id ? " is-on" : ""}">
-          <span class="tile"><b>${day}</b><span>${escapeHtml(mon)}</span></span>
-          <div>
-            <h4>${escapeHtml(ev.title)} <span class="${pill}">${status.label}</span></h4>
-            <p>${escapeHtml(time)}${ev.location ? ` · ${escapeHtml(ev.location)}` : ""} · ${price}</p>
-          </div>
-          <div class="ev-row__cap">${escapeHtml(cap)}${waiting ? `<br>${waiting} waiting` : ""}</div>
-          <div class="acts">
-            <button class="btn btn--ghost btn--small" type="button" data-edit-event="${ev.id}">Edit</button>
-            <button class="btn btn--ghost btn--small" type="button" data-door-event="${ev.id}">Door</button>
-            <button class="btn btn--ghost btn--small" type="button" data-csv-event="${ev.id}" data-csv-slug="${escapeHtml(ev.slug || "attendees")}">CSV</button>
-          </div>
-        </article>`;
+        const open = shownOpen === ev.id ? " open" : "";
+        return `<details class="ev-item glass${editingId === ev.id ? " is-on" : ""}" data-event-item="${ev.id}" name="club-event"${open}>
+          <summary class="ev-row">
+            <span class="tile"><b>${day}</b><span>${escapeHtml(mon)}</span></span>
+            <div>
+              <h4>${escapeHtml(ev.title)} <span class="ev-status"><span class="${pill}">${status.label}</span><button class="ev-edit" type="button" data-edit-event="${ev.id}" aria-label="Edit ${escapeHtml(ev.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></span></h4>
+              <p>${escapeHtml(time)}${ev.location ? ` · ${escapeHtml(ev.location)}` : ""} · ${price}</p>
+            </div>
+            <div class="ev-row__cap" data-event-cap="${ev.id}">${spacesHtml(ev)}</div>
+            <span class="ev-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="ev-bookings" data-event-bookings="${ev.id}"></div>
+        </details>`;
       })
       .join("")}</div>`;
+    if (shownOpen && eventsList.querySelector(`details[open][data-event-item="${shownOpen}"]`)) openEvent(shownOpen);
   }
+
+  const coverPicks = eventForm?.querySelector("[data-cover-picks]");
+  const coverView = eventForm?.querySelector("[data-cover-view]");
+  let coverMode = "poster";
+  const paintCoverPicks = (selected) => {
+    if (!coverPicks) return;
+    const current = selected && coverAllowed.has(selected) ? selected : defaultCover;
+    if (fld("cover_image")) fld("cover_image").value = current;
+    coverPicks.innerHTML = eventPhotos
+      .map(
+        (photo) =>
+          `<button class="cover-pick${photo.src === current ? " is-on" : ""}" type="button" data-cover-src="${escapeHtml(photo.src)}" aria-pressed="${photo.src === current ? "true" : "false"}" aria-label="${escapeHtml(photo.label)}"><img src="${escapeHtml(photo.src)}" alt="" /><span>${escapeHtml(photo.label)}</span></button>`,
+      )
+      .join("");
+  };
+
+  const coverClock = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  const coverPin = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
+  const coverPerson = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 19.5c1.2-3.2 3.5-4.8 6.5-4.8s5.3 1.6 6.5 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+  const paintCoverPreview = () => {
+    const preview = eventForm?.querySelector("[data-cover-preview]");
+    if (!preview) return;
+    const src = fld("cover_image")?.value || defaultCover;
+    const title = fld("title")?.value.trim() || "New event";
+    const summary = fld("summary")?.value.trim() || "";
+    const location = fld("location")?.value.trim() || "TBC";
+    const age = fld("age_range")?.value.trim() || "";
+    const who = age ? (/^ages\b/i.test(age) ? age : `Ages ${age}`) : "All ages";
+    const pricePence = Math.round(Number(fld("price_pounds")?.value || 0) * 100);
+    const price = pricePence ? gbp(pricePence) : "Free";
+    const capacityRaw = fld("capacity")?.value;
+    const capacity = capacityRaw === "" || capacityRaw == null ? null : Number(capacityRaw);
+    const start = fld("starts_at")?.value ? new Date(fld("starts_at").value) : null;
+    const end = fld("ends_at")?.value ? new Date(fld("ends_at").value) : null;
+    const validStart = start && !Number.isNaN(start.getTime());
+    const validEnd = end && !Number.isNaN(end.getTime());
+    const day = validStart ? pad(start.getDate()) : "—";
+    const mon = validStart ? start.toLocaleDateString("en-GB", { month: "short" }).toUpperCase() : "";
+    const timeOnly = (d) =>
+      d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: false });
+    const clockTime = validStart
+      ? validEnd
+        ? `${timeOnly(start)} – ${timeOnly(end)}`
+        : timeOnly(start)
+      : "Set a start time";
+    const whenLong = validStart
+      ? start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+      : "Set a date";
+    const metaBits = [
+      location !== "TBC" ? escapeHtml(location) : "",
+      validStart ? escapeHtml(timeOnly(start)) : "",
+      age ? `<span class="nowrap">${escapeHtml(who)}</span>` : "",
+    ].filter(Boolean);
+    const meta = metaBits.length ? metaBits.join(" · ") : "Add a date and location to fill this in.";
+    const bar =
+      capacity == null || Number.isNaN(capacity)
+        ? `<div class="bar">Places available<i style="--bar: 0%"></i></div>`
+        : `<div class="bar" style="--bar: 0%">0 of ${escapeHtml(String(capacity))} booked<i></i></div>`;
+    const dateBadge = `<div class="date"><b>${escapeHtml(day)}</b><span>${escapeHtml(mon)}</span></div>`;
+    if (coverMode === "feature") {
+      preview.innerHTML = `<article class="ev-feature glass">
+        <figure>
+          <img src="${escapeHtml(src)}" alt="" />
+          ${dateBadge}
+        </figure>
+        <div class="ev-feature__body">
+          <span class="live">Next up</span>
+          <h2>${escapeHtml(title)}</h2>
+          ${summary ? `<p class="muted">${escapeHtml(summary)}</p>` : ""}
+          <div class="ev-facts">
+            <div><b>${coverPin}Where</b><p>${escapeHtml(location)}</p></div>
+            <div><b>${coverClock}When</b><p>${escapeHtml(whenLong)} · ${escapeHtml(clockTime)}</p></div>
+            <div><b>${coverPerson}Who</b><p>${escapeHtml(who)}</p></div>
+          </div>
+          ${bar}
+          <div class="ev-feature__foot">
+            <strong>${escapeHtml(price)}</strong>
+            <span class="btn btn--accent" aria-hidden="true">Book now</span>
+          </div>
+        </div>
+      </article>`;
+      return;
+    }
+    preview.innerHTML = `<article class="poster">
+      <figure>
+        <img src="${escapeHtml(src)}" alt="" />
+        ${dateBadge}
+      </figure>
+      <div class="poster__body">
+        <h3>${escapeHtml(title)}</h3>
+        <p class="muted">${meta}</p>
+        ${bar}
+        <div class="poster__foot"><strong>${escapeHtml(price)}</strong><span class="btn btn--accent btn--small" aria-hidden="true">Book</span></div>
+      </div>
+    </article>`;
+  };
 
   const resetEventForm = () => {
     eventForm.reset();
@@ -360,6 +654,8 @@
     eventForm.querySelector("[data-cancel-event]").hidden = true;
     eventForm.querySelector(".form-status").textContent = "";
     document.querySelector("[data-event-dialog-title]").textContent = "New event";
+    paintCoverPicks(defaultCover);
+    paintCoverPreview();
   };
 
   const fillEventForm = (ev) => {
@@ -380,9 +676,12 @@
     fld("what_to_bring").value = ev.what_to_bring || "";
     fld("is_published").checked = Boolean(ev.is_published);
     fld("is_signup_open").checked = Boolean(ev.is_signup_open);
-    eventForm.querySelector("[data-cancel-event]").hidden = false;
-    eventForm.querySelector("[data-cancel-event]").dataset.cancelEvent = ev.id;
-    document.querySelector("[data-event-dialog-title]").textContent = "Edit event";
+    paintCoverPicks(coverFor(ev));
+    paintCoverPreview();
+    const cancel = eventForm.querySelector("[data-cancel-event]");
+    cancel.hidden = isCancelled(ev);
+    cancel.dataset.cancelEvent = ev.id;
+    document.querySelector("[data-event-dialog-title]").textContent = isCancelled(ev) ? "Cancelled event" : "Edit event";
   };
 
   const saveBar = eventForm?.querySelector("[data-save-bar]");
@@ -395,8 +694,28 @@
     cleanSnapshot = formSnapshot();
     syncSaveBar();
   };
-  eventForm?.addEventListener("input", syncSaveBar);
-  eventForm?.addEventListener("change", syncSaveBar);
+  eventForm?.addEventListener("input", () => {
+    paintCoverPreview();
+    syncSaveBar();
+  });
+  eventForm?.addEventListener("change", () => {
+    paintCoverPreview();
+    syncSaveBar();
+  });
+  coverPicks?.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-cover-src]");
+    if (!pick) return;
+    paintCoverPicks(pick.dataset.coverSrc);
+    paintCoverPreview();
+    syncSaveBar();
+  });
+  coverView?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-cover-mode]");
+    if (!btn) return;
+    coverMode = btn.dataset.coverMode === "feature" ? "feature" : "poster";
+    coverView.querySelectorAll("[data-cover-mode]").forEach((el) => el.classList.toggle("is-on", el === btn));
+    paintCoverPreview();
+  });
 
   const openEventDialog = () => {
     if (!eventEditor) return;
@@ -418,23 +737,21 @@
     }
     const edit = event.target.closest("[data-edit-event]");
     if (edit) {
+      event.preventDefault();
       const ev = eventsCache.find((item) => item.id === edit.dataset.editEvent);
       if (!ev) return;
       fillEventForm(ev);
       openEventDialog();
       return;
     }
-    const door = event.target.closest("[data-door-event]");
-    if (door) {
-      setTab("door");
-      doorSelect.value = door.dataset.doorEvent;
-      loadDoor(door.dataset.doorEvent);
-      return;
-    }
     const csv = event.target.closest("[data-csv-event]");
     if (csv) {
-      const { csv: text } = await club({ action: "attendees_csv", event_id: csv.dataset.csvEvent });
-      download(text, `${csv.dataset.csvSlug || "attendees"}.csv`);
+      try {
+        const { csv: text } = await club({ action: "attendees_csv", event_id: csv.dataset.csvEvent });
+        download(text, `${csv.dataset.csvSlug || "attendees"}.csv`);
+      } catch (err) {
+        showUndo(err.message || "Couldn't download the list");
+      }
     }
   });
 
@@ -470,6 +787,7 @@
         location: fld("location").value,
         age_range: fld("age_range").value,
         what_to_bring: fld("what_to_bring").value,
+        cover_image: fld("cover_image").value || null,
         is_published: fld("is_published").checked,
         is_signup_open: fld("is_signup_open").checked,
       });
@@ -504,7 +822,11 @@
     if (!id || !confirm("Cancel this event? Paid bookings are refunded and everyone is emailed.")) return;
     try {
       await club({ action: "cancel_event", event_id: id });
+      closeCheckins(id);
       closeEventDialog();
+      eventFilter = "cancelled";
+      soleClosed = "";
+      document.querySelectorAll("[data-admin-filter]").forEach((el) => el.classList.toggle("is-on", el.dataset.adminFilter === "cancelled"));
       loadEvents();
       showUndo("Event cancelled");
     } catch (err) {
@@ -516,121 +838,92 @@
 
   document.querySelector("[data-event-close]")?.addEventListener("click", closeEventDialog);
   eventEditor?.addEventListener("close", () => renderEvents());
-  eventEditor?.addEventListener("click", (event) => {
-    if (event.target === eventEditor) eventEditor.close();
-  });
+  window.BULLDOGS_AUTH?.backdropClose(eventEditor, closeEventDialog);
 
-  function fillDoorSelect() {
-    if (!doorSelect) return;
-    const current = doorSelect.value || doorEventId || "";
-    const options = [`<option value="">Choose an event</option>`]
-      .concat(
-        eventsCache.map((ev) => `<option value="${ev.id}">${escapeHtml(ev.title)} · ${escapeHtml(whenFmt(ev.starts_at))}</option>`),
-      )
-      .join("");
-    doorSelect.innerHTML = options;
-    if (current && eventsCache.some((ev) => ev.id === current)) doorSelect.value = current;
+  async function refreshAttendance(eventId) {
+    const { attendees } = await club({ action: "list_attendees", event_id: eventId });
+    attendanceCache[eventId] = attendees || [];
   }
 
-  const resetDoorTools = async () => {
-    await stopScanner();
-    const scanBtn = doorBody.querySelector("[data-start-scan]");
-    if (scanBtn) {
-      scanBtn.disabled = false;
-      scanBtn.textContent = "Scan ticket";
-    }
-    const qr = doorBody.querySelector("#club-qr");
-    if (qr) {
-      qr.hidden = true;
-      qr.textContent = "";
-    }
-    const box = doorBody.querySelector("[data-scan-result]");
-    if (box) {
-      box.className = "";
-      box.innerHTML = "";
-    }
-  };
+  const bookingsHost = (eventId) => eventsList?.querySelector(`[data-event-bookings="${eventId}"]`) || null;
 
-  doorSelect?.addEventListener("change", async () => {
-    await resetDoorTools();
-    if (doorSelect.value) loadDoor(doorSelect.value);
-    else {
-      doorEventId = null;
-      doorBody.innerHTML = empty("Choose an event to check people in.");
-    }
-  });
+  function updateCap(eventId) {
+    const ev = eventsCache.find((item) => item.id === eventId);
+    const cap = eventsList?.querySelector(`[data-event-cap="${eventId}"]`);
+    if (ev && cap) cap.innerHTML = spacesHtml(ev);
+  }
 
   async function stopScanner() {
+    scanEventId = null;
     if (!scanner) return;
+    const current = scanner;
+    scanner = null;
     try {
-      await scanner.stop();
+      await current.stop();
     } catch {
       /* already stopped */
     }
-    scanner = null;
-  }
-
-  async function loadDoor(eventId) {
-    doorEventId = eventId;
     try {
-      const { attendees } = await club({ action: "list_attendees", event_id: eventId });
-      doorAttendees = (attendees || []).filter((row) => row.status === "paid");
-      renderDoorPeople();
-    } catch (err) {
-      fail(doorBody, err);
+      current.clear();
+    } catch {
+      /* already clear */
     }
   }
 
-  const doorMatches = (query) => {
+  const paidPeople = (eventId) => (attendanceCache[eventId] || []).filter((row) => row.status === "paid");
+
+  const matchingPeople = (eventId, query) => {
     const q = query.trim().toLowerCase();
-    if (!q) return doorAttendees;
-    return doorAttendees.filter(
-      (row) =>
+    const rows = paidPeople(eventId);
+    if (!q) return rows;
+    return rows.filter((row) => {
+      const mail = row.email || row.booking?.email || "";
+      const booker = row.full_name || row.booking?.full_name || "";
+      return (
         (row.attendee_name || "").toLowerCase().includes(q) ||
-        (row.email || "").toLowerCase().includes(q) ||
-        (row.full_name || "").toLowerCase().includes(q),
-    );
+        mail.toLowerCase().includes(q) ||
+        booker.toLowerCase().includes(q)
+      );
+    });
   };
 
-  function ensureDoorShell() {
-    if (doorBody.querySelector(".door")) return;
-    doorBody.innerHTML = `
-      <div class="door">
-        <div class="scan glass">
-          <div class="scan__view">
-            <div id="club-qr" class="admin-qr" hidden></div>
-            <p class="scan__hint">Search a name, or scan a ticket.</p>
-          </div>
-          <button class="btn btn--accent btn--small" type="button" data-start-scan>Scan ticket</button>
-          <div data-scan-result></div>
-        </div>
-        <div class="panel glass">
-          <div class="door__count" data-door-counts></div>
-          <div class="meter"><i data-door-meter></i></div>
-          <form data-search-door>
-            <input name="query" type="search" placeholder="Search by name or email" aria-label="Search attendees" />
-          </form>
-          <div class="people" data-door-people></div>
-        </div>
-      </div>`;
-  }
-
-  function renderDoorPeople() {
-    ensureDoorShell();
-    const query = doorBody.querySelector("[name=query]")?.value || "";
-    const people = doorMatches(query);
-    const waiting = people.filter((p) => !p.checked_in_at).length;
-    const inCount = people.filter((p) => p.checked_in_at).length;
-    const counts = doorBody.querySelector("[data-door-counts]");
-    const list = doorBody.querySelector("[data-door-people]");
-    const meter = doorBody.querySelector("[data-door-meter]");
-    if (counts) {
-      counts.innerHTML = `
-        <div><b>${inCount}</b><span>In</span></div>
-        <div><b>${waiting}</b><span>Waiting</span></div>
-        <div><b>${people.length}</b><span>Shown</span></div>`;
+  function renderPeople(eventId) {
+    const host = bookingsHost(eventId);
+    if (!host) return;
+    const query = host.querySelector("[name=query]")?.value || "";
+    bookingQuery[eventId] = query;
+    const all = paidPeople(eventId);
+    const people = matchingPeople(eventId, query);
+    const inCount = all.filter((person) => person.checked_in_at).length;
+    const ev = eventsCache.find((item) => item.id === eventId);
+    const cancelled = ev ? isCancelled(ev) : false;
+    const started = !cancelled && checkinOpen.has(eventId);
+    const places = ev ? placeCounts(ev) : null;
+    const counts = host.querySelector("[data-door-counts]");
+    const list = host.querySelector("[data-door-people]");
+    const track = host.querySelector("[data-seat-bar]");
+    const gate = host.querySelector("[data-checkin-gate]");
+    const scanBtn = host.querySelector("[data-start-scan]");
+    const openBtn = host.querySelector("[data-open-checkin]");
+    const closeBtn = host.querySelector("[data-close-checkin]");
+    if (gate) {
+      gate.hidden = cancelled ? false : started;
+      if (cancelled) gate.textContent = "This event was cancelled.";
     }
-    if (meter) meter.style.width = `${people.length ? Math.round((inCount / people.length) * 100) : 0}%`;
+    if (scanBtn) scanBtn.hidden = cancelled || !started;
+    if (openBtn) openBtn.hidden = cancelled || started;
+    if (closeBtn) closeBtn.hidden = cancelled || !started;
+    if (places && counts) {
+      const capacity = places.left == null ? null : places.left + places.taken;
+      const left = places.left == null ? "Open" : String(places.left);
+      counts.innerHTML = `
+        <div><b>${capacity == null ? "Open" : capacity}</b><span>Spaces</span></div>
+        <div><b>${all.length}</b><span class="count-booked">Booked</span></div>
+        <div><b>${left}</b><span>Spaces left</span></div>
+        <div><b>${inCount}</b><span class="count-in">Checked in</span></div>
+        <div><b>${all.length - inCount}</b><span class="count-out">Not checked in</span></div>`;
+    }
+    if (track && places) track.innerHTML = seatTrack(places);
     if (!list) return;
     const initials = (name) =>
       String(name || "")
@@ -640,46 +933,139 @@
         .map((part) => part[0])
         .join("")
         .toUpperCase();
-    list.innerHTML = people.length
+    const held = places?.held || 0;
+    const heldNote = held
+      ? `<p class="muted">${held} ${held === 1 ? "place is" : "places are"} held at checkout and not paid yet.</p>`
+      : "";
+    list.innerHTML = heldNote + (people.length
       ? people
-          .map((p) => {
-            const inDoor = Boolean(p.checked_in_at);
-            const note = p.medical_notes
-              ? p.medical_notes.length > 28
-                ? `${p.medical_notes.slice(0, 28)}…`
-                : p.medical_notes
+          .map((person) => {
+            const arrived = Boolean(person.checked_in_at);
+            const note = person.medical_notes
+              ? person.medical_notes.length > 28
+                ? `${person.medical_notes.slice(0, 28)}…`
+                : person.medical_notes
               : "";
-            const whenIn = p.checked_in_at
-              ? new Date(p.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+            const whenIn = person.checked_in_at
+              ? new Date(person.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
               : "";
-            const action = inDoor
-              ? `<span class="tick">✓ ${escapeHtml(whenIn)}</span>`
-              : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(p.checkin_token || "")}">Check in</button>`;
-            const meta = [p.attendee_date_of_birth && `DOB ${p.attendee_date_of_birth}`, p.email].filter(Boolean).join(" · ");
-            return `<article class="person${inDoor ? " in" : ""}">
-              <span class="av">${escapeHtml(initials(p.attendee_name) || "·")}</span>
+            const mail = person.email || person.booking?.email || "";
+            const action = !started
+              ? arrived
+                ? `<span class="tick">In ${escapeHtml(whenIn)}</span>`
+                : ""
+              : arrived
+                ? `<span class="tick">In ${escapeHtml(whenIn)}</span><button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>`
+                : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(person.checkin_token || "")}" ${person.checkin_token ? "" : "disabled"}>Check in</button>`;
+            const meta = [person.attendee_date_of_birth && `DOB ${person.attendee_date_of_birth}`, mail].filter(Boolean).join(" · ");
+            return `<article class="person${arrived ? " in" : ""}">
+              <span class="av">${escapeHtml(initials(person.attendee_name) || "·")}</span>
               <div>
-                <b>${escapeHtml(p.attendee_name)}</b>
+                <b>${escapeHtml(person.attendee_name || "Attendee")}</b>
                 <small>${escapeHtml(meta)}</small>
               </div>
               ${note ? `<span class="flag">${escapeHtml(note)}</span>` : "<span></span>"}
-              ${action}
+              <div class="person__acts">${action}</div>
             </article>`;
           })
           .join("")
-      : empty("No paid attendees match.");
+      : empty(query.trim() ? "No one matches that search." : "No one is booked yet."));
+  }
+
+  function renderBookings(eventId) {
+    const host = bookingsHost(eventId);
+    if (!host) return;
+    if (attendanceCache[eventId] == null) {
+      host.innerHTML = `<p class="form-status is-error">Couldn't load bookings.</p>`;
+      return;
+    }
+    if (!host.querySelector("[data-door-people]")) {
+      const cancelled = isCancelled(eventsCache.find((item) => item.id === eventId) || {});
+      const started = !cancelled && checkinOpen.has(eventId);
+      host.innerHTML = `
+        <div class="door__count" data-door-counts></div>
+        <div class="seat-bar seat-bar--track" data-seat-bar></div>
+        <div class="ev-bookings__tools">
+          <form data-search-door>
+            <input name="query" type="search" placeholder="Search booked people" aria-label="Search booked people" value="${escapeHtml(bookingQuery[eventId] || "")}" />
+          </form>
+          <button class="btn btn--accent btn--small" type="button" data-open-checkin="${eventId}" ${cancelled || started ? "hidden" : ""}>Open check ins</button>
+          <button class="btn btn--ghost btn--small" type="button" data-close-checkin="${eventId}" ${cancelled || !started ? "hidden" : ""}>Close check ins</button>
+          <button class="btn btn--accent btn--small" type="button" data-start-scan ${cancelled || !started ? "hidden" : ""}>Scan ticket</button>
+        </div>
+        <p class="muted" data-checkin-gate ${cancelled || !started ? "" : "hidden"}>${cancelled ? "This event was cancelled." : "Open check ins to scan tickets and mark people in."}</p>
+        <p class="checkin-note" data-checkin-note hidden></p>
+        <div class="people" data-door-people></div>`;
+    }
+    renderPeople(eventId);
+  }
+
+  async function openEvent(eventId) {
+    if (attendanceCache[eventId]) renderBookings(eventId);
+    else {
+      const host = bookingsHost(eventId);
+      if (host) host.innerHTML = `<p class="muted">Loading bookings…</p>`;
+    }
+    try {
+      await refreshAttendance(eventId);
+    } catch {
+      if (attendanceCache[eventId] == null) {
+        const host = bookingsHost(eventId);
+        if (host) host.innerHTML = `<p class="form-status is-error">Couldn't load bookings.</p>`;
+        return;
+      }
+    }
+    updateCap(eventId);
+    if (!eventsList?.querySelector(`details[open][data-event-item="${eventId}"]`)) return;
+    renderBookings(eventId);
+  }
+
+  async function updateEventPeople(eventId) {
+    try {
+      await refreshAttendance(eventId);
+    } catch (err) {
+      paintNote(eventId, scanCard(null, { error: err.message || "The list didn’t refresh." }));
+    }
+    updateCap(eventId);
+    if (eventsList?.querySelector(`details[open][data-event-item="${eventId}"]`)) renderBookings(eventId);
   }
 
   let scanning = false;
-  const paintScan = (cls, html) => {
-    const box = doorBody.querySelector("[data-scan-result]");
-    if (!box) return;
-    box.className = cls;
-    box.innerHTML = html;
+
+  const scanCard = (person, state) => {
+    if (!person) {
+      return `<article class="scan-card scan-card--bad"><h3>Couldn't check in</h3><p>${escapeHtml(state.error || "Try the ticket again.")}</p></article>`;
+    }
+    const medical = person.medical_notes
+      ? `<p class="flag">${escapeHtml(person.medical_notes)}</p>`
+      : `<p>No medical notes</p>`;
+    return `<article class="scan-card ${state.already ? "scan-card--warn" : "scan-card--ok"}">
+      <p class="eyebrow">${state.already ? "Already checked in" : "Checked in"}</p>
+      <h3>${escapeHtml(person.attendee_name || "Attendee")}</h3>
+      <dl>
+        <div><dt>Date of birth</dt><dd>${escapeHtml(person.attendee_date_of_birth || "—")}</dd></div>
+        <div><dt>Emergency</dt><dd>${escapeHtml(person.emergency_contact_name || "—")} ${escapeHtml(person.emergency_contact_phone || "")}</dd></div>
+        ${person.email ? `<div><dt>Email</dt><dd>${escapeHtml(person.email)}</dd></div>` : ""}
+      </dl>
+      ${medical}
+      ${person.id ? `<button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>` : ""}
+    </article>`;
   };
 
-  async function onScan(text) {
-    if (scanning) return;
+  const paintNote = (eventId, html) => {
+    const note = bookingsHost(eventId)?.querySelector("[data-checkin-note]");
+    if (!note) return;
+    note.hidden = !html;
+    note.innerHTML = html;
+  };
+
+  const paintModal = (html) => {
+    const box = scanDialog?.querySelector("[data-scan-person]");
+    if (box) box.innerHTML = html;
+  };
+
+  async function onScan(text, eventId, modal) {
+    if (scanning || !eventId) return;
     scanning = true;
     let token = text;
     try {
@@ -690,61 +1076,204 @@
       /* raw token */
     }
     try {
-      const result = await club({ action: "checkin", token, event_id: doorEventId });
+      const result = await club({ action: "checkin", token, event_id: eventId, opened: checkinOpen.has(eventId) });
       const person = result.attendee;
-      paintScan(
-        result.already ? "admin-result admin-result--warn" : "admin-result admin-result--ok",
-        `<h3>${escapeHtml(person.attendee_name)}</h3>
-          <p>${result.already ? "Already checked in" : "Checked in"}</p>
-          <p class="muted">DOB ${escapeHtml(person.attendee_date_of_birth || "—")}</p>
-          <p>${person.medical_notes ? `<strong>Medical:</strong> ${escapeHtml(person.medical_notes)}` : "No medical notes"}</p>
-          <p class="muted">Emergency: ${escapeHtml(person.emergency_contact_name || "—")} ${escapeHtml(person.emergency_contact_phone || "")}</p>`,
-      );
-      await loadDoor(doorEventId);
+      const card = scanCard(person, { already: Boolean(result.already) });
+      if (modal) paintModal(card);
+      else paintNote(eventId, card);
+      await updateEventPeople(eventId);
       if (!result.already && person?.id) {
         showUndo(`${person.attendee_name || "Attendee"} checked in`, async () => {
           await club({ action: "undo_checkin", registration_id: person.id });
-          if (doorEventId) await loadDoor(doorEventId);
+          await updateEventPeople(eventId);
+          if (modal) paintModal(`<p class="muted">Check-in undone. Scan the next ticket.</p>`);
         });
       }
     } catch (err) {
-      paintScan("admin-result admin-result--err", escapeHtml(err.message));
+      const card = scanCard(null, { error: err.message });
+      if (modal) paintModal(card);
+      else paintNote(eventId, card);
     } finally {
       scanning = false;
     }
   }
 
-  doorBody.addEventListener("input", (event) => {
-    const form = event.target.closest("[data-search-door]");
-    if (!form) return;
-    renderDoorPeople();
+  const confirmDialog = document.querySelector("[data-checkin-confirm]");
+
+  function askOpenAnyway(ev) {
+    const title = ev?.title || "This event";
+    const when = ev?.starts_at ? new Date(ev.starts_at) : null;
+    const dated = when && !Number.isNaN(when.getTime())
+      ? when.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+      : "";
+    const message = dated
+      ? `${title} is on ${dated}, not today. Open check ins anyway?`
+      : `${title} is not scheduled for today. Open check ins anyway?`;
+    if (!confirmDialog) return Promise.resolve(window.confirm(message));
+    const copy = confirmDialog.querySelector("[data-checkin-confirm-copy]");
+    if (copy) copy.textContent = message;
+    confirmDialog.returnValue = "";
+    return new Promise((resolve) => {
+      const finish = () => {
+        confirmDialog.removeEventListener("close", finish);
+        resolve(confirmDialog.returnValue === "ok");
+      };
+      confirmDialog.addEventListener("close", finish);
+      confirmDialog.showModal();
+    });
+  }
+
+  confirmDialog?.querySelector("[data-checkin-confirm-cancel]")?.addEventListener("click", () => {
+    confirmDialog.close("cancel");
+  });
+  window.BULLDOGS_AUTH?.backdropClose(confirmDialog, () => confirmDialog.close("cancel"));
+
+  async function openCheckins(eventId) {
+    if (!eventId || checkinOpen.has(eventId)) return;
+    const ev = eventsCache.find((item) => item.id === eventId);
+    if (!ev || !eventOnToday(ev)) {
+      if (!(await askOpenAnyway(ev))) return;
+    }
+    checkinOpen.add(eventId);
+    saveCheckins();
+    const item = eventsList?.querySelector(`[data-event-item="${eventId}"]`);
+    if (item && !item.open) item.open = true;
+    renderEvents();
+  }
+
+  function closeCheckins(eventId) {
+    if (!eventId || !checkinOpen.has(eventId)) return;
+    checkinOpen.delete(eventId);
+    saveCheckins();
+    if (scanEventId === eventId) closeScan();
+    renderEvents();
+  }
+
+  async function startScan(eventId) {
+    if (!scanDialog || !checkinOpen.has(eventId)) return;
+    if (scanDialog.open && scanEventId === eventId) return;
+    const ev = eventsCache.find((item) => item.id === eventId);
+    const title = scanDialog.querySelector("[data-scan-title]");
+    if (title) title.textContent = ev?.title || "Scan ticket";
+    paintModal(`<p class="muted">Point the camera at a ticket.</p>`);
+    if (!scanDialog.open) scanDialog.showModal();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const host = scanDialog.querySelector("#club-scan-qr");
+    if (!host) return;
+    const cameraError = (message) => {
+      host.hidden = true;
+      host.replaceChildren();
+      scanEventId = null;
+      scanner = null;
+      paintModal(`<p>${escapeHtml(message)}</p>`);
+    };
+    if (!window.Html5Qrcode) {
+      cameraError("Camera scanner couldn’t load. Check someone in from the list.");
+      return;
+    }
+    await stopScanner();
+    scanEventId = eventId;
+    host.hidden = false;
+    host.replaceChildren();
+    scanner = new window.Html5Qrcode("club-scan-qr");
+    scanner.start({ facingMode: "environment" }, { fps: 8, qrbox: 180 }, (value) => onScan(value, eventId, true)).catch(() => {
+      cameraError("Camera unavailable. Check someone in from the list.");
+    });
+  }
+
+  const closeScan = () => {
+    if (scanDialog?.open) scanDialog.close();
+  };
+
+  scanDialog?.addEventListener("close", () => {
+    void stopScanner();
+  });
+  scanDialog?.querySelector("[data-scan-close]")?.addEventListener("click", closeScan);
+  window.BULLDOGS_AUTH?.backdropClose(scanDialog, closeScan);
+
+  scanDialog?.addEventListener("click", async (event) => {
+    const undo = event.target.closest("[data-undo-checkin]");
+    if (!undo || !scanEventId) return;
+    undo.disabled = true;
+    try {
+      await club({ action: "undo_checkin", registration_id: undo.dataset.undoCheckin });
+      await updateEventPeople(scanEventId);
+      paintModal(`<p class="muted">Check-in undone. Scan the next ticket.</p>`);
+      showUndo("Check-in undone");
+    } catch (err) {
+      undo.disabled = false;
+      paintModal(scanCard(null, { error: err.message || "Couldn't undo that check-in" }));
+    }
   });
 
-  doorBody.addEventListener("submit", (event) => {
+  eventsList?.addEventListener(
+    "toggle",
+    (event) => {
+      const item = event.target;
+      if (!(item instanceof HTMLDetailsElement) || !item.dataset.eventItem) return;
+      if (!item.open) {
+        if (eventFilter === "today") {
+          const visible = eventsCache.filter(eventMatches);
+          if (visible.length === 1 && visible[0].id === item.dataset.eventItem) soleClosed = item.dataset.eventItem;
+        }
+        if (scanEventId === item.dataset.eventItem) closeScan();
+        return;
+      }
+      if (soleClosed === item.dataset.eventItem) soleClosed = "";
+      openEvent(item.dataset.eventItem);
+    },
+    true,
+  );
+
+  eventsList?.addEventListener("input", (event) => {
+    const form = event.target.closest("[data-search-door]");
+    if (!form) return;
+    const eventId = form.closest("[data-event-item]")?.dataset.eventItem;
+    if (eventId) renderPeople(eventId);
+  });
+
+  eventsList?.addEventListener("submit", (event) => {
     if (!event.target.closest("[data-search-door]")) return;
     event.preventDefault();
   });
 
-  doorBody.addEventListener("click", async (event) => {
+  eventsList?.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-edit-event]")) event.preventDefault();
+    const begin = event.target.closest("[data-open-checkin]");
+    const end = event.target.closest("[data-close-checkin]");
     const start = event.target.closest("[data-start-scan]");
     const manual = event.target.closest("[data-manual-check]");
-    if (start) {
-      const host = doorBody.querySelector("#club-qr");
-      if (!host) return;
-      host.hidden = false;
-      if (!window.Html5Qrcode) {
-        host.textContent = "Camera scanner couldn’t load — use search instead.";
-        return;
-      }
-      await stopScanner();
-      scanner = new window.Html5Qrcode("club-qr");
-      scanner.start({ facingMode: "environment" }, { fps: 8, qrbox: 180 }, onScan).catch(() => {
-        host.textContent = "Camera unavailable — search by name instead.";
-      });
-      start.textContent = "Scanning…";
-      start.disabled = true;
+    const undo = event.target.closest("[data-undo-checkin]");
+    const eventId = begin?.dataset.openCheckin || end?.dataset.closeCheckin || event.target.closest("[data-event-item]")?.dataset.eventItem;
+    if (begin && eventId) {
+      openCheckins(eventId);
+      return;
     }
-    if (manual) await onScan(manual.dataset.manualCheck);
+    if (end && eventId) {
+      closeCheckins(eventId);
+      return;
+    }
+    if (start && eventId) {
+      await startScan(eventId);
+      return;
+    }
+    if (manual && eventId) {
+      if (!checkinOpen.has(eventId)) return;
+      await onScan(manual.dataset.manualCheck, eventId, false);
+      return;
+    }
+    if (undo && eventId) {
+      undo.disabled = true;
+      try {
+        await club({ action: "undo_checkin", registration_id: undo.dataset.undoCheckin });
+        await updateEventPeople(eventId);
+        paintNote(eventId, "");
+        showUndo("Check-in undone");
+      } catch (err) {
+        undo.disabled = false;
+        paintNote(eventId, scanCard(null, { error: err.message || "Couldn't undo that check-in" }));
+      }
+    }
   });
 
   async function loadStock() {
@@ -768,7 +1297,7 @@
       }
       const itemName = (variant) => {
         const product = variant.product;
-        return product && typeof product === "object" && product.name ? String(product.name) : "Item";
+        return product && typeof product === "object" && product.name ? String(product.name) : "Bulldogs Tee";
       };
       const items = [...byItem.values()].sort((a, b) => {
         const name = itemName(a[0]).localeCompare(itemName(b[0]));
@@ -776,36 +1305,72 @@
         return (colourRank[String(a[0].colour || "").toLowerCase()] ?? 9) - (colourRank[String(b[0].colour || "").toLowerCase()] ?? 9)
           || String(a[0].colour || "").localeCompare(String(b[0].colour || ""));
       });
-      const rowHtml = (v) => {
+      const sizeRow = (v) => {
         const colour = String(v.colour || "");
-        const left = Math.max(0, Number(v.on_hand) - Number(v.reserved) - Number(v.sold));
-        const low = `<span class="low"${left > 2 ? " hidden" : ""}>Low</span>`;
-        return `<tr>
-          <td>${escapeHtml(v.size)}${low}</td>
-          <td data-left>${left}</td>
-          <td class="muted">${v.sold}</td>
-          <td class="muted">${v.reserved || 0}</td>
-          <td><span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${v.reserved}" data-sold="${v.sold}" type="number" min="0" value="${v.on_hand}" aria-label="On hand" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span></td>
-        </tr>`;
+        const counted = Number(v.on_hand || 0);
+        const toFulfil = Number(v.to_fulfil || 0);
+        const reserved = Number(v.checkout_reserved || 0);
+        const held = toFulfil + reserved;
+        const left = Math.max(0, counted - held);
+        return `<div class="stock-size${left <= 2 ? " is-low" : ""}">
+          <div class="stock-size__size"><b>${escapeHtml(v.size)}</b><span class="low"${left > 2 ? " hidden" : ""}>Low</span></div>
+          <div class="stock-size__hand">
+            <span class="stock-size__label">Counted</span>
+            <span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${held}" data-to-fulfil="${toFulfil}" data-checkout-reserved="${reserved}" type="number" min="0" value="${v.on_hand}" aria-label="Counted ${escapeHtml(colour)} ${escapeHtml(v.size)}" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span>
+          </div>
+          <dl class="stock-size__stats">
+            <div class="stock-size__stat">
+              <strong data-to-fulfil>${stockHold(toFulfil)}</strong>
+              <span>to fulfil</span>
+            </div>
+            <div class="stock-size__stat">
+              <strong data-checkout-reserved>${stockHold(reserved)}</strong>
+              <span>reserved</span>
+            </div>
+            <div class="stock-size__shop">
+              <strong data-left>${left}</strong>
+              <span>in stock</span>
+            </div>
+          </dl>
+        </div>`;
       };
       stockTable.innerHTML = `<div class="stock-list">${items
         .map((sizes) => {
           const sample = sizes[0];
           const colour = String(sample.colour || "Other");
-          const dot = colour.toLowerCase() === "blue" ? "var(--sky)" : "var(--orange)";
+          const name = itemName(sample);
+          const img = productImage(colour, sample.product_id, name);
           const ordered = sizes.slice().sort((a, b) => (sizeRank[a.size] ?? 9) - (sizeRank[b.size] ?? 9));
-          const left = ordered.reduce((sum, v) => sum + Math.max(0, Number(v.on_hand) - Number(v.reserved) - Number(v.sold)), 0);
-          const anyLow = ordered.some((v) => Math.max(0, Number(v.on_hand) - Number(v.reserved) - Number(v.sold)) <= 2);
-          return `<details class="stock-item">
-            <summary>
-              <span class="dot" style="--dot: ${dot}"></span>
-              <span class="stock-item__name"><b>${escapeHtml(itemName(sample))}</b><small>${escapeHtml(colour)}</small></span>
-              <span class="stock-item__meta"><span data-item-left>${left === 1 ? "1 left" : `${left} left`}</span><span class="low" data-item-low${anyLow ? "" : " hidden"}>Low</span></span>
+          const toFulfil = ordered.reduce((sum, v) => sum + Number(v.to_fulfil || 0), 0);
+          const reserved = ordered.reduce((sum, v) => sum + Number(v.checkout_reserved || 0), 0);
+          const left = ordered.reduce((sum, v) => {
+            const held = Number(v.to_fulfil || 0) + Number(v.checkout_reserved || 0);
+            return sum + Math.max(0, Number(v.on_hand) - held);
+          }, 0);
+          const anyLow = ordered.some((v) => {
+            const held = Number(v.to_fulfil || 0) + Number(v.checkout_reserved || 0);
+            return Math.max(0, Number(v.on_hand) - held) <= 2;
+          });
+          const key = `${sample.product_id}|${colour}`;
+          const open = openStockKeys.has(key);
+          return `<details class="stock-item" data-stock-key="${escapeHtml(key)}"${open ? " open" : ""}>
+            <summary class="stock-item__head">
+              <img class="stock-item__img" src="${escapeHtml(img)}" alt="" />
+              <div class="stock-item__name">
+                <b>${escapeHtml(name)}</b>
+                <small>${escapeHtml(colourLabel(colour))}</small>
+              </div>
+              <dl class="stock-item__stats">
+                <div><dt>To fulfil</dt><dd data-item-fulfil>${stockHold(toFulfil)}</dd></div>
+                <div><dt>Reserved</dt><dd data-item-reserved>${stockHold(reserved)}</dd></div>
+                <div>
+                  <dt>In stock</dt>
+                  <dd data-item-left>${left}</dd>
+                  <span class="low" data-item-low${anyLow ? "" : " hidden"}>Low</span>
+                </div>
+              </dl>
             </summary>
-            <table class="stock">
-              <thead><tr><th>Size</th><th>Left</th><th>Sold</th><th>Reserved</th><th>On hand</th></tr></thead>
-              <tbody>${ordered.map(rowHtml).join("")}</tbody>
-            </table>
+            <div class="stock-sizes">${ordered.map(sizeRow).join("")}</div>
           </details>`;
         })
         .join("")}</div>`;
@@ -815,6 +1380,15 @@
       fail(stockTable, err);
     }
   }
+
+  stockTable?.addEventListener("toggle", (event) => {
+    const item = event.target.closest("[data-stock-key]");
+    if (!item || event.target !== item) return;
+    const key = item.dataset.stockKey;
+    if (!key) return;
+    if (item.open) openStockKeys.add(key);
+    else openStockKeys.delete(key);
+  }, true);
 
   const stockBar = document.querySelector("[data-stock-bar]");
   const stockDirty = () =>
@@ -833,22 +1407,37 @@
     const input = event.target.closest("[data-onhand]");
     if (!input) return;
     input.closest(".step")?.classList.toggle("is-dirty", input.value !== input.dataset.original);
-    const left = Math.max(0, Number(input.value || 0) - Number(input.dataset.reserved || 0) - Number(input.dataset.sold || 0));
-    const leftCell = input.closest("tr")?.querySelector("[data-left]");
+    const counted = Number(input.value || 0);
+    const held = Number(input.dataset.reserved || 0);
+    const left = Math.max(0, counted - held);
+    const size = input.closest(".stock-size");
+    const leftCell = size?.querySelector("[data-left]");
     if (leftCell) leftCell.textContent = String(left);
-    const low = input.closest("tr")?.querySelector(".low");
+    const low = size?.querySelector(".low");
     if (low) low.hidden = left > 2;
+    size?.classList.toggle("is-low", left <= 2);
     const item = input.closest(".stock-item");
     if (item) {
       let total = 0;
+      let fulfilTotal = 0;
+      let reservedTotal = 0;
       let anyLow = false;
       item.querySelectorAll("[data-onhand]").forEach((field) => {
-        const n = Math.max(0, Number(field.value || 0) - Number(field.dataset.reserved || 0) - Number(field.dataset.sold || 0));
+        const fulfil = Number(field.dataset.toFulfil || 0);
+        const reserved = Number(field.dataset.checkoutReserved || 0);
+        const held = Number(field.dataset.reserved || 0);
+        const n = Math.max(0, Number(field.value || 0) - held);
         total += n;
+        fulfilTotal += fulfil;
+        reservedTotal += reserved;
         if (n <= 2) anyLow = true;
       });
       const label = item.querySelector("[data-item-left]");
-      if (label) label.textContent = total === 1 ? "1 left" : `${total} left`;
+      if (label) label.textContent = String(total);
+      const fulfilLabel = item.querySelector("[data-item-fulfil]");
+      if (fulfilLabel) fulfilLabel.textContent = stockHold(fulfilTotal);
+      const reservedLabel = item.querySelector("[data-item-reserved]");
+      if (reservedLabel) reservedLabel.textContent = stockHold(reservedTotal);
       const badge = item.querySelector("[data-item-low]");
       if (badge) badge.hidden = !anyLow;
     }
@@ -927,9 +1516,12 @@
     }
   }
 
+  const visibleOrders = () => ordersCache.filter((order) => ["paid", "fulfilled", "refunded"].includes(order.status));
+
   const paintOrderFilters = () => {
-    const counts = { paid: 0, fulfilled: 0, refunded: 0, all: ordersCache.length };
-    for (const order of ordersCache) {
+    const rows = visibleOrders();
+    const counts = { paid: 0, fulfilled: 0, refunded: 0, all: rows.length };
+    for (const order of rows) {
       if (counts[order.status] != null) counts[order.status] += 1;
     }
     const labels = { paid: "To fulfil", fulfilled: "Fulfilled", refunded: "Refunded", all: "All" };
@@ -939,44 +1531,240 @@
     });
   };
 
+  const orderPill = (status) => {
+    if (status === "paid") return `<span class="pill pill--sky">To fulfil</span>`;
+    if (status === "fulfilled") return `<span class="pill pill--live">Fulfilled</span>`;
+    if (status === "refunded") return `<span class="pill pill--cancelled">Refunded</span>`;
+    return `<span class="pill">${escapeHtml(status || "")}</span>`;
+  };
+
+  const orderItemThumbs = (items) => {
+    const list = items || [];
+    if (!list.length) return `<span class="order-row__thumbs order-row__thumbs--empty" aria-hidden="true"></span>`;
+    return `<span class="order-row__thumbs">${list
+      .slice(0, 3)
+      .map((item) => `<img src="${escapeHtml(productImage(item.colour, item.product_id, item.product_name))}" alt="" />`)
+      .join("")}${list.length > 3 ? `<span>+${list.length - 3}</span>` : ""}</span>`;
+  };
+
+  const orderItemSummary = (items) => {
+    const list = items || [];
+    if (!list.length) return "No items";
+    return list
+      .map((item) => {
+        const colour = String(item.colour || "").trim();
+        const size = item.size ? ` ${item.size}` : "";
+        const qty = Number(item.quantity || 1);
+        const label = colour ? `${colour.charAt(0).toUpperCase()}${colour.slice(1)}${size}` : `${item.product_name || "Item"}${size}`;
+        return qty > 1 ? `${label} ×${qty}` : label;
+      })
+      .join(" · ");
+  };
+
+  const paintOrderSummary = () => {
+    if (!orderSummary) return;
+    const sizeRank = { S: 0, M: 1, L: 2, XL: 3 };
+    const colourRank = { orange: 0, blue: 1 };
+    const byProduct = new Map();
+    for (const order of ordersCache) {
+      if (!["pending", "paid", "fulfilled"].includes(order.status)) continue;
+      for (const item of order.items || []) {
+        const productKey = `${item.product_id || ""}|${item.colour || ""}`;
+        if (!byProduct.has(productKey)) {
+          byProduct.set(productKey, {
+            key: productKey,
+            product_id: item.product_id,
+            product_name: item.product_name || "Item",
+            colour: item.colour || "",
+            ordered: 0,
+            shipped: 0,
+            reserved: 0,
+            sizes: new Map(),
+          });
+        }
+        const product = byProduct.get(productKey);
+        const sizeKey = String(item.size || "—");
+        if (!product.sizes.has(sizeKey)) {
+          product.sizes.set(sizeKey, { size: sizeKey, ordered: 0, shipped: 0, reserved: 0 });
+        }
+        const sizeRow = product.sizes.get(sizeKey);
+        const qty = Number(item.quantity || 0);
+        if (order.status === "pending") {
+          product.reserved += qty;
+          sizeRow.reserved += qty;
+        }
+        if (order.status === "paid" || order.status === "fulfilled") {
+          product.ordered += qty;
+          sizeRow.ordered += qty;
+        }
+        if (order.status === "fulfilled") {
+          product.shipped += qty;
+          sizeRow.shipped += qty;
+        }
+      }
+    }
+    const groups = [...byProduct.values()]
+      .filter((row) => row.ordered || row.shipped || row.reserved)
+      .sort((a, b) => {
+        const name = String(a.product_name).localeCompare(String(b.product_name));
+        if (name) return name;
+        return (colourRank[String(a.colour).toLowerCase()] ?? 9) - (colourRank[String(b.colour).toLowerCase()] ?? 9)
+          || String(a.colour).localeCompare(String(b.colour));
+      });
+    if (!groups.length) {
+      if (orderSummaryPanel) orderSummaryPanel.hidden = true;
+      orderSummary.innerHTML = "";
+      return;
+    }
+    if (orderSummaryPanel) orderSummaryPanel.hidden = false;
+    orderSummary.innerHTML = `<div class="order-summary__list">${groups
+      .map((group) => {
+        const img = productImage(group.colour, group.product_id, group.product_name);
+        const open = openSummaryKeys.has(group.key);
+        const sizes = [...group.sizes.values()].sort((a, b) => (sizeRank[a.size] ?? 9) - (sizeRank[b.size] ?? 9));
+        return `<details class="order-summary__item" data-summary-key="${escapeHtml(group.key)}"${open ? " open" : ""}>
+          <summary>
+            <img src="${escapeHtml(img)}" alt="" />
+            <span class="order-summary__name">
+              <b>${escapeHtml(group.product_name)}</b>
+              <small>${escapeHtml(colourLabel(group.colour))}</small>
+            </span>
+            <dl class="order-summary__stats">
+              <div><dt>Ordered</dt><dd>${stockHold(group.ordered)}</dd></div>
+              <div><dt>Shipped</dt><dd>${stockHold(group.shipped)}</dd></div>
+              <div><dt>Reserved</dt><dd>${stockHold(group.reserved)}</dd></div>
+            </dl>
+          </summary>
+          <div class="order-summary__sizes">
+            ${sizes
+              .map(
+                (size) => `<div class="order-summary__size">
+                  <b>${escapeHtml(size.size)}</b>
+                  <span class="order-summary__size-gap" aria-hidden="true"></span>
+                  <dl class="order-summary__stats">
+                    <div><dt>Ordered</dt><dd>${stockHold(size.ordered)}</dd></div>
+                    <div><dt>Shipped</dt><dd>${stockHold(size.shipped)}</dd></div>
+                    <div><dt>Reserved</dt><dd>${stockHold(size.reserved)}</dd></div>
+                  </dl>
+                </div>`,
+              )
+              .join("")}
+          </div>
+        </details>`;
+      })
+      .join("")}</div>`;
+  };
+
+  orderSummary?.addEventListener("toggle", (event) => {
+    const item = event.target.closest("[data-summary-key]");
+    if (!item || event.target !== item) return;
+    const key = item.dataset.summaryKey;
+    if (!key) return;
+    if (item.open) openSummaryKeys.add(key);
+    else openSummaryKeys.delete(key);
+  }, true);
+
   function renderOrders() {
     paintOrderFilters();
-    const rows = orderFilter === "all" ? ordersCache : ordersCache.filter((o) => o.status === orderFilter);
+    paintOrderSummary();
+    const rows = orderFilter === "all" ? visibleOrders() : visibleOrders().filter((o) => o.status === orderFilter);
     if (!rows.length) {
       ordersList.innerHTML = empty(orderFilter === "all" ? "No orders yet." : "Nothing in this view.");
       return;
     }
     ordersList.innerHTML = rows
       .map((o) => {
-        const items = (o.items || [])
-          .map((i) => `${escapeHtml(i.product_name)} — ${escapeHtml(i.colour || "")} · ${escapeHtml(i.size || "")} ×${i.quantity}`)
-          .join(", ");
-        const addr = o.shipping_address
-          ? [o.shipping_address.line1, o.shipping_address.city, o.shipping_address.postal_code].filter(Boolean).join(", ")
-          : "";
         const who = o.customer_name || o.customer_email || "Order";
-        const pill =
-          o.status === "paid" ? `<span class="pill pill--sky">Paid</span>` : `<span class="pill">${escapeHtml(o.status)}</span>`;
-        const actions =
-          o.status === "paid"
-            ? `<div class="acts">
-                <input placeholder="Tracking or note (optional)" data-note="${o.id}" />
-                <button class="btn btn--accent btn--small" type="button" data-fulfil="${o.id}">Mark fulfilled</button>
-                <button class="btn btn--ghost btn--small" type="button" data-refund="${o.id}">Refund</button>
-              </div>`
-            : "";
-        return `<article class="order">
-          <div>
-            <h4>#${escapeHtml((o.id || "").slice(0, 8).toUpperCase())} <small>${escapeHtml(who)} · ${escapeHtml(whenFmt(o.created_at))}</small> ${pill}</h4>
-            <p>${items || escapeHtml(o.customer_email || "")}</p>
-            ${addr ? `<p>${escapeHtml(addr)}</p>` : ""}
-          </div>
-          <strong>${gbp(orderPence(o))}</strong>
-          ${actions}
-        </article>`;
+        const items = o.items || [];
+        const qty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        return `<button class="order-row" type="button" data-open-order="${escapeHtml(o.id)}">
+          ${orderItemThumbs(items)}
+          <span class="order-row__main">
+            <span class="order-row__who">${escapeHtml(who)}</span>
+            <span class="order-row__meta">${escapeHtml(orderItemSummary(items))}${qty ? ` · ${qty} item${qty === 1 ? "" : "s"}` : ""}</span>
+          </span>
+          <span class="order-row__side">
+            ${orderPill(o.status)}
+            <strong>${gbp(orderPence(o))}</strong>
+            <small>${escapeHtml(whenFmt(o.created_at))}</small>
+          </span>
+        </button>`;
       })
       .join("");
   }
+
+  const paintOrderDialog = (order) => {
+    if (!orderBody || !order) return;
+    const items = order.items || [];
+    const who = order.customer_name || "Customer";
+    const email = order.customer_email || "";
+    const addr = formatAddress(order.shipping_address);
+    const ship = Number(order.amount_shipping_pence || 0);
+    const note = order.fulfilment_notes || "";
+    const itemCards = items.length
+      ? items
+          .map((item) => {
+            const src = productImage(item.colour, item.product_id, item.product_name);
+            return `<article class="pack-item">
+              <img src="${escapeHtml(src)}" alt="" />
+              <div>
+                <b>${escapeHtml(item.product_name || "Item")}</b>
+                <p>${escapeHtml(colourLabel(item.colour))} · Size ${escapeHtml(item.size || "—")}</p>
+                <p class="pack-item__qty">× ${escapeHtml(String(item.quantity || 1))}</p>
+              </div>
+              <strong>${gbp(Number(item.unit_price_pence || 0) * Number(item.quantity || 1))}</strong>
+            </article>`;
+          })
+          .join("")
+      : `<p class="muted">No line items on this order.</p>`;
+    const actions =
+      order.status === "paid"
+        ? `<div class="order-dialog__acts">
+            <label class="field">
+              <span>Tracking or note</span>
+              <input type="text" maxlength="500" placeholder="Optional" data-note="${escapeHtml(order.id)}" value="${escapeHtml(note)}" />
+            </label>
+            <div class="order-dialog__btns">
+              <button class="btn btn--accent" type="button" data-fulfil="${escapeHtml(order.id)}">Mark fulfilled</button>
+              <button class="btn btn--ghost" type="button" data-refund="${escapeHtml(order.id)}">Refund</button>
+            </div>
+          </div>`
+        : note
+          ? `<p class="order-dialog__note muted">Note: ${escapeHtml(note)}</p>`
+          : "";
+    orderBody.innerHTML = `
+      <header class="booking-dialog__head">
+        <p class="eyebrow">Order</p>
+        <h2>#${escapeHtml((order.id || "").slice(0, 8).toUpperCase())}</h2>
+        <p class="muted">${escapeHtml(whenFmt(order.created_at))} · ${orderPill(order.status)}</p>
+      </header>
+      <section class="order-dialog__ship">
+        <h3>Ship to</h3>
+        <p><b>${escapeHtml(who)}</b>${email ? `<br /><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : ""}</p>
+        ${addr ? `<p>${escapeHtml(addr)}</p>` : `<p class="muted">No address on file.</p>`}
+      </section>
+      <section class="order-dialog__pack">
+        <h3>Pack</h3>
+        <div class="pack-list">${itemCards}</div>
+      </section>
+      <section class="order-dialog__total">
+        <div><span>Subtotal</span><b>${gbp(order.amount_subtotal_pence)}</b></div>
+        <div><span>Delivery</span><b>${ship ? gbp(ship) : "—"}</b></div>
+        <div class="order-dialog__grand"><span>Total</span><strong>${gbp(orderPence(order))}</strong></div>
+      </section>
+      ${actions}`;
+  };
+
+  const openOrder = (id) => {
+    const order = ordersCache.find((row) => row.id === id);
+    if (!order || !orderDialog) return;
+    paintOrderDialog(order);
+    if (!orderDialog.open) orderDialog.showModal();
+  };
+
+  const closeOrder = () => {
+    if (orderDialog?.open) orderDialog.close();
+  };
 
   document.querySelector("[data-order-filters]")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-order-filter]");
@@ -989,13 +1777,26 @@
     renderOrders();
   });
 
-  ordersList?.addEventListener("click", async (event) => {
+  ordersList?.addEventListener("click", (event) => {
+    const open = event.target.closest("[data-open-order]");
+    if (!open) return;
+    openOrder(open.dataset.openOrder);
+  });
+
+  document.querySelector("[data-order-close]")?.addEventListener("click", closeOrder);
+  orderDialog?.addEventListener("click", (event) => {
+    if (event.target === orderDialog) closeOrder();
+  });
+
+  orderBody?.addEventListener("click", async (event) => {
     const fulfil = event.target.closest("[data-fulfil]");
     const refund = event.target.closest("[data-refund]");
+    if (!fulfil && !refund) return;
     try {
       if (fulfil) {
-        const notes = ordersList.querySelector(`[data-note="${fulfil.dataset.fulfil}"]`)?.value;
+        const notes = orderBody.querySelector(`[data-note="${fulfil.dataset.fulfil}"]`)?.value;
         await club({ action: "fulfil_order", order_id: fulfil.dataset.fulfil, fulfilment_notes: notes });
+        closeOrder();
         await loadOrders();
         await loadStock();
         showUndo("Order marked fulfilled");
@@ -1003,6 +1804,7 @@
       if (refund) {
         if (!confirm("Refund this order? Only do this if it hasn’t gone to print.")) return;
         await club({ action: "refund_order", order_id: refund.dataset.refund });
+        closeOrder();
         await loadOrders();
         await loadStock();
         showUndo("Order refunded");

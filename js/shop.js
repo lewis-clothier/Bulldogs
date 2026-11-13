@@ -3,9 +3,38 @@
   const cfg = window.BULLDOGS || {};
   const api = window.BULLDOGS_API;
 
+  const colourKey = (value) => {
+    const raw = String(value || "").toLowerCase();
+    if (raw.includes("blue")) return "blue";
+    if (raw.includes("orange")) return "orange";
+    return raw.replace(/\s+print$/i, "").trim() || "orange";
+  };
+
+  const normalizeCart = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .filter((item) => item && typeof item === "object")
+      .map((item) => {
+        const colour = colourKey(item.colour);
+        return {
+          ...item,
+          product_id: item.product_id || "bulldogs-tee",
+          colour,
+          colourLabel: item.colourLabel || `${colour.charAt(0).toUpperCase()}${colour.slice(1)} print`,
+          size: String(item.size || "").toUpperCase(),
+          qty: Math.max(1, Number(item.qty) || 1),
+        };
+      });
+  };
+
   const getCart = () => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const cart = normalizeCart(parsed);
+      if (JSON.stringify(cart) !== JSON.stringify(parsed)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+      }
+      return cart;
     } catch {
       return [];
     }
@@ -302,21 +331,37 @@
   };
 
   const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const orderState = params.get("order") || hashParams.get("order");
   const storedColour = sessionStorage.getItem("bulldogs-shop-colour");
   if (storedColour) sessionStorage.removeItem("bulldogs-shop-colour");
   const urlColour = (params.get("colour") || params.get("color") || storedColour || "").toLowerCase();
-  if (params.get("order") === "cancelled" || params.get("order") === "success") {
+  const clearBoughtCart = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.setItem("bulldogs-cart-cleared", "1");
+    } catch {
+      /* ignore */
+    }
+    renderCart();
+    if (window.BULLDOGS_SESSION && api) {
+      api.fn("me-api", { action: "save_cart", items: [] }).catch(() => {});
+    }
+  };
+  if (orderState === "success" || sessionStorage.getItem("bulldogs-cart-cleared") === "1") {
+    clearBoughtCart();
+    const banner = document.querySelector("[data-shop-banner]");
+    if (orderState === "success" && banner) {
+      banner.hidden = false;
+      banner.textContent = "Order received. Check your email — we’ll place the print order next.";
+      banner.classList.remove("is-error");
+    }
+  } else if (orderState === "cancelled") {
     const banner = document.querySelector("[data-shop-banner]");
     if (banner) {
       banner.hidden = false;
-      if (params.get("order") === "success") {
-        banner.textContent = "Order received. Check your email — we’ll place the print order next.";
-        banner.classList.remove("is-error");
-        localStorage.removeItem(STORAGE_KEY);
-      } else {
-        banner.textContent = "Payment was cancelled. Nothing was charged.";
-        banner.classList.add("is-error");
-      }
+      banner.textContent = "Payment was cancelled. Nothing was charged.";
+      banner.classList.add("is-error");
     }
   }
 
@@ -453,10 +498,10 @@
         email: data.get("email"),
         full_name: data.get("full_name") || null,
         newsletter_opt_in: data.get("newsletter_opt_in") === "on",
-        items: cart.map((item) => ({
-          product_id: item.product_id,
-          colour: item.colour,
-          size: item.size,
+        items: normalizeCart(cart).map((item) => ({
+          product_id: item.product_id || "bulldogs-tee",
+          colour: colourKey(item.colour),
+          size: String(item.size || "").toUpperCase(),
           quantity: item.qty,
         })),
       });
@@ -473,11 +518,20 @@
 
   const mergeAccountCart = async () => {
     if (!api || !window.BULLDOGS_SESSION) return;
+    if (sessionStorage.getItem("bulldogs-cart-cleared") === "1") {
+      clearBoughtCart();
+      try {
+        sessionStorage.removeItem("bulldogs-cart-cleared");
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     try {
       const remote = await api.fn("me-api", { action: "get_cart" });
       const local = getCart();
       if ((!local.length) && Array.isArray(remote.items) && remote.items.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.items));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeCart(remote.items)));
         renderCart();
       } else if (local.length) {
         await api.fn("me-api", { action: "save_cart", items: local });
@@ -502,6 +556,14 @@
       if (!document.hidden) mergeAccountCart();
     });
     setTimeout(mergeAccountCart, 800);
+  } else {
+    setTimeout(() => {
+      try {
+        sessionStorage.removeItem("bulldogs-cart-cleared");
+      } catch {
+        /* ignore */
+      }
+    }, 900);
   }
 
   renderCart();

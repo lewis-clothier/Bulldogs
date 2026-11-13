@@ -83,13 +83,17 @@
         const event = booking.event || {};
         const open = booking.id === openId;
         const meta = [event.starts_at ? when(event.starts_at) : "", event.location || ""].filter(Boolean).join(" · ");
+        const ticketLabel = booking.status === "paid" ? (open ? "Hide tickets" : "Show tickets") : open ? "Hide details" : "Show details";
         return `<article class="booking-card" data-booking="${escapeHtml(booking.id)}">
           <button class="booking-card__toggle" type="button" data-booking-toggle="${escapeHtml(booking.id)}" aria-expanded="${open ? "true" : "false"}">
             <span>
               <span class="booking-card__title">${escapeHtml(event.title || "Event")}</span>
               <span class="booking-card__when">${escapeHtml(meta)}</span>
             </span>
-            <span class="booking-card__status" data-status="${escapeHtml(booking.status)}">${escapeHtml(labels[booking.status] || booking.status)}</span>
+            <span class="booking-card__aside">
+              <span class="booking-card__status" data-status="${escapeHtml(booking.status)}">${escapeHtml(labels[booking.status] || booking.status)}</span>
+              <span class="booking-card__cta">${ticketLabel}</span>
+            </span>
           </button>
           ${open ? detailFor(booking) : ""}
         </article>`;
