@@ -58,19 +58,14 @@
       <section class="section">
         <div class="wrap">
           <p class="booking-banner" data-booking-banner hidden role="status"></p>
-          <form class="ev-alert glass" id="alerts" data-alerts>
+          <div class="ev-alert glass" id="alerts">
             <img src="assets/logo.png" alt="" />
             <div>
               <b>Never miss a session</b>
               <p>Get emailed when new events go live.</p>
-              <p class="form-status" role="status"></p>
             </div>
-            <div class="ev-alert__form">
-              <label class="sr-only" for="alerts-email">Email</label>
-              <input id="alerts-email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" maxlength="254" />
-              <button class="btn btn--accent" type="submit">Turn on alerts</button>
-            </div>
-          </form>
+            <button class="btn btn--accent" type="button" data-alerts-open>Turn on alerts</button>
+          </div>
           <div data-events>
             <p class="muted">Loading dates…</p>
           </div>
@@ -234,14 +229,24 @@
       </form>
     </dialog>
 
-    <dialog class="booking-dialog" data-alerts-soon>
-      <button class="booking-dialog__close" type="button" data-close-alerts-soon aria-label="Close">×</button>
-      <div class="contact-form">
+    <dialog class="booking-dialog" data-alerts-dialog>
+      <button class="booking-dialog__close" type="button" data-close-alerts aria-label="Close">×</button>
+      <form class="contact-form" data-event-alerts>
         <header class="booking-dialog__head">
           <h2>Turn on alerts</h2>
-          <p class="muted">Not available yet. We'll build this later.</p>
+          <p class="muted">Get emailed when new events go live.</p>
         </header>
-      </div>
+        <div data-alerts-guest>
+          <div class="field">
+            <label for="alerts-email">Email</label>
+            <input id="alerts-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com" />
+          </div>
+          <button class="btn btn--accent btn--block" type="submit">Turn on alerts</button>
+          <p class="muted" data-alerts-or>or</p>
+          <button class="btn btn--ghost btn--block" type="button" data-alerts-auth>Sign in or register</button>
+        </div>
+        <p class="form-status" role="status"></p>
+      </form>
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

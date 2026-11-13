@@ -263,7 +263,6 @@ Deno.serve(async (req) => {
       if (order.status !== "paid") throw new ValidationError("Only paid orders can be refunded");
       const refunded = await refundIntent(order.stripe_payment_intent_id);
       if (!refunded) throw new ValidationError("Stripe refund failed");
-      await db.rpc("release_shop_order_stock", { p_order_id: orderId });
       await db.from("orders").update({ status: "refunded" }).eq("id", orderId);
       return json(req, { ok: true });
     }

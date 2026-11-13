@@ -61,23 +61,20 @@
               <p class="eyebrow">Staff</p>
               <h1>Admin tools</h1>
             </div>
-            <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
           </header>
 
           <div class="admin-kpis" data-admin-kpis></div>
 
-          <div class="club-tabs" role="tablist">
+          <nav class="club-nav" aria-label="Admin sections">
             <button type="button" data-tab="events" class="is-active">Events</button>
             <button type="button" data-tab="door">Door</button>
-            <button type="button" data-tab="stock">Stock</button>
             <button type="button" data-tab="orders">Orders <em data-tab-count="orders" hidden></em></button>
+            <button type="button" data-tab="stock">Stock</button>
             <button type="button" data-tab="news">Newsletter</button>
             <button type="button" data-tab="admins">Admins</button>
-          </div>
+          </nav>
 
           <section data-panel="events">
-            <div class="admin-split">
-              <div>
                 <div class="ad-bar">
                   <div class="chips" data-event-admin-filters>
                     <button type="button" class="chip is-on" data-admin-filter="upcoming">Upcoming</button>
@@ -85,156 +82,185 @@
                     <button type="button" class="chip" data-admin-filter="past">Past</button>
                     <button type="button" class="chip" data-admin-filter="all">All</button>
                   </div>
-                  <input class="admin-search" type="search" data-admin-search placeholder="Search events" aria-label="Search events" />
+                  <div class="ad-bar__tools">
+                    <input class="admin-search" type="search" data-admin-search placeholder="Search events" aria-label="Search events" />
+                    <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
+                  </div>
                 </div>
                 <div data-events-list></div>
-              </div>
-              <aside class="admin-editor glass" data-event-editor hidden>
+              <dialog class="booking-dialog" data-event-editor>
+                <button class="booking-dialog__close" type="button" data-event-close aria-label="Close">×</button>
                 <form class="contact-form" data-event-form>
-                  <header class="editor__head">
-                    <div>
-                      <p class="eyebrow">Editing</p>
-                      <h2 id="event-dialog-title" data-event-dialog-title>New event</h2>
-                    </div>
-                    <button class="booking-dialog__close" type="button" data-event-close aria-label="Close">×</button>
+                  <header class="booking-dialog__head">
+                    <p class="eyebrow">Event</p>
+                    <h2 id="event-dialog-title" data-event-dialog-title>New event</h2>
                   </header>
                   <input type="hidden" name="id" />
-                  <div class="field-row">
-                    <div class="field">
-                      <label for="event_title">Title</label>
-                      <input id="event_title" name="title" required maxlength="200" />
+                  <fieldset class="editor-group">
+                    <legend>The event</legend>
+                    <div class="field-row">
+                      <div class="field">
+                        <label for="event_title">Title</label>
+                        <input id="event_title" name="title" required maxlength="200" />
+                      </div>
+                      <div class="field">
+                        <label for="event_slug">Link slug</label>
+                        <input id="event_slug" name="slug" required maxlength="80" placeholder="kids-taster-may" />
+                      </div>
                     </div>
                     <div class="field">
-                      <label for="event_slug">Link slug</label>
-                      <input id="event_slug" name="slug" required maxlength="80" placeholder="kids-taster-may" />
-                    </div>
-                  </div>
-                  <div class="field">
-                    <label for="event_summary">Summary</label>
-                    <input id="event_summary" name="summary" maxlength="500" />
-                  </div>
-                  <div class="field">
-                    <label for="event_description">Description</label>
-                    <textarea id="event_description" name="description" maxlength="5000"></textarea>
-                  </div>
-                  <div class="field-row">
-                    <div class="field">
-                      <label for="event_starts">Starts</label>
-                      <input id="event_starts" name="starts_at" type="datetime-local" required />
+                      <label for="event_summary">Summary</label>
+                      <input id="event_summary" name="summary" maxlength="500" />
                     </div>
                     <div class="field">
-                      <label for="event_ends">Ends</label>
-                      <input id="event_ends" name="ends_at" type="datetime-local" />
+                      <label for="event_description">Description</label>
+                      <textarea id="event_description" name="description" maxlength="5000"></textarea>
                     </div>
-                  </div>
-                  <div class="field-row">
-                    <div class="field">
-                      <label for="event_price">Price (£)</label>
-                      <input id="event_price" name="price_pounds" type="number" min="0" step="0.01" value="0" />
-                    </div>
-                    <div class="field">
-                      <label for="event_capacity">Capacity</label>
-                      <input id="event_capacity" name="capacity" type="number" min="1" placeholder="Unlimited" />
-                    </div>
-                  </div>
-                  <div class="field">
-                    <label for="event_location">Location</label>
-                    <input id="event_location" name="location" maxlength="300" />
-                  </div>
-                  <div class="field-row">
-                    <div class="field">
-                      <label for="event_age">Age range</label>
-                      <input id="event_age" name="age_range" maxlength="80" />
+                  </fieldset>
+                  <fieldset class="editor-group">
+                    <legend>When and where</legend>
+                    <div class="field-row">
+                      <div class="field">
+                        <label for="event_starts">Starts</label>
+                        <input id="event_starts" name="starts_at" type="datetime-local" required />
+                      </div>
+                      <div class="field">
+                        <label for="event_ends">Ends</label>
+                        <input id="event_ends" name="ends_at" type="datetime-local" />
+                      </div>
                     </div>
                     <div class="field">
-                      <label for="event_bring">What to bring</label>
-                      <input id="event_bring" name="what_to_bring" maxlength="500" />
+                      <label for="event_location">Location</label>
+                      <input id="event_location" name="location" maxlength="300" />
                     </div>
-                  </div>
-                  <label class="switch">
-                    <span>Published<small>Visible on the events page</small></span>
-                    <span class="sw"><input type="checkbox" name="is_published" /></span>
-                  </label>
-                  <label class="switch">
-                    <span>Sign-ups open<small>People can book places</small></span>
-                    <span class="sw"><input type="checkbox" name="is_signup_open" checked /></span>
-                  </label>
+                  </fieldset>
+                  <fieldset class="editor-group">
+                    <legend>Places and price</legend>
+                    <div class="field-row">
+                      <div class="field">
+                        <label for="event_price">Price (£)</label>
+                        <input id="event_price" name="price_pounds" type="number" min="0" step="0.01" value="0" />
+                      </div>
+                      <div class="field">
+                        <label for="event_capacity">Capacity</label>
+                        <input id="event_capacity" name="capacity" type="number" min="1" placeholder="Unlimited" />
+                      </div>
+                    </div>
+                    <div class="field-row">
+                      <div class="field">
+                        <label for="event_age">Age range</label>
+                        <input id="event_age" name="age_range" maxlength="80" />
+                      </div>
+                      <div class="field">
+                        <label for="event_bring">What to bring</label>
+                        <input id="event_bring" name="what_to_bring" maxlength="500" />
+                      </div>
+                    </div>
+                  </fieldset>
+                  <fieldset class="editor-group">
+                    <legend>On the site</legend>
+                    <label class="switch">
+                      <span>Published<small>Visible on the events page</small></span>
+                      <span class="sw"><input type="checkbox" name="is_published" /></span>
+                    </label>
+                    <label class="switch">
+                      <span>Sign-ups open<small>People can book places</small></span>
+                      <span class="sw"><input type="checkbox" name="is_signup_open" checked /></span>
+                    </label>
+                  </fieldset>
                   <div class="savebar" data-save-bar hidden>
                     <span>Unsaved changes</span>
                     <button class="btn btn--accent btn--small" type="submit">Save</button>
                   </div>
-                  <button class="text-btn admin-danger" type="button" data-cancel-event hidden>Cancel event &amp; refund all</button>
+                  <div class="editor-danger">
+                    <button class="text-btn admin-danger" type="button" data-cancel-event hidden>Cancel event &amp; refund all</button>
+                  </div>
                   <p class="form-status"></p>
                 </form>
-              </aside>
-            </div>
+              </dialog>
           </section>
 
           <section data-panel="door" hidden>
-            <div class="admin-toolbar">
-              <h2>Door</h2>
+            <div class="door-setup panel glass">
               <label class="admin-select">
-                <span>Event</span>
+                <span>Session</span>
                 <select data-door-select>
                   <option value="">Choose an event</option>
                 </select>
               </label>
+              <p class="muted">Scan tickets on the left, or search the list on the right.</p>
             </div>
             <div data-door-body>
-              <p class="admin-empty">Choose an event to check people in.</p>
+              <p class="admin-empty">Choose a session to check people in.</p>
             </div>
           </section>
 
           <section data-panel="orders" hidden>
-            <div class="ad-two" data-orders-layout data-mode="both">
-              <div class="panel glass" data-orders-col>
-                <div class="panel__head">
+            <div class="panel glass">
+              <div class="panel__head">
+                <div>
                   <h2>Orders</h2>
-                  <div class="admin-filters chips" data-order-filters>
-                    <button type="button" class="chip is-on" data-order-filter="paid">To fulfil</button>
-                    <button type="button" class="chip" data-order-filter="fulfilled">Fulfilled</button>
-                    <button type="button" class="chip" data-order-filter="refunded">Refunded</button>
-                    <button type="button" class="chip" data-order-filter="all">All</button>
-                  </div>
+                  <p class="muted">Paid tees waiting to be printed or posted.</p>
                 </div>
-                <div data-orders-list></div>
+                <div class="admin-filters chips" data-order-filters>
+                  <button type="button" class="chip is-on" data-order-filter="paid">To fulfil</button>
+                  <button type="button" class="chip" data-order-filter="fulfilled">Fulfilled</button>
+                  <button type="button" class="chip" data-order-filter="refunded">Refunded</button>
+                  <button type="button" class="chip" data-order-filter="all">All</button>
+                </div>
               </div>
-              <div class="panel glass" data-stock-col>
-                <div class="panel__head">
+              <div data-orders-list></div>
+            </div>
+          </section>
+
+          <section data-panel="stock" hidden>
+            <div class="panel glass">
+              <div class="panel__head">
+                <div>
                   <h2>Stock</h2>
+                  <p class="muted">Open an item to change how many are stocked. Left is what shoppers can still buy.</p>
                 </div>
-                <p class="form-status" data-stock-status></p>
-                <div data-stock-table></div>
-                <div class="savebar" data-stock-bar hidden>
-                  <span data-stock-bar-text>Changes not saved</span>
-                  <button class="btn btn--accent btn--small" type="button" data-save-stock>Save stock</button>
-                </div>
+              </div>
+              <p class="form-status" data-stock-status></p>
+              <div data-stock-table></div>
+              <div class="savebar" data-stock-bar hidden>
+                <span data-stock-bar-text>Changes not saved</span>
+                <button class="btn btn--accent btn--small" type="button" data-save-stock>Save stock</button>
               </div>
             </div>
           </section>
 
           <section data-panel="news" hidden>
-            <div class="admin-toolbar">
-              <h2>Newsletter</h2>
-              <button class="btn btn--accent btn--small" type="button" data-news-csv>Download CSV</button>
+            <div class="panel glass narrow-panel">
+              <div class="panel__head">
+                <div>
+                  <h2>Newsletter</h2>
+                  <p class="muted">People who opted in at checkout or on an event form.</p>
+                </div>
+                <button class="btn btn--accent btn--small" type="button" data-news-csv>Download CSV</button>
+              </div>
+              <div data-news-body></div>
             </div>
-            <div data-news-body></div>
           </section>
 
           <section data-panel="admins" hidden>
-            <div class="admin-toolbar">
-              <h2>Admins</h2>
-            </div>
-            <p class="muted">Only these emails can open this page. Add someone when they need it — they won’t see it until you do.</p>
-            <form class="contact-form admin-grant" data-grant-admin>
-              <div class="field">
-                <label for="admin_email">Email</label>
-                <input id="admin_email" name="email" type="email" required placeholder="coach@example.com" />
+            <div class="panel glass narrow-panel">
+              <div class="panel__head">
+                <div>
+                  <h2>Admins</h2>
+                  <p class="muted">Only these emails can open this page. They see it after they sign in.</p>
+                </div>
               </div>
-              <button class="btn btn--accent" type="submit">Give access</button>
-              <p class="form-status"></p>
-            </form>
-            <div data-admins-list></div>
+              <form class="contact-form admin-grant" data-grant-admin>
+                <div class="field">
+                  <label for="admin_email">Email</label>
+                  <input id="admin_email" name="email" type="email" required placeholder="coach@example.com" />
+                </div>
+                <button class="btn btn--accent" type="submit">Give access</button>
+                <p class="form-status"></p>
+              </form>
+              <div data-admins-list></div>
+            </div>
           </section>
         </div>
       </div>

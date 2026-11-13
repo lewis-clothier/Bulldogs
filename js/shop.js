@@ -190,19 +190,40 @@
       return;
     }
     cartBody.innerHTML = cart
-      .map(
-        (item, i) => `
+      .map((item, i) => {
+        const detail = [item.colourLabel, item.size ? `Size ${item.size}` : "", formatPrice(item.price)].filter(Boolean).join(" · ");
+        return `
       <article class="cart-item" data-index="${i}">
         <img src="${item.image}" alt="" />
         <div>
           <h4>${item.name}</h4>
-          <p>${[item.colourLabel, item.size ? `Size ${item.size}` : ""].filter(Boolean).join(" · ")} · ${formatPrice(item.price)} × ${item.qty}</p>
-          <button type="button" class="cart-item__remove" data-remove="${i}">Remove</button>
+          <p>${detail}</p>
+          <div class="cart-item__actions">
+            <div class="cart-item__qty">
+              <button type="button" data-cart-qty="-1" data-line="${i}" aria-label="Fewer" ${item.qty <= 1 ? "disabled" : ""}>−</button>
+              <input data-line-qty="${i}" type="number" min="1" max="10" value="${item.qty}" inputmode="numeric" aria-label="Quantity" />
+              <button type="button" data-cart-qty="1" data-line="${i}" aria-label="More" ${item.qty >= 10 ? "disabled" : ""}>+</button>
+            </div>
+            <button type="button" class="cart-item__remove" data-remove="${i}">Remove</button>
+          </div>
         </div>
         <span>${formatPrice(item.price * item.qty)}</span>
-      </article>`,
-      )
+      </article>`;
+      })
       .join("");
+  };
+
+  const setLineQty = (index, raw) => {
+    const cart = getCart();
+    const item = cart[index];
+    if (!item) return;
+    const next = Math.min(10, Math.max(1, Math.round(Number(raw))));
+    if (!Number.isFinite(next) || next === item.qty) {
+      renderCart();
+      return;
+    }
+    item.qty = next;
+    saveCart(cart);
   };
 
   document.querySelectorAll("[data-open-cart]").forEach((btn) => btn.addEventListener("click", openCart));
@@ -213,11 +234,22 @@
   });
 
   cartBody?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-remove]");
-    if (!btn) return;
-    const cart = getCart();
-    cart.splice(Number(btn.dataset.remove), 1);
-    saveCart(cart);
+    const remove = e.target.closest("[data-remove]");
+    if (remove) {
+      const cart = getCart();
+      cart.splice(Number(remove.dataset.remove), 1);
+      saveCart(cart);
+      return;
+    }
+    const step = e.target.closest("[data-cart-qty]");
+    if (!step || step.disabled) return;
+    setLineQty(Number(step.dataset.line), getCart()[Number(step.dataset.line)]?.qty + Number(step.dataset.cartQty));
+  });
+
+  cartBody?.addEventListener("change", (e) => {
+    const input = e.target.closest("[data-line-qty]");
+    if (!input) return;
+    setLineQty(Number(input.dataset.lineQty), input.value);
   });
 
   const syncProductImage = (product) => {
