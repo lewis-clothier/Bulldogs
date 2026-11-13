@@ -407,44 +407,140 @@
 
   const alertsDialog = document.querySelector("[data-alerts-dialog]");
   const alertsModal = document.querySelector("[data-event-alerts]");
+  const alertsOpenBtn = document.querySelector("[data-alerts-open]");
   const signedInEmail = () => window.BULLDOGS_SESSION?.user?.email || "";
+  let alertsOn = false;
+
+  const setAlertsPanel = (mode) => {
+    const guest = alertsDialog?.querySelector("[data-alerts-guest]");
+    const member = alertsDialog?.querySelector("[data-alerts-member]");
+    const on = alertsDialog?.querySelector("[data-alerts-on]");
+    const heading = alertsDialog?.querySelector("[data-alerts-heading]");
+    const lede = alertsDialog?.querySelector("[data-alerts-lede]");
+    const email = alertsModal?.querySelector('input[name="email"]');
+    guest?.toggleAttribute("hidden", mode !== "guest");
+    member?.toggleAttribute("hidden", mode !== "member");
+    on?.toggleAttribute("hidden", mode !== "on");
+    if (email) email.required = mode === "guest";
+    if (heading) heading.textContent = mode === "on" ? "Turn off alerts" : "Turn on alerts";
+    if (lede) {
+      lede.textContent =
+        mode === "on"
+          ? "Stop emails about new events."
+          : mode === "member"
+            ? "Confirm and we’ll email you when something new goes live."
+            : "Get emailed when new events go live.";
+    }
+    if (alertsOpenBtn) {
+      alertsOpenBtn.textContent = alertsOn ? "Alerts on" : "Turn on alerts";
+      alertsOpenBtn.classList.toggle("btn--ghost", alertsOn);
+      alertsOpenBtn.classList.toggle("btn--accent", !alertsOn);
+    }
+  };
+
+  const refreshAlertsStatus = async () => {
+    if (!signedInEmail() || !api) {
+      alertsOn = false;
+      return;
+    }
+    try {
+      const profile = await api.fn("me-api", { action: "profile" });
+      alertsOn = Boolean(profile?.newsletter);
+    } catch {
+      alertsOn = false;
+    }
+  };
 
   const paintAlerts = () => {
-    const signedIn = Boolean(signedInEmail());
-    alertsDialog?.querySelector("[data-alerts-auth]")?.toggleAttribute("hidden", signedIn);
-    alertsDialog?.querySelector("[data-alerts-or]")?.toggleAttribute("hidden", signedIn);
-    const email = alertsModal?.querySelector('input[name="email"]');
-    if (email && signedIn && !email.value) email.value = signedInEmail();
+    if (!alertsDialog?.open) {
+      if (alertsOpenBtn) {
+        alertsOpenBtn.textContent = alertsOn ? "Alerts on" : "Turn on alerts";
+        alertsOpenBtn.classList.toggle("btn--ghost", alertsOn);
+        alertsOpenBtn.classList.toggle("btn--accent", !alertsOn);
+      }
+      return;
+    }
+    if (alertsOn) setAlertsPanel("on");
+    else if (signedInEmail()) setAlertsPanel("member");
+    else setAlertsPanel("guest");
   };
 
   window.BULLDOGS_AUTH?.whenReady()
     .then((sb) => {
-      sb.auth.onAuthStateChange(() => paintAlerts());
-      paintAlerts();
+      sb.auth.onAuthStateChange(() => {
+        refreshAlertsStatus().then(paintAlerts);
+      });
+      refreshAlertsStatus().then(paintAlerts);
     })
     .catch(() => {});
 
-  document.querySelector("[data-alerts-open]")?.addEventListener("click", () => {
+  alertsOpenBtn?.addEventListener("click", () => {
     if (!alertsDialog) return;
-    paintAlerts();
     const status = alertsModal?.querySelector(".form-status");
     if (status) {
       status.textContent = "";
       status.classList.remove("is-error");
     }
     alertsDialog.showModal();
-    alertsModal?.querySelector('input[name="email"]')?.focus();
+    paintAlerts();
+    if (!signedInEmail()) alertsModal?.querySelector('input[name="email"]')?.focus();
+    refreshAlertsStatus().then(paintAlerts);
   });
 
-  alertsDialog?.querySelector("[data-close-alerts]")?.addEventListener("click", () => alertsDialog.close());
+  alertsDialog?.querySelectorAll("[data-close-alerts]").forEach((btn) => {
+    btn.addEventListener("click", () => alertsDialog.close());
+  });
   window.BULLDOGS_AUTH?.backdropClose(alertsDialog, () => alertsDialog.close());
   alertsDialog?.querySelector("[data-alerts-auth]")?.addEventListener("click", () => {
     alertsDialog.close();
     window.BULLDOGS_AUTH?.open({ mode: "signin" });
   });
 
+  alertsDialog?.querySelector("[data-alerts-confirm]")?.addEventListener("click", async () => {
+    const status = alertsModal?.querySelector(".form-status");
+    const confirmBtn = alertsDialog.querySelector("[data-alerts-confirm]");
+    if (!status || !confirmBtn) return;
+    status.textContent = "Saving…";
+    status.classList.remove("is-error");
+    confirmBtn.disabled = true;
+    try {
+      await api.fn("me-api", { action: "subscribe_alerts" });
+      alertsOn = true;
+      status.textContent = "";
+      alertsDialog.close();
+      paintAlerts();
+    } catch (err) {
+      status.textContent = unavailable(err, "Couldn't turn on alerts.");
+      status.classList.add("is-error");
+    } finally {
+      confirmBtn.disabled = false;
+    }
+  });
+
+  alertsDialog?.querySelector("[data-alerts-disable]")?.addEventListener("click", async () => {
+    const status = alertsModal?.querySelector(".form-status");
+    const disableBtn = alertsDialog.querySelector("[data-alerts-disable]");
+    if (!status || !disableBtn) return;
+    status.textContent = "Saving…";
+    status.classList.remove("is-error");
+    disableBtn.disabled = true;
+    try {
+      await api.fn("me-api", { action: "unsubscribe_alerts" });
+      alertsOn = false;
+      status.textContent = "";
+      alertsDialog.close();
+      paintAlerts();
+    } catch (err) {
+      status.textContent = unavailable(err, "Couldn't turn off alerts.");
+      status.classList.add("is-error");
+    } finally {
+      disableBtn.disabled = false;
+    }
+  });
+
   alertsModal?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (signedInEmail()) return;
     const status = alertsModal.querySelector(".form-status");
     const submit = alertsModal.querySelector('[type="submit"]');
     status.textContent = "Saving…";

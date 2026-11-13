@@ -430,9 +430,25 @@
 }
 
 .booking-dialog [data-alerts-or] {
-  margin: 0;
+  margin: 0.85rem 0 0;
   text-align: center;
   font-size: 0.85rem;
+}
+
+.booking-dialog [data-alerts-guest] .field + .btn,
+.booking-dialog [data-alerts-member] > p,
+.booking-dialog [data-alerts-on] > p {
+  margin-bottom: 0;
+}
+
+.booking-dialog [data-alerts-guest] .field + .btn,
+.booking-dialog [data-alerts-member] .confirm-dialog__acts,
+.booking-dialog [data-alerts-on] .confirm-dialog__acts {
+  margin-top: 1.85rem;
+}
+
+.booking-dialog [data-alerts-guest] [data-alerts-or] + .btn {
+  margin-top: 1rem;
 }
 
 .booking-dialog {
