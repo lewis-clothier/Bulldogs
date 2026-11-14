@@ -74,7 +74,7 @@
             <div class="home-head__title">
               <h2>Our next event</h2>
               <div class="home-head__actions">
-                <a class="btn btn--white btn--small" href="events.html#alerts" data-home-alerts-open>Turn on alerts</a>
+                <a class="btn btn--white btn--small" href="events.html#alerts" data-alerts-open data-alerts-style="white">Turn on alerts</a>
                 <a class="btn btn--ghost btn--small" href="events.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</a>
               </div>
             </div>
@@ -193,26 +193,6 @@
       </div>
     </aside>
 
-    <dialog class="booking-dialog" data-alerts-dialog>
-      <button class="booking-dialog__close" type="button" data-close-alerts aria-label="Close">×</button>
-      <form class="contact-form" data-home-alerts>
-        <header class="booking-dialog__head">
-          <h2>Turn on alerts</h2>
-          <p class="muted" data-alerts-lead>Get emailed when new events go live.</p>
-          <p class="muted" data-alerts-soon hidden>Not available yet. We'll build this later.</p>
-        </header>
-        <div data-alerts-guest>
-          <div class="field">
-            <label for="alerts-modal-email">Email</label>
-            <input id="alerts-modal-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com" />
-          </div>
-          <button class="btn btn--accent btn--block" type="submit">Turn on alerts</button>
-          <button class="btn btn--ghost btn--block" type="button" data-alerts-auth>Sign in or register</button>
-        </div>
-        <p class="form-status" role="status"></p>
-      </form>
-    </dialog>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
@@ -220,6 +200,7 @@
     <script src="js/auth-ui.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
+    <script src="js/alerts.js"></script>
     <script src="js/home.js"></script>
   </body>
 </html>

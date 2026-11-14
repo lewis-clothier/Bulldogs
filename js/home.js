@@ -1,60 +1,6 @@
 (() => {
   const api = window.BULLDOGS_API;
 
-  const alertsDialog = document.querySelector("[data-alerts-dialog]");
-  const alertsOpen = document.querySelector("[data-home-alerts-open]");
-  const alertsForm = document.querySelector("[data-home-alerts]");
-  const signedIn = () => Boolean(window.BULLDOGS_SESSION?.user?.email);
-
-  const paintAlertsDialog = (soon) => {
-    alertsForm?.querySelector("[data-alerts-guest]")?.toggleAttribute("hidden", soon);
-    alertsForm?.querySelector("[data-alerts-lead]")?.toggleAttribute("hidden", soon);
-    const note = alertsForm?.querySelector("[data-alerts-soon]");
-    if (note) note.hidden = !soon;
-    const status = alertsForm?.querySelector(".form-status");
-    if (status) {
-      status.textContent = "";
-      status.classList.remove("is-error");
-    }
-  };
-
-  alertsOpen?.addEventListener("click", (event) => {
-    if (!alertsDialog) return;
-    event.preventDefault();
-    const soon = signedIn();
-    paintAlertsDialog(soon);
-    alertsDialog.showModal();
-    if (!soon) alertsForm?.querySelector("input[name='email']")?.focus();
-  });
-
-  alertsDialog?.querySelector("[data-close-alerts]")?.addEventListener("click", () => alertsDialog.close());
-  window.BULLDOGS_AUTH?.backdropClose(alertsDialog, () => alertsDialog.close());
-  alertsDialog?.querySelector("[data-alerts-auth]")?.addEventListener("click", () => {
-    alertsDialog.close();
-    window.BULLDOGS_AUTH?.open({ mode: "signin" });
-  });
-
-  alertsForm?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const status = alertsForm.querySelector(".form-status");
-    const submit = alertsForm.querySelector('[type="submit"]');
-    const email = new FormData(alertsForm).get("email");
-    status.textContent = "Saving…";
-    status.classList.remove("is-error");
-    submit.disabled = true;
-    try {
-      await api.fn("public-booking", { action: "subscribe_alerts", email });
-      alertsForm.reset();
-      status.textContent = "You're on the list. We'll email you when a new event goes live.";
-    } catch (err) {
-      const message = /unknown action/i.test(err?.message || "") ? "Alerts aren't available yet." : err?.message || "Alerts aren't available yet.";
-      status.textContent = message;
-      status.classList.add("is-error");
-    } finally {
-      submit.disabled = false;
-    }
-  });
-
   const rail = document.querySelector("[data-home-events]");
   if (!api || !rail) return;
 

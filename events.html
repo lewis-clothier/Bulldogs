@@ -228,45 +228,6 @@
       </form>
     </dialog>
 
-    <dialog class="booking-dialog" data-alerts-dialog>
-      <button class="booking-dialog__close" type="button" data-close-alerts aria-label="Close">×</button>
-      <form class="contact-form" data-event-alerts>
-        <header class="booking-dialog__head">
-          <p class="eyebrow">Alerts</p>
-          <h2 data-alerts-heading>Turn on alerts</h2>
-          <p class="muted" data-alerts-lede>Get emailed when new events go live.</p>
-        </header>
-        <div data-alerts-guest>
-          <div class="field">
-            <label for="alerts-email">Email</label>
-            <input id="alerts-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com" />
-          </div>
-          <button class="btn btn--accent btn--block" type="submit">Turn on alerts</button>
-          <p class="muted" data-alerts-or>or</p>
-          <button class="btn btn--ghost btn--block" type="button" data-alerts-auth>Sign in or register</button>
-        </div>
-        <div data-alerts-member hidden>
-          <p data-alerts-explain>
-            We’ll email you as soon as a new event is published on the site — with the title, date, place, and a link to book on the events page.
-          </p>
-          <div class="confirm-dialog__acts">
-            <button class="btn btn--ghost" type="button" data-close-alerts>Cancel</button>
-            <button class="btn btn--accent" type="button" data-alerts-confirm>Turn on alerts</button>
-          </div>
-        </div>
-        <div data-alerts-on hidden>
-          <p data-alerts-off-explain>
-            You’re set to get an email whenever a new event is published. Turn off alerts if you don’t want those anymore.
-          </p>
-          <div class="confirm-dialog__acts">
-            <button class="btn btn--ghost" type="button" data-close-alerts>Cancel</button>
-            <button class="btn btn--ghost" type="button" data-alerts-disable>Turn off alerts</button>
-          </div>
-        </div>
-        <p class="form-status" role="status"></p>
-      </form>
-    </dialog>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
@@ -274,6 +235,7 @@
     <script src="js/auth-ui.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
+    <script src="js/alerts.js"></script>
     <script src="js/events.js"></script>
   </body>
 </html>

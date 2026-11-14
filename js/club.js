@@ -12,13 +12,15 @@
   const stockSave = document.querySelector("[data-save-stock]");
   const stockStatus = document.querySelector("[data-stock-status]");
   const ordersList = document.querySelector("[data-orders-list]");
-  const orderSummary = document.querySelector("[data-order-summary]");
-  const orderSummaryPanel = document.querySelector("[data-order-summary-panel]");
   const orderDialog = document.querySelector("[data-order-dialog]");
   const orderBody = document.querySelector("[data-order-body]");
-  const openSummaryKeys = new Set();
   const openStockKeys = new Set();
-  const stockHold = (n) => (Number(n) > 0 ? String(n) : "—");
+  const stockHold = (n) => (Number(n) > 0 ? String(n) : '<span class="stock-dash">—</span>');
+  const setStockHold = (el, n) => {
+    if (!el) return;
+    if (Number(n) > 0) el.textContent = String(n);
+    else el.innerHTML = '<span class="stock-dash">—</span>';
+  };
   const newsBody = document.querySelector("[data-news-body]");
   const adminsList = document.querySelector("[data-admins-list]");
   const eventEditor = document.querySelector("[data-event-editor]");
@@ -199,57 +201,111 @@
     is_signup_open: Boolean(ev.is_signup_open),
   });
 
-  const kpi = (label, value, note, warn, tab) =>
-    `<button type="button" class="kpi glass" data-kpi="${tab}"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${note ? `<small class="${warn ? "warn" : ""}">${escapeHtml(note)}</small>` : ""}</button>`;
+  const kpi = (label, value, note, warn, action = "") =>
+    `<button type="button" class="kpi glass"${action ? ` data-kpi-action="${action}"` : ""}><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b>${note ? `<small class="${warn ? "warn" : ""}">${escapeHtml(note)}</small>` : ""}</button>`;
 
   const paintTabCounts = () => {
     const n = ordersCache.filter((order) => order.status === "paid").length;
-    const badge = document.querySelector("[data-tab-count='orders']");
+    const badge = document.querySelector("[data-tab-count='shop']");
     if (!badge) return;
     badge.hidden = n < 1;
     badge.textContent = String(n);
   };
 
+  const activeTab = () => document.querySelector("[data-tab].is-active")?.dataset.tab || "events";
+
+  const eventRevenuePence = () =>
+    eventsCache.reduce((sum, ev) => {
+      const rows = attendanceCache[ev.id] || [];
+      return (
+        sum +
+        rows
+          .filter((row) => row.status === "paid")
+          .reduce((inner, row) => inner + Number(row.amount_pence ?? ev.price_pence ?? 0), 0)
+      );
+    }, 0);
+
+  const shopRevenuePence = () =>
+    ordersCache
+      .filter((order) => order.status === "paid" || order.status === "fulfilled")
+      .reduce((sum, order) => sum + orderPence(order), 0);
+
   async function paintKpis() {
     if (!kpis) return;
+    const tab = activeTab();
+    if (tab !== "events" && tab !== "shop") {
+      kpis.hidden = true;
+      kpis.innerHTML = "";
+      paintTabCounts();
+      return;
+    }
+    kpis.hidden = false;
+
     let summary = null;
     try {
       summary = await club({ action: "summary" });
     } catch {
       summary = null;
     }
-    const live =
-      summary?.live_events ??
-      eventsCache.filter((ev) => ev.is_published && new Date(ev.starts_at).getTime() > Date.now()).length;
-    const places = summary ? summary.booked_places : null;
-    const fulfil = summary?.orders_to_fulfil ?? ordersCache.filter((order) => order.status === "paid").length;
-    const revenuePence = summary
-      ? summary.revenue_pence
-      : ordersCache.length
-        ? ordersCache
-            .filter((order) => order.status === "paid" || order.status === "fulfilled")
-            .reduce((sum, order) => sum + orderPence(order), 0)
-        : null;
-    const drafts = eventsCache.filter((ev) => !ev.is_published && !isCancelled(ev)).length;
-    let oldestNote = "";
-    let oldestWarn = false;
-    if (fulfil > 0) {
-      const times = ordersCache
-        .filter((order) => order.status === "paid" && order.created_at)
-        .map((order) => new Date(order.created_at).getTime())
-        .filter((n) => !Number.isNaN(n));
-      if (times.length) {
-        const days = Math.max(0, Math.floor((Date.now() - Math.min(...times)) / 86400000));
-        oldestNote = days === 0 ? "Oldest today" : `Oldest ${days} day${days === 1 ? "" : "s"}`;
-        oldestWarn = days >= 4;
+
+    if (tab === "events") {
+      const total = eventsCache.filter((ev) => !isCancelled(ev)).length;
+      const live =
+        summary?.live_events ??
+        eventsCache.filter((ev) => ev.is_published && new Date(ev.starts_at).getTime() > Date.now()).length;
+      const drafts = eventsCache.filter((ev) => !ev.is_published && !isCancelled(ev)).length;
+      const places = summary ? summary.booked_places : null;
+      const revenue = eventRevenuePence();
+      const todayEvents = eventsCache.filter((ev) => !isCancelled(ev) && eventOnToday(ev));
+      const todayLeft = todayEvents.reduce((sum, ev) => {
+        const placesToday = placeCounts(ev);
+        if (!placesToday) return sum;
+        return sum + Math.max(0, placesToday.paid.length - placesToday.checked);
+      }, 0);
+      kpis.innerHTML = [
+        kpi(
+          "Event count",
+          String(total),
+          live ? `${live} live${drafts ? ` · ${drafts} draft${drafts === 1 ? "" : "s"}` : ""}` : drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "None live",
+          false,
+          "events-all",
+        ),
+        kpi("Booked places", places == null ? "—" : String(places), places == null ? "" : "On upcoming events", false, "events-upcoming"),
+        kpi(
+          "Still to check in",
+          String(todayLeft),
+          todayEvents.length ? `Across ${todayEvents.length} today` : "No events today",
+          todayLeft > 0,
+          "events-today",
+        ),
+        kpi("Event revenue", gbp(revenue), "Paid bookings", false, ""),
+      ].join("");
+    } else {
+      const rows = ordersCache.filter((order) => ["paid", "fulfilled", "refunded"].includes(order.status));
+      const total = rows.length;
+      const fulfilled = rows.filter((order) => order.status === "fulfilled").length;
+      const fulfil = summary?.orders_to_fulfil ?? rows.filter((order) => order.status === "paid").length;
+      const revenuePence = summary?.revenue_pence ?? (ordersCache.length ? shopRevenuePence() : null);
+      let oldestNote = "";
+      let oldestWarn = false;
+      if (fulfil > 0) {
+        const times = ordersCache
+          .filter((order) => order.status === "paid" && order.created_at)
+          .map((order) => new Date(order.created_at).getTime())
+          .filter((n) => !Number.isNaN(n));
+        if (times.length) {
+          const days = Math.max(0, Math.floor((Date.now() - Math.min(...times)) / 86400000));
+          oldestNote = days === 0 ? "Oldest today" : `Oldest ${days} day${days === 1 ? "" : "s"}`;
+          oldestWarn = days >= 4;
+        }
       }
+      kpis.innerHTML = [
+        kpi("Total orders", String(total), "Paid, fulfilled and refunded", false, "orders-all"),
+        kpi("Orders fulfilled", String(fulfilled), fulfilled ? "Packed and sent" : "None yet", false, "orders-fulfilled"),
+        kpi("Orders to fulfil", String(fulfil), oldestNote || (fulfil ? "Waiting to pack" : "All clear"), oldestWarn, "orders-paid"),
+        kpi("Shop revenue", revenuePence == null ? "—" : gbp(revenuePence), revenuePence == null ? "" : "Paid and fulfilled", false, ""),
+      ].join("");
     }
-    kpis.innerHTML = [
-      kpi("Live events", String(live), drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "On the site", false, "events"),
-      kpi("Booked places", places == null ? "—" : String(places), places == null ? "" : "On upcoming events", false, "events"),
-      kpi("Revenue", revenuePence == null ? "—" : gbp(revenuePence), revenuePence == null ? "" : "Paid and fulfilled", false, "orders"),
-      kpi("Orders to fulfil", String(fulfil), oldestNote, oldestWarn, "orders"),
-    ].join("");
     paintTabCounts();
   }
 
@@ -287,7 +343,6 @@
       revealAdmin();
       setTab(location.hash.slice(1) || "events");
       loadEvents();
-      loadStock();
       loadOrders();
       loadAdmins();
       loadNews();
@@ -301,10 +356,28 @@
     sb.auth.getSession().then(({ data }) => show(data.session));
   });
 
-  const tabs = ["events", "orders", "stock", "news", "admins"];
+  const tabs = ["events", "shop", "news", "admins"];
+
+  const setOrderFilter = (key) => {
+    orderFilter = key;
+    document.querySelectorAll("[data-order-filter]").forEach((el) => {
+      const on = el.dataset.orderFilter === key;
+      el.classList.toggle("is-on", on);
+      el.classList.toggle("is-active", on);
+    });
+    if (ordersList) renderOrders();
+  };
+
+  const setEventFilter = (key) => {
+    eventFilter = key;
+    soleClosed = "";
+    document.querySelectorAll("[data-admin-filter]").forEach((el) => el.classList.toggle("is-on", el.dataset.adminFilter === key));
+    renderEvents();
+  };
 
   const setTab = (name) => {
     if (name === "door") name = "events";
+    if (name === "orders" || name === "stock") name = "shop";
     if (!tabs.includes(name)) name = "events";
     document.querySelectorAll("[data-tab]").forEach((btn) => btn.classList.toggle("is-active", btn.dataset.tab === name));
     document.querySelectorAll("[data-panel]").forEach((panel) => {
@@ -317,11 +390,19 @@
     }
     if (name === "admins") loadAdmins();
     if (name === "news") loadNews();
+    paintKpis();
   };
 
   kpis?.addEventListener("click", (event) => {
-    const btn = event.target.closest("[data-kpi]");
-    if (btn) setTab(btn.dataset.kpi);
+    const btn = event.target.closest("[data-kpi-action]");
+    if (!btn) return;
+    const action = btn.dataset.kpiAction;
+    if (action === "events-all") setEventFilter("all");
+    if (action === "events-upcoming") setEventFilter("upcoming");
+    if (action === "events-today") setEventFilter("today");
+    if (action === "orders-all") setOrderFilter("all");
+    if (action === "orders-fulfilled") setOrderFilter("fulfilled");
+    if (action === "orders-paid") setOrderFilter("paid");
   });
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
@@ -1276,6 +1357,39 @@
     }
   });
 
+  const orderVolumeByProduct = () => {
+    const byProduct = new Map();
+    for (const order of ordersCache) {
+      if (!["pending", "paid", "fulfilled"].includes(order.status)) continue;
+      for (const item of order.items || []) {
+        const productKey = `${item.product_id || ""}|${item.colour || ""}`;
+        if (!byProduct.has(productKey)) {
+          byProduct.set(productKey, { ordered: 0, shipped: 0, reserved: 0, sizes: new Map() });
+        }
+        const product = byProduct.get(productKey);
+        const sizeKey = String(item.size || "—");
+        if (!product.sizes.has(sizeKey)) {
+          product.sizes.set(sizeKey, { ordered: 0, shipped: 0, reserved: 0 });
+        }
+        const sizeRow = product.sizes.get(sizeKey);
+        const qty = Number(item.quantity || 0);
+        if (order.status === "pending") {
+          product.reserved += qty;
+          sizeRow.reserved += qty;
+        }
+        if (order.status === "paid" || order.status === "fulfilled") {
+          product.ordered += qty;
+          sizeRow.ordered += qty;
+        }
+        if (order.status === "fulfilled") {
+          product.shipped += qty;
+          sizeRow.shipped += qty;
+        }
+      }
+    }
+    return byProduct;
+  };
+
   async function loadStock() {
     if (!stockTable) return;
     try {
@@ -1288,6 +1402,7 @@
       }
       const sizeRank = { S: 0, M: 1, L: 2, XL: 3 };
       const colourRank = { orange: 0, blue: 1 };
+      const volumes = orderVolumeByProduct();
       const byItem = new Map();
       for (const variant of rows) {
         const colour = String(variant.colour || "Other");
@@ -1305,33 +1420,28 @@
         return (colourRank[String(a[0].colour || "").toLowerCase()] ?? 9) - (colourRank[String(b[0].colour || "").toLowerCase()] ?? 9)
           || String(a[0].colour || "").localeCompare(String(b[0].colour || ""));
       });
-      const sizeRow = (v) => {
+      const sizeRow = (v, volume) => {
         const colour = String(v.colour || "");
-        const counted = Number(v.on_hand || 0);
+        const onHand = Number(v.on_hand || 0);
         const toFulfil = Number(v.to_fulfil || 0);
         const reserved = Number(v.checkout_reserved || 0);
         const held = toFulfil + reserved;
-        const left = Math.max(0, counted - held);
-        return `<div class="stock-size${left <= 2 ? " is-low" : ""}">
-          <div class="stock-size__size"><b>${escapeHtml(v.size)}</b><span class="low"${left > 2 ? " hidden" : ""}>Low</span></div>
-          <div class="stock-size__hand">
-            <span class="stock-size__label">Counted</span>
-            <span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${held}" data-to-fulfil="${toFulfil}" data-checkout-reserved="${reserved}" type="number" min="0" value="${v.on_hand}" aria-label="Counted ${escapeHtml(colour)} ${escapeHtml(v.size)}" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span>
+        const available = Math.max(0, onHand - held);
+        const fulfilled = Number(volume?.shipped || 0);
+        return `<div class="stock-size${available <= 2 ? " is-low" : ""}">
+          <div class="stock-size__size"><b>${escapeHtml(v.size)}</b><span class="low"${available > 2 ? " hidden" : ""}>Low</span></div>
+          <div class="stock-size__edit">
+            <span class="step"><button type="button" data-step="-1" aria-label="Decrease ${escapeHtml(colour)} ${escapeHtml(v.size)}">−</button><input data-onhand data-product="${escapeHtml(v.product_id)}" data-colour="${escapeHtml(v.colour)}" data-size="${escapeHtml(v.size)}" data-original="${v.on_hand}" data-reserved="${held}" data-to-fulfil="${toFulfil}" data-checkout-reserved="${reserved}" type="number" min="0" value="${v.on_hand}" aria-label="Stock count ${escapeHtml(colour)} ${escapeHtml(v.size)}" /><button type="button" data-step="1" aria-label="Increase ${escapeHtml(colour)} ${escapeHtml(v.size)}">+</button></span>
           </div>
-          <dl class="stock-size__stats">
-            <div class="stock-size__stat">
-              <strong data-to-fulfil>${stockHold(toFulfil)}</strong>
-              <span>to fulfil</span>
-            </div>
-            <div class="stock-size__stat">
-              <strong data-checkout-reserved>${stockHold(reserved)}</strong>
-              <span>reserved</span>
-            </div>
-            <div class="stock-size__shop">
-              <strong data-left>${left}</strong>
-              <span>in stock</span>
-            </div>
-          </dl>
+          <div class="stock-size__meta">
+            <span class="stock-chip"><b data-checkout-reserved>${stockHold(reserved)}</b> reserved</span>
+            <span class="stock-chip${toFulfil > 0 ? " stock-chip--action" : ""}"><b data-to-fulfil>${stockHold(toFulfil)}</b> to fulfil</span>
+            <span class="stock-chip stock-chip--done"><b>${stockHold(fulfilled)}</b> fulfilled</span>
+          </div>
+          <div class="stock-size__avail">
+            <strong data-left>${available}</strong>
+            <span>available</span>
+          </div>
         </div>`;
       };
       stockTable.innerHTML = `<div class="stock-list">${items
@@ -1340,37 +1450,45 @@
           const colour = String(sample.colour || "Other");
           const name = itemName(sample);
           const img = productImage(colour, sample.product_id, name);
-          const ordered = sizes.slice().sort((a, b) => (sizeRank[a.size] ?? 9) - (sizeRank[b.size] ?? 9));
-          const toFulfil = ordered.reduce((sum, v) => sum + Number(v.to_fulfil || 0), 0);
-          const reserved = ordered.reduce((sum, v) => sum + Number(v.checkout_reserved || 0), 0);
-          const left = ordered.reduce((sum, v) => {
+          const orderedSizes = sizes.slice().sort((a, b) => (sizeRank[a.size] ?? 9) - (sizeRank[b.size] ?? 9));
+          const key = `${sample.product_id}|${colour}`;
+          const volume = volumes.get(key) || { ordered: 0, shipped: 0, reserved: 0, sizes: new Map() };
+          const toFulfil = orderedSizes.reduce((sum, v) => sum + Number(v.to_fulfil || 0), 0);
+          const reserved = orderedSizes.reduce((sum, v) => sum + Number(v.checkout_reserved || 0), 0);
+          const onHand = orderedSizes.reduce((sum, v) => sum + Number(v.on_hand || 0), 0);
+          const available = orderedSizes.reduce((sum, v) => {
             const held = Number(v.to_fulfil || 0) + Number(v.checkout_reserved || 0);
             return sum + Math.max(0, Number(v.on_hand) - held);
           }, 0);
-          const anyLow = ordered.some((v) => {
+          const anyLow = orderedSizes.some((v) => {
             const held = Number(v.to_fulfil || 0) + Number(v.checkout_reserved || 0);
             return Math.max(0, Number(v.on_hand) - held) <= 2;
           });
-          const key = `${sample.product_id}|${colour}`;
           const open = openStockKeys.has(key);
           return `<details class="stock-item" data-stock-key="${escapeHtml(key)}"${open ? " open" : ""}>
             <summary class="stock-item__head">
               <img class="stock-item__img" src="${escapeHtml(img)}" alt="" />
-              <div class="stock-item__name">
-                <b>${escapeHtml(name)}</b>
-                <small>${escapeHtml(colourLabel(colour))}</small>
-              </div>
-              <dl class="stock-item__stats">
-                <div><dt>To fulfil</dt><dd data-item-fulfil>${stockHold(toFulfil)}</dd></div>
-                <div><dt>Reserved</dt><dd data-item-reserved>${stockHold(reserved)}</dd></div>
-                <div>
-                  <dt>In stock</dt>
-                  <dd data-item-left>${left}</dd>
-                  <span class="low" data-item-low${anyLow ? "" : " hidden"}>Low</span>
+              <div class="stock-item__copy">
+                <div class="stock-item__name">
+                  <b>${escapeHtml(name)}</b>
+                  <small>${escapeHtml(colourLabel(colour))}</small>
                 </div>
-              </dl>
+                <div class="stock-item__avail">
+                  <strong data-item-left>${available}</strong>
+                  <span>available</span>
+                  <em class="low" data-item-low${anyLow ? "" : " hidden"}>Low</em>
+                </div>
+                <div class="stock-item__strip">
+                  <span class="stock-chip"><b data-item-onhand>${stockHold(onHand)}</b> in stock</span>
+                  <span class="stock-chip"><b data-item-reserved>${stockHold(reserved)}</b> reserved</span>
+                  <span class="stock-chip${toFulfil > 0 ? " stock-chip--action" : ""}" data-item-fulfil-chip><b data-item-fulfil>${stockHold(toFulfil)}</b> to fulfil</span>
+                  <span class="stock-chip stock-chip--done"><b>${stockHold(volume.shipped)}</b> fulfilled</span>
+                </div>
+              </div>
             </summary>
-            <div class="stock-sizes">${ordered.map(sizeRow).join("")}</div>
+            <div class="stock-sizes">${orderedSizes
+              .map((v) => sizeRow(v, volume.sizes.get(String(v.size || "—"))))
+              .join("")}</div>
           </details>`;
         })
         .join("")}</div>`;
@@ -1418,7 +1536,8 @@
     size?.classList.toggle("is-low", left <= 2);
     const item = input.closest(".stock-item");
     if (item) {
-      let total = 0;
+      let availableTotal = 0;
+      let onHandTotal = 0;
       let fulfilTotal = 0;
       let reservedTotal = 0;
       let anyLow = false;
@@ -1426,18 +1545,22 @@
         const fulfil = Number(field.dataset.toFulfil || 0);
         const reserved = Number(field.dataset.checkoutReserved || 0);
         const held = Number(field.dataset.reserved || 0);
-        const n = Math.max(0, Number(field.value || 0) - held);
-        total += n;
+        const onHand = Number(field.value || 0);
+        const n = Math.max(0, onHand - held);
+        availableTotal += n;
+        onHandTotal += onHand;
         fulfilTotal += fulfil;
         reservedTotal += reserved;
         if (n <= 2) anyLow = true;
       });
-      const label = item.querySelector("[data-item-left]");
-      if (label) label.textContent = String(total);
+      const availableLabel = item.querySelector("[data-item-left]");
+      if (availableLabel) availableLabel.textContent = String(availableTotal);
+      const onHandLabel = item.querySelector("[data-item-onhand]");
+      setStockHold(onHandLabel, onHandTotal);
       const fulfilLabel = item.querySelector("[data-item-fulfil]");
-      if (fulfilLabel) fulfilLabel.textContent = stockHold(fulfilTotal);
+      setStockHold(fulfilLabel, fulfilTotal);
       const reservedLabel = item.querySelector("[data-item-reserved]");
-      if (reservedLabel) reservedLabel.textContent = stockHold(reservedTotal);
+      setStockHold(reservedLabel, reservedTotal);
       const badge = item.querySelector("[data-item-low]");
       if (badge) badge.hidden = !anyLow;
     }
@@ -1505,15 +1628,15 @@
   });
 
   async function loadOrders() {
-    if (!ordersList) return;
     try {
       const { orders } = await club({ action: "list_orders" });
       ordersCache = orders || [];
-      renderOrders();
+      if (ordersList) renderOrders();
       paintKpis();
     } catch (err) {
-      fail(ordersList, err);
+      if (ordersList) fail(ordersList, err);
     }
+    await loadStock();
   }
 
   const visibleOrders = () => ordersCache.filter((order) => ["paid", "fulfilled", "refunded"].includes(order.status));
@@ -1561,112 +1684,8 @@
       .join(" · ");
   };
 
-  const paintOrderSummary = () => {
-    if (!orderSummary) return;
-    const sizeRank = { S: 0, M: 1, L: 2, XL: 3 };
-    const colourRank = { orange: 0, blue: 1 };
-    const byProduct = new Map();
-    for (const order of ordersCache) {
-      if (!["pending", "paid", "fulfilled"].includes(order.status)) continue;
-      for (const item of order.items || []) {
-        const productKey = `${item.product_id || ""}|${item.colour || ""}`;
-        if (!byProduct.has(productKey)) {
-          byProduct.set(productKey, {
-            key: productKey,
-            product_id: item.product_id,
-            product_name: item.product_name || "Item",
-            colour: item.colour || "",
-            ordered: 0,
-            shipped: 0,
-            reserved: 0,
-            sizes: new Map(),
-          });
-        }
-        const product = byProduct.get(productKey);
-        const sizeKey = String(item.size || "—");
-        if (!product.sizes.has(sizeKey)) {
-          product.sizes.set(sizeKey, { size: sizeKey, ordered: 0, shipped: 0, reserved: 0 });
-        }
-        const sizeRow = product.sizes.get(sizeKey);
-        const qty = Number(item.quantity || 0);
-        if (order.status === "pending") {
-          product.reserved += qty;
-          sizeRow.reserved += qty;
-        }
-        if (order.status === "paid" || order.status === "fulfilled") {
-          product.ordered += qty;
-          sizeRow.ordered += qty;
-        }
-        if (order.status === "fulfilled") {
-          product.shipped += qty;
-          sizeRow.shipped += qty;
-        }
-      }
-    }
-    const groups = [...byProduct.values()]
-      .filter((row) => row.ordered || row.shipped || row.reserved)
-      .sort((a, b) => {
-        const name = String(a.product_name).localeCompare(String(b.product_name));
-        if (name) return name;
-        return (colourRank[String(a.colour).toLowerCase()] ?? 9) - (colourRank[String(b.colour).toLowerCase()] ?? 9)
-          || String(a.colour).localeCompare(String(b.colour));
-      });
-    if (!groups.length) {
-      if (orderSummaryPanel) orderSummaryPanel.hidden = true;
-      orderSummary.innerHTML = "";
-      return;
-    }
-    if (orderSummaryPanel) orderSummaryPanel.hidden = false;
-    orderSummary.innerHTML = `<div class="order-summary__list">${groups
-      .map((group) => {
-        const img = productImage(group.colour, group.product_id, group.product_name);
-        const open = openSummaryKeys.has(group.key);
-        const sizes = [...group.sizes.values()].sort((a, b) => (sizeRank[a.size] ?? 9) - (sizeRank[b.size] ?? 9));
-        return `<details class="order-summary__item" data-summary-key="${escapeHtml(group.key)}"${open ? " open" : ""}>
-          <summary>
-            <img src="${escapeHtml(img)}" alt="" />
-            <span class="order-summary__name">
-              <b>${escapeHtml(group.product_name)}</b>
-              <small>${escapeHtml(colourLabel(group.colour))}</small>
-            </span>
-            <dl class="order-summary__stats">
-              <div><dt>Ordered</dt><dd>${stockHold(group.ordered)}</dd></div>
-              <div><dt>Shipped</dt><dd>${stockHold(group.shipped)}</dd></div>
-              <div><dt>Reserved</dt><dd>${stockHold(group.reserved)}</dd></div>
-            </dl>
-          </summary>
-          <div class="order-summary__sizes">
-            ${sizes
-              .map(
-                (size) => `<div class="order-summary__size">
-                  <b>${escapeHtml(size.size)}</b>
-                  <span class="order-summary__size-gap" aria-hidden="true"></span>
-                  <dl class="order-summary__stats">
-                    <div><dt>Ordered</dt><dd>${stockHold(size.ordered)}</dd></div>
-                    <div><dt>Shipped</dt><dd>${stockHold(size.shipped)}</dd></div>
-                    <div><dt>Reserved</dt><dd>${stockHold(size.reserved)}</dd></div>
-                  </dl>
-                </div>`,
-              )
-              .join("")}
-          </div>
-        </details>`;
-      })
-      .join("")}</div>`;
-  };
-
-  orderSummary?.addEventListener("toggle", (event) => {
-    const item = event.target.closest("[data-summary-key]");
-    if (!item || event.target !== item) return;
-    const key = item.dataset.summaryKey;
-    if (!key) return;
-    if (item.open) openSummaryKeys.add(key);
-    else openSummaryKeys.delete(key);
-  }, true);
-
   function renderOrders() {
     paintOrderFilters();
-    paintOrderSummary();
     const rows = orderFilter === "all" ? visibleOrders() : visibleOrders().filter((o) => o.status === orderFilter);
     if (!rows.length) {
       ordersList.innerHTML = empty(orderFilter === "all" ? "No orders yet." : "Nothing in this view.");
@@ -1769,12 +1788,7 @@
   document.querySelector("[data-order-filters]")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-order-filter]");
     if (!btn) return;
-    orderFilter = btn.dataset.orderFilter;
-    document.querySelectorAll("[data-order-filter]").forEach((el) => {
-      el.classList.toggle("is-active", el === btn);
-      el.classList.toggle("is-on", el === btn);
-    });
-    renderOrders();
+    setOrderFilter(btn.dataset.orderFilter);
   });
 
   ordersList?.addEventListener("click", (event) => {
@@ -1798,7 +1812,6 @@
         await club({ action: "fulfil_order", order_id: fulfil.dataset.fulfil, fulfilment_notes: notes });
         closeOrder();
         await loadOrders();
-        await loadStock();
         showUndo("Order marked fulfilled");
       }
       if (refund) {
@@ -1806,7 +1819,6 @@
         await club({ action: "refund_order", order_id: refund.dataset.refund });
         closeOrder();
         await loadOrders();
-        await loadStock();
         showUndo("Order refunded");
       }
     } catch (err) {

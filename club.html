@@ -63,29 +63,28 @@
             </div>
           </header>
 
-          <div class="admin-kpis" data-admin-kpis></div>
-
           <nav class="club-nav" aria-label="Admin sections">
             <button type="button" data-tab="events" class="is-active">Events</button>
-            <button type="button" data-tab="orders">Orders <em data-tab-count="orders" hidden></em></button>
-            <button type="button" data-tab="stock">Stock</button>
+            <button type="button" data-tab="shop">Shop <em data-tab-count="shop" hidden></em></button>
             <button type="button" data-tab="news">Newsletter</button>
             <button type="button" data-tab="admins">Admins</button>
           </nav>
 
+          <div class="admin-kpis" data-admin-kpis></div>
+
           <section data-panel="events">
                 <div class="event-bar">
-                  <div class="chips" data-event-admin-filters>
+                  <div class="event-bar__actions">
+                    <input class="event-bar__search" type="search" data-admin-search placeholder="Search" aria-label="Search events" />
+                    <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
+                  </div>
+                  <div class="event-bar__filters" data-event-admin-filters>
                     <button type="button" class="chip is-on" data-admin-filter="today">Today</button>
                     <button type="button" class="chip" data-admin-filter="upcoming">Upcoming</button>
                     <button type="button" class="chip" data-admin-filter="past">Past</button>
                     <button type="button" class="chip" data-admin-filter="drafts">Drafts</button>
                     <button type="button" class="chip" data-admin-filter="cancelled">Cancelled</button>
                     <button type="button" class="chip" data-admin-filter="all">All</button>
-                  </div>
-                  <div class="event-bar__tools">
-                    <input class="admin-search" type="search" data-admin-search placeholder="Search events" aria-label="Search events" />
-                    <button class="btn btn--accent btn--small" type="button" data-new-event>New event</button>
                   </div>
                 </div>
                 <div data-events-list></div>
@@ -219,16 +218,21 @@
               </dialog>
           </section>
 
-          <section data-panel="orders" hidden>
+          <section data-panel="shop" hidden>
             <div class="orders-stack">
-              <div class="panel glass" data-order-summary-panel hidden>
+              <div class="panel glass">
                 <div class="panel__head">
                   <div>
-                    <h2>Products</h2>
-                    <p class="muted">Ordered, shipped and reserved across open checkouts and paid orders.</p>
+                    <h2>Stock</h2>
+                    <p class="muted">Counts are what’s on the shelf. Available is what’s left after to-fulfil and reserved holds. Mark orders fulfilled to take units off the count.</p>
                   </div>
                 </div>
-                <div class="order-summary" data-order-summary></div>
+                <p class="form-status" data-stock-status></p>
+                <div data-stock-table></div>
+                <div class="savebar" data-stock-bar hidden>
+                  <span data-stock-bar-text>Changes not saved</span>
+                  <button class="btn btn--accent btn--small" type="button" data-save-stock>Save stock</button>
+                </div>
               </div>
               <div class="panel glass">
                 <div class="panel__head">
@@ -250,23 +254,6 @@
               <button class="booking-dialog__close" type="button" data-order-close aria-label="Close">×</button>
               <div class="order-dialog__body" data-order-body></div>
             </dialog>
-          </section>
-
-          <section data-panel="stock" hidden>
-            <div class="panel glass">
-              <div class="panel__head">
-                <div>
-                  <h2>Stock</h2>
-                  <p class="muted">Counted is what’s still here. Checkout and to-fulfil orders hold stock for the shop; marking fulfilled takes it off the count.</p>
-                </div>
-              </div>
-              <p class="form-status" data-stock-status></p>
-              <div data-stock-table></div>
-              <div class="savebar" data-stock-bar hidden>
-                <span data-stock-bar-text>Changes not saved</span>
-                <button class="btn btn--accent btn--small" type="button" data-save-stock>Save stock</button>
-              </div>
-            </div>
           </section>
 
           <section data-panel="news" hidden>
