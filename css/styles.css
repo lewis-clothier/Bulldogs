@@ -1791,6 +1791,42 @@ a.account-menu__item:hover {
   gap: 1rem;
 }
 
+.booking-dialog [data-alerts-or] {
+  margin: 0.85rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.booking-dialog [data-alerts-guest] .field + .btn,
+.booking-dialog [data-alerts-member] > p,
+.booking-dialog [data-alerts-on] > p {
+  margin-bottom: 0;
+}
+
+.booking-dialog [data-alerts-guest] .field + .btn,
+.booking-dialog [data-alerts-member] .confirm-dialog__acts,
+.booking-dialog [data-alerts-on] .confirm-dialog__acts {
+  margin-top: 1.85rem;
+}
+
+.booking-dialog [data-alerts-guest] [data-alerts-or] + .btn {
+  margin-top: 1rem;
+}
+
+.booking-dialog [data-alerts-member]:not([hidden]),
+.booking-dialog [data-alerts-on]:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.booking-dialog [data-alerts-member] .confirm-dialog__acts,
+.booking-dialog [data-alerts-on] .confirm-dialog__acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
