@@ -170,40 +170,70 @@ export async function sendRegistrationEmails(bookingId: string) {
   const ticketUrl = ticketLink(site, "c", booking.cancel_token);
   const cancelUrl = `${site}/cancel.html?c=${encodeURIComponent(booking.cancel_token)}#c=${encodeURIComponent(booking.cancel_token)}`;
   const icsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/public-booking?action=ics&c=${booking.cancel_token}`;
+  const doorPeople = attendees.filter((person) => person.checkin_token);
+  const codes = await doorCodes(site, doorPeople);
+  const attendeeNames = attendees.map((person) => person.attendee_name).join(", ");
   const attendeesHtml = attendees
     .map((person) => `<li>${escapeHtml(person.attendee_name)}</li>`)
     .join("");
-  const clubQr = attendees
-    .filter((person) => person.checkin_token)
-    .map((person) => {
-      const personTicket = ticketLink(site, "t", person.checkin_token);
-      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(personTicket)}`;
-      return `<p><strong>${escapeHtml(person.attendee_name)}</strong><br /><img src="${qr}" alt="Door QR for ${escapeHtml(person.attendee_name)}" width="180" height="180" /></p>`;
-    })
-    .join("");
+  const amountPaid = booking.amount_pence > 0 ? formatMoney(booking.amount_pence, booking.currency) : "Free";
+  const bookingRef = reference(booking.id);
+  const when = formatDate(event.starts_at);
+  const where = event.location || "Location to be confirmed";
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:8px 0;color:#5b6472;vertical-align:top;width:8rem;">${label}</td><td style="padding:8px 0;color:#1e1e23;font-weight:600;">${value}</td></tr>`;
+
+  // Resend booking-confirmation template has no QR block, so send HTML with embedded codes.
+  await sendHtml({
+    to: booking.email,
+    subject: `You're booked in — ${plain(event.title) || "Team Bulldogs"}`,
+    idempotencyKey: `booking-confirmation/${booking.id}/html-qr-v1`,
+    attachments: codes.attachments,
+    html: wrap(`
+      <h1 style="margin:0 0 12px;font-size:28px;line-height:1.1;color:#171b24;">You're booked in</h1>
+      <p>Hi ${escapeHtml(booking.full_name)},</p>
+      <p>Thanks for booking. <strong>${escapeHtml(attendeeNames)}</strong> ${attendees.length === 1 ? "has" : "have"} a place at <strong>${escapeHtml(event.title)}</strong>.</p>
+      <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+        ${row("When", escapeHtml(when))}
+        ${row("Where", escapeHtml(where))}
+        ${row("Attendee", escapeHtml(attendeeNames))}
+        ${row("Paid", escapeHtml(amountPaid))}
+        ${row("Booking reference", escapeHtml(bookingRef))}
+      </table>
+      ${event.what_to_bring ? `<p><strong>What to bring:</strong> ${escapeHtml(event.what_to_bring)}</p>` : ""}
+      <h2 style="margin:24px 0 8px;font-size:18px;color:#171b24;">Door QR codes</h2>
+      <p style="margin:0 0 8px;color:#5b6472;">Show one QR per attendee at the door.</p>
+      ${codes.html || `<p><a href="${escapeHtml(ticketUrl)}">Open your tickets</a></p>`}
+      <p style="margin:20px 0 8px;">
+        <a href="${escapeHtml(ticketUrl)}">All tickets</a>
+        · <a href="${escapeHtml(icsUrl)}">Add to calendar</a>
+        · <a href="${escapeHtml(cancelUrl)}">Cancel booking</a>
+      </p>
+      <p>Any questions, just reply to this email.</p>
+      <p>Team Bulldogs</p>
+      <p style="color:#5b6472;font-size:12px;margin-top:24px;">Team Bulldogs · British-led gymnastics team in the AIRTOX FACEOFF League<br /><a href="${escapeHtml(site)}">${escapeHtml(site.replace(/^https?:\/\//, ""))}</a></p>`),
+  });
 
   const shared = {
     EVENT_TITLE: plain(event.title),
-    EVENT_WHEN: formatDate(event.starts_at),
-    ATTENDEE_NAME: plain(attendees.map((person) => person.attendee_name).join(", ")),
+    EVENT_WHEN: when,
+    ATTENDEE_NAME: plain(attendeeNames),
     BOOKER_NAME: plain(booking.full_name),
-    AMOUNT_PAID: booking.amount_pence > 0 ? formatMoney(booking.amount_pence, booking.currency) : "Free",
-    BOOKING_REF: reference(booking.id),
+    AMOUNT_PAID: amountPaid,
+    BOOKING_REF: bookingRef,
     TICKET_URL: ticketUrl,
     CANCEL_URL: cancelUrl,
     ICS_URL: icsUrl,
-    QR_HTML: clubQr,
+    QR_HTML: doorPeople
+      .map((person) => {
+        const personTicket = ticketLink(site, "t", person.checkin_token);
+        return `<p><strong>${escapeHtml(person.attendee_name)}</strong><br /><a href="${escapeHtml(personTicket)}">Open ticket</a></p>`;
+      })
+      .join(""),
     WHAT_TO_BRING: plain(event.what_to_bring),
     EVENT_LOCATION: plain(event.location),
     ATTENDEES_HTML: `<ul>${attendeesHtml}</ul>`,
   };
-
-  await sendTemplate({
-    template: "booking-confirmation",
-    to: booking.email,
-    idempotencyKey: `booking-confirmation/${booking.id}/template`,
-    variables: shared,
-  });
 
   const clubNotes = attendees
     .map((person) => {
@@ -222,7 +252,7 @@ export async function sendRegistrationEmails(bookingId: string) {
     template: "booking-club-alert",
     to: clubEmail,
     replyTo: booking.email,
-    idempotencyKey: `booking-club-alert/${booking.id}`,
+    idempotencyKey: `booking-club-alert/${booking.id}/v3`,
     variables: {
       ...shared,
       ATTENDEE_DOB: formatDateOnly(attendees[0]?.attendee_date_of_birth ?? null),

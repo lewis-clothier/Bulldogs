@@ -2,7 +2,7 @@ import { requireClub } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
 import { escapeHtml, formatDate, formatMoney, sendHtml } from "../_shared/email.ts";
 import { email, getSiteUrl, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
-import { sendBookingCancelled, sendClubCancelledEvent } from "../_shared/notifications.ts";
+import { sendBookingCancelled, sendClubCancelledEvent, sendRegistrationEmails } from "../_shared/notifications.ts";
 
 async function notifyEventLive(event: {
   id: string;
@@ -86,6 +86,12 @@ Deno.serve(async (req) => {
     const action = text(body.action, "Action", 40, true);
 
     if (action === "whoami") return json(req, { ok: true, email: user.email, is_admin: true });
+
+    if (action === "resend_booking_email") {
+      const bookingId = text(body.booking_id, "Booking", 80, true);
+      await sendRegistrationEmails(bookingId!);
+      return json(req, { ok: true });
+    }
 
     if (action === "list_events") {
       const { data, error } = await db.from("events").select("*").order("starts_at", { ascending: false });

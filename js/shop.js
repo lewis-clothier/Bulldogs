@@ -144,49 +144,46 @@
       const match = variants.find((v) => v.colour === colour && v.size === size);
       return match ? Number(match.available) : 0;
     };
-    const labelAdd = (soldOut) => {
+    const labelAdd = () => {
       if (!add) return;
-      add.disabled = soldOut;
+      add.disabled = false;
       const price = product.getAttribute("data-price") || "";
-      add.textContent = soldOut ? "Sold out" : `Add to bag · £${price}`;
+      add.textContent = `Add to bag · £${price}`;
     };
     const paintStock = (size) => {
       const note = product.querySelector("[data-stock-note]");
       if (!note || !size) return;
       const available = availableFor(size);
-      note.hidden = available <= 0;
-      note.textContent = available === 1 ? "1 in stock" : available > 1 ? `${available} in stock` : "";
+      note.hidden = false;
+      note.classList.toggle("is-late", available <= 0);
+      if (available <= 0) {
+        note.textContent = "0 in stock · Delivery will take longer (new print typically 2–3 weeks)";
+      } else if (available === 1) {
+        note.textContent = "1 in stock";
+      } else {
+        note.textContent = `${available} in stock`;
+      }
     };
     if (select) {
       [...select.options].forEach((opt) => {
         const size = opt.value || opt.textContent.trim();
-        const available = availableFor(size);
-        opt.disabled = available <= 0;
-        opt.textContent = available <= 0 ? `${size} — sold out` : size;
+        opt.disabled = false;
+        opt.textContent = size;
       });
-      if (select.selectedOptions[0]?.disabled) {
-        const first = [...select.options].find((opt) => !opt.disabled);
-        if (first) select.value = first.value;
-      }
-      if (add) add.disabled = [...select.options].every((opt) => opt.disabled);
+      if (add) add.disabled = false;
+      labelAdd();
       paintStock(select.value);
       return;
     }
     if (!sizeButtons.length || !sizeInput) return;
     sizeButtons.forEach((btn) => {
-      const available = availableFor(btn.getAttribute("data-size-option"));
-      btn.disabled = available <= 0;
-      btn.classList.toggle("is-off", available <= 0);
+      btn.disabled = false;
+      btn.classList.remove("is-off");
     });
-    const current = sizeButtons.find((btn) => btn.getAttribute("data-size-option") === sizeInput.value);
-    if (!current || current.disabled) {
-      const first = sizeButtons.find((btn) => !btn.disabled);
-      if (first) sizeInput.value = first.getAttribute("data-size-option");
-    }
     sizeButtons.forEach((btn) => {
-      btn.classList.toggle("is-on", btn.getAttribute("data-size-option") === sizeInput.value && !btn.disabled);
+      btn.classList.toggle("is-on", btn.getAttribute("data-size-option") === sizeInput.value);
     });
-    labelAdd(sizeButtons.every((btn) => btn.disabled));
+    labelAdd();
     paintStock(sizeInput.value);
   };
 

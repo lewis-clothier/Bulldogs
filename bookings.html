@@ -99,6 +99,21 @@
       </div>
     </footer>
 
+    <dialog class="booking-dialog confirm-dialog" data-cancel-booking-confirm>
+      <button class="booking-dialog__close" type="button" data-cancel-booking-dismiss aria-label="Close">×</button>
+      <form method="dialog" class="confirm-dialog__body" data-cancel-booking-form>
+        <header class="booking-dialog__head">
+          <p class="eyebrow">Booking</p>
+          <h2>Cancel booking</h2>
+        </header>
+        <p data-cancel-booking-copy>Cancel this booking? You’ll get a refund email, and the place goes back on sale.</p>
+        <div class="confirm-dialog__acts">
+          <button class="btn btn--ghost" type="submit" value="cancel">Keep booking</button>
+          <button class="btn btn--accent" type="submit" value="ok" data-cancel-booking-ok>Cancel &amp; refund</button>
+        </div>
+      </form>
+    </dialog>
+
     <div class="cart-overlay" data-close-cart></div>
     <aside class="cart-drawer" aria-label="Shopping cart">
       <div class="cart-drawer__head">

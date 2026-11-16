@@ -1827,6 +1827,32 @@ a.account-menu__item:hover {
   gap: 0.65rem;
 }
 
+.confirm-dialog {
+  width: min(26rem, calc(100vw - 1.5rem));
+}
+
+.confirm-dialog__body {
+  display: grid;
+  gap: 1.15rem;
+  padding: 1.5rem 1.5rem 1.35rem;
+}
+
+.confirm-dialog .booking-dialog__head {
+  padding-right: 2.5rem;
+}
+
+.confirm-dialog__body p {
+  margin: 0;
+  color: var(--bone-muted);
+}
+
+.confirm-dialog__acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2989,6 +3015,23 @@ main:has(.photo-band:last-child) + .site-footer {
   color: var(--accent);
 }
 
+.booking-dialog a.btn {
+  color: inherit;
+  text-decoration: none;
+}
+
+.booking-dialog a.btn--accent {
+  color: var(--bone);
+}
+
+.booking-dialog a.btn--ghost {
+  color: var(--bone);
+}
+
+.booking-dialog a.btn--white {
+  color: var(--charcoal);
+}
+
 .auth-tabs,
 .auth-actions {
   display: flex;
@@ -3792,7 +3835,115 @@ main:has(.photo-band:last-child) + .site-footer {
   display: flex;
   align-items: center;
   align-self: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   margin-right: 1.15rem;
+}
+
+.event-info-dialog {
+  width: min(40rem, calc(100vw - 1.5rem));
+}
+
+.event-info {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.6rem 1.5rem 1.5rem;
+  max-height: min(82vh, 44rem);
+  overflow: auto;
+}
+
+.event-info .booking-dialog__head {
+  margin: 0;
+}
+
+.event-info .ev-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.event-info .ev-facts > div {
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  background: rgba(245, 245, 240, 0.05);
+}
+
+.event-info .ev-facts b {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone-muted);
+  font-weight: 600;
+}
+
+.event-info .ev-facts b svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
+  color: var(--accent);
+}
+
+.event-info .ev-facts p {
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.event-info__copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.event-info__copy section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.event-info__copy h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone-muted);
+}
+
+.event-info__copy p {
+  margin: 0;
+  color: var(--bone);
+  line-height: 1.55;
+}
+
+.event-info__foot {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(245, 245, 240, 0.12);
+}
+
+.event-info__foot strong {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  line-height: 1;
+  margin-right: auto;
+}
+
+.event-info__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  .event-info .ev-facts {
+    grid-template-columns: 1fr;
+  }
 }
 
 @container (max-width: 680px) {

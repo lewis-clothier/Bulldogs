@@ -1031,13 +1031,17 @@
               ? new Date(person.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
               : "";
             const mail = person.email || person.booking?.email || "";
+            const remove =
+              !cancelled && person.booking_id
+                ? `<button class="btn btn--ghost btn--small" type="button" data-remove-booking="${escapeHtml(person.booking_id)}" data-remove-person="${escapeHtml(person.id)}" data-remove-event="${escapeHtml(eventId)}">Remove</button>`
+                : "";
             const action = !started
               ? arrived
-                ? `<span class="tick">In ${escapeHtml(whenIn)}</span>`
-                : ""
+                ? `<span class="tick">In ${escapeHtml(whenIn)}</span>${remove}`
+                : remove
               : arrived
-                ? `<span class="tick">In ${escapeHtml(whenIn)}</span><button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>`
-                : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(person.checkin_token || "")}" ${person.checkin_token ? "" : "disabled"}>Check in</button>`;
+                ? `<span class="tick">In ${escapeHtml(whenIn)}</span><button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>${remove}`
+                : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(person.checkin_token || "")}" ${person.checkin_token ? "" : "disabled"}>Check in</button>${remove}`;
             const meta = [person.attendee_date_of_birth && `DOB ${person.attendee_date_of_birth}`, mail].filter(Boolean).join(" · ");
             return `<article class="person${arrived ? " in" : ""}">
               <span class="av">${escapeHtml(initials(person.attendee_name) || "·")}</span>
@@ -1318,6 +1322,63 @@
     event.preventDefault();
   });
 
+  const removeBookingDialog = document.querySelector("[data-remove-booking-confirm]");
+  const removeBookingCopy = document.querySelector("[data-remove-booking-copy]");
+  const removeBookingForm = document.querySelector("[data-remove-booking-form]");
+  let pendingRemove = null;
+
+  const closeRemoveBooking = () => {
+    pendingRemove = null;
+    if (removeBookingDialog?.open) removeBookingDialog.close();
+  };
+
+  const openRemoveBooking = (person, eventId) => {
+    if (!removeBookingDialog || !removeBookingCopy || !person?.booking_id) return;
+    const bookingId = person.booking_id;
+    const party = paidPeople(eventId).filter((row) => row.booking_id === bookingId);
+    const names = party.map((row) => row.attendee_name || "Attendee");
+    const amount = Number(person.booking?.amount_pence || person.amount_pence || 0);
+    const money = amount > 0 ? gbp(amount) : "";
+    const placeWord = party.length === 1 ? "place" : "places";
+    const who =
+      party.length > 1
+        ? `This booking covers ${party.length} ${placeWord}: ${names.join(", ")}. All of them will be removed.`
+        : `${names[0] || "This person"} will be removed from the event.`;
+    removeBookingCopy.textContent = `${who} We'll email them and ${
+      money ? `refund ${money}` : "note that no payment needs refunding"
+    }. The ${placeWord} go back on sale.`;
+    pendingRemove = { bookingId, eventId, label: names[0] || "Booking" };
+    if (!removeBookingDialog.open) removeBookingDialog.showModal();
+  };
+
+  removeBookingDialog?.querySelector("[data-remove-booking-cancel]")?.addEventListener("click", closeRemoveBooking);
+  removeBookingDialog?.addEventListener("click", (event) => {
+    if (event.target === removeBookingDialog) closeRemoveBooking();
+  });
+  removeBookingForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitter = event.submitter;
+    const value = submitter?.value || "cancel";
+    if (value !== "ok" || !pendingRemove) {
+      closeRemoveBooking();
+      return;
+    }
+    const { bookingId, eventId, label } = pendingRemove;
+    const okBtn = removeBookingForm.querySelector("[data-remove-booking-ok]");
+    if (okBtn) okBtn.disabled = true;
+    try {
+      await club({ action: "cancel_booking", booking_id: bookingId, refund: true });
+      closeRemoveBooking();
+      await updateEventPeople(eventId);
+      paintKpis();
+      showUndo(`${label} removed`);
+    } catch (err) {
+      if (removeBookingCopy) removeBookingCopy.textContent = err.message || "Couldn't remove that booking.";
+    } finally {
+      if (okBtn) okBtn.disabled = false;
+    }
+  });
+
   eventsList?.addEventListener("click", async (event) => {
     if (event.target.closest("[data-edit-event]")) event.preventDefault();
     const begin = event.target.closest("[data-open-checkin]");
@@ -1325,6 +1386,7 @@
     const start = event.target.closest("[data-start-scan]");
     const manual = event.target.closest("[data-manual-check]");
     const undo = event.target.closest("[data-undo-checkin]");
+    const remove = event.target.closest("[data-remove-booking]");
     const eventId = begin?.dataset.openCheckin || end?.dataset.closeCheckin || event.target.closest("[data-event-item]")?.dataset.eventItem;
     if (begin && eventId) {
       openCheckins(eventId);
@@ -1354,6 +1416,12 @@
         undo.disabled = false;
         paintNote(eventId, scanCard(null, { error: err.message || "Couldn't undo that check-in" }));
       }
+      return;
+    }
+    if (remove) {
+      const removeEventId = remove.dataset.removeEvent || eventId;
+      const person = (attendanceCache[removeEventId] || []).find((row) => row.id === remove.dataset.removePerson);
+      if (person && removeEventId) openRemoveBooking(person, removeEventId);
     }
   });
 
@@ -1665,9 +1733,15 @@
     const list = items || [];
     if (!list.length) return `<span class="order-row__thumbs order-row__thumbs--empty" aria-hidden="true"></span>`;
     return `<span class="order-row__thumbs">${list
-      .slice(0, 3)
-      .map((item) => `<img src="${escapeHtml(productImage(item.colour, item.product_id, item.product_name))}" alt="" />`)
-      .join("")}${list.length > 3 ? `<span>+${list.length - 3}</span>` : ""}</span>`;
+      .map((item) => {
+        const qty = Math.max(1, Number(item.quantity || 1));
+        const src = productImage(item.colour, item.product_id, item.product_name);
+        return `<span class="order-row__thumb">
+          <img src="${escapeHtml(src)}" alt="" />
+          <b aria-label="Quantity ${qty}">x${qty}</b>
+        </span>`;
+      })
+      .join("")}</span>`;
   };
 
   const orderItemSummary = (items) => {

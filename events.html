@@ -228,6 +228,23 @@
       </form>
     </dialog>
 
+    <dialog class="booking-dialog event-info-dialog" data-event-info-dialog aria-labelledby="event-info-title">
+      <button class="booking-dialog__close" type="button" data-close-event-info aria-label="Close">×</button>
+      <div class="event-info" data-event-info>
+        <header class="booking-dialog__head">
+          <p class="eyebrow">Event info</p>
+          <h2 id="event-info-title" data-event-info-title>Event</h2>
+          <p class="muted" data-event-info-when></p>
+        </header>
+        <div class="ev-facts" data-event-info-facts></div>
+        <div class="event-info__copy" data-event-info-copy></div>
+        <div class="event-info__foot">
+          <strong data-event-info-price></strong>
+          <div class="event-info__acts" data-event-info-acts></div>
+        </div>
+      </div>
+    </dialog>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>

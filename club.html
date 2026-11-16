@@ -102,6 +102,20 @@
                     </div>
                   </form>
                 </dialog>
+                <dialog class="booking-dialog confirm-dialog" data-remove-booking-confirm>
+                  <button class="booking-dialog__close" type="button" data-remove-booking-cancel aria-label="Close">×</button>
+                  <form method="dialog" class="confirm-dialog__body" data-remove-booking-form>
+                    <header class="booking-dialog__head">
+                      <p class="eyebrow">Booking</p>
+                      <h2>Remove from event</h2>
+                    </header>
+                    <p data-remove-booking-copy></p>
+                    <div class="confirm-dialog__acts">
+                      <button class="btn btn--ghost" type="submit" value="cancel">Keep booking</button>
+                      <button class="btn btn--accent" type="submit" value="ok" data-remove-booking-ok>Remove &amp; refund</button>
+                    </div>
+                  </form>
+                </dialog>
                 <dialog class="booking-dialog scan-dialog" data-scan-dialog>
                   <button class="booking-dialog__close" type="button" data-scan-close aria-label="Close">×</button>
                   <div class="scan-dialog__body">

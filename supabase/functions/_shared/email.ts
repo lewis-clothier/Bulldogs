@@ -14,6 +14,13 @@ const fromAddress = fromBookings;
 
 const MAX_ATTEMPTS = 3;
 
+export type MailAttachment = {
+  filename: string;
+  content: string;
+  contentType?: string;
+  contentId?: string;
+};
+
 export function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -57,6 +64,7 @@ export async function sendTemplate(message: {
   variables: Record<string, string | number | null | undefined>;
   idempotencyKey: string;
   replyTo?: string;
+  attachments?: MailAttachment[];
 }) {
   if (!resend) {
     console.warn(`RESEND_API_KEY not set; skipped ${message.template} to ${message.to}`);
@@ -68,6 +76,13 @@ export async function sendTemplate(message: {
     if (value !== null && value !== undefined && value !== "") variables[key] = value;
   }
 
+  const attachments = message.attachments?.map((file) => ({
+    filename: file.filename,
+    content: file.content,
+    ...(file.contentType ? { contentType: file.contentType } : {}),
+    ...(file.contentId ? { contentId: file.contentId } : {}),
+  }));
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const { data, error } = await resend.emails.send(
@@ -75,6 +90,7 @@ export async function sendTemplate(message: {
           to: message.to,
           ...(message.replyTo && { replyTo: message.replyTo }),
           template: { id: message.template, variables },
+          ...(attachments?.length ? { attachments } : {}),
         },
         { idempotencyKey: message.idempotencyKey },
       );
@@ -99,13 +115,6 @@ export async function sendTemplate(message: {
     await sleep(1000 * 2 ** (attempt - 1));
   }
 }
-
-export type MailAttachment = {
-  filename: string;
-  content: string;
-  contentType?: string;
-  contentId?: string;
-};
 
 export async function sendHtml(message: {
   to: string;

@@ -8,6 +8,7 @@
   const attendeesEl = document.querySelector("[data-attendees]");
   const waitDialog = document.querySelector("[data-waitlist-dialog]");
   const waitForm = document.querySelector("[data-waitlist-form]");
+  const infoDialog = document.querySelector("[data-event-info-dialog]");
   if (!listEl || !supabaseUrl || !supabaseKey || !api) return;
 
   const money = (pence, currency = "gbp") =>
@@ -60,14 +61,17 @@
     return `${event.spaces_left} places left`;
   };
 
+  const infoBtn = (event, size = "small") =>
+    `<button class="btn btn--ghost${size === "small" ? " btn--small" : ""}" type="button" data-event-info="${escapeHtml(event.id)}">More info</button>`;
+
   const actionFor = (event) => {
     if (event.is_bookable) {
-      return `<button class="btn btn--accent btn--small" type="button" data-book="${escapeHtml(event.id)}">Book</button>`;
+      return `${infoBtn(event)}<button class="btn btn--accent btn--small" type="button" data-book="${escapeHtml(event.id)}">Book</button>`;
     }
     if (event.spaces_left === 0) {
-      return `<button class="btn btn--accent btn--small" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
+      return `${infoBtn(event)}<button class="btn btn--accent btn--small" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
     }
-    return `<span class="btn btn--ghost btn--small" aria-disabled="true">Closed</span>`;
+    return `${infoBtn(event)}<span class="btn btn--ghost btn--small" aria-disabled="true">Closed</span>`;
   };
 
   const capacityBar = (event) => {
@@ -99,19 +103,19 @@
           <h3>${escapeHtml(event.title)}</h3>
           <p class="muted">${meta}</p>
           ${capacityBar(event)}
-          <div class="poster__foot"><strong>${escapeHtml(price)}</strong>${actionFor(event)}</div>
+          <div class="poster__foot"><strong>${escapeHtml(price)}</strong><div class="poster__acts">${actionFor(event)}</div></div>
         </div>
       </article>`;
   };
 
   const featureAction = (event) => {
     if (event.is_bookable) {
-      return `<button class="btn btn--accent" type="button" data-book="${escapeHtml(event.id)}">Book now</button>`;
+      return `${infoBtn(event, "regular")}<button class="btn btn--accent" type="button" data-book="${escapeHtml(event.id)}">Book now</button>`;
     }
     if (event.spaces_left === 0) {
-      return `<button class="btn btn--accent" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
+      return `${infoBtn(event, "regular")}<button class="btn btn--accent" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
     }
-    return `<span class="btn btn--ghost" aria-disabled="true">Closed</span>`;
+    return `${infoBtn(event, "regular")}<span class="btn btn--ghost" aria-disabled="true">Closed</span>`;
   };
 
   const clock = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -357,21 +361,80 @@
     waitDialog.showModal();
   };
 
+  const multiline = (value) =>
+    escapeHtml(value)
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => `<p>${line}</p>`)
+      .join("");
+
+  const openEventInfo = (event) => {
+    if (!event || !infoDialog) return;
+    const at = (iso) => parts(iso, { hour: "2-digit", minute: "2-digit" });
+    const date = parts(event.starts_at, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    const clockTime = event.ends_at ? `${at(event.starts_at)} – ${at(event.ends_at)}` : at(event.starts_at);
+    const price = event.price_pence ? money(event.price_pence, event.currency) : "Free";
+    infoDialog.querySelector("[data-event-info-title]").textContent = event.title;
+    infoDialog.querySelector("[data-event-info-when]").textContent = `${date} · ${clockTime}`;
+    infoDialog.querySelector("[data-event-info-price]").textContent = price;
+    infoDialog.querySelector("[data-event-info-facts]").innerHTML = `
+      <div><b>${pin}Where</b><p>${escapeHtml(event.location || "TBC")}</p></div>
+      <div><b>${clock}When</b><p>${escapeHtml(date)} · ${escapeHtml(clockTime)}</p></div>
+      <div><b>${person}Who</b><p>${escapeHtml(whoFor(event.age_range))}</p></div>
+      <div><b>Places</b><p>${escapeHtml(spacesLabel(event))}</p></div>`;
+    const blocks = [];
+    if (event.summary) {
+      blocks.push(`<section><h3>Summary</h3>${multiline(event.summary)}</section>`);
+    }
+    if (event.description) {
+      blocks.push(`<section><h3>Description</h3>${multiline(event.description)}</section>`);
+    }
+    if (event.what_to_bring) {
+      blocks.push(`<section><h3>What to bring</h3>${multiline(event.what_to_bring)}</section>`);
+    }
+    if (!blocks.length) {
+      blocks.push(`<p class="muted">No extra details for this event yet.</p>`);
+    }
+    infoDialog.querySelector("[data-event-info-copy]").innerHTML = blocks.join("");
+    const acts = infoDialog.querySelector("[data-event-info-acts]");
+    if (event.is_bookable) {
+      acts.innerHTML = `<button class="btn btn--accent" type="button" data-book="${escapeHtml(event.id)}">Book now</button>`;
+    } else if (event.spaces_left === 0) {
+      acts.innerHTML = `<button class="btn btn--accent" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
+    } else {
+      acts.innerHTML = `<span class="btn btn--ghost" aria-disabled="true">Closed</span>`;
+    }
+    infoDialog.showModal();
+  };
+
   const loadEvents = async () => {
     listEl.innerHTML = `<p class="muted">Loading dates…</p>`;
     events = await api.rpc("list_upcoming_events");
     renderEvents();
   };
 
-  listEl.addEventListener("click", (e) => {
+  const onEventActionClick = (e) => {
+    const info = e.target.closest("[data-event-info]");
+    if (info) {
+      openEventInfo(events.find((item) => item.id === info.getAttribute("data-event-info")));
+      return;
+    }
     const book = e.target.closest("[data-book]");
     if (book) {
+      infoDialog?.close();
       openBooking(events.find((item) => item.id === book.getAttribute("data-book")));
       return;
     }
     const wait = e.target.closest("[data-waitlist]");
-    if (wait) openWaitlist(events.find((item) => item.id === wait.getAttribute("data-waitlist")));
-  });
+    if (wait) {
+      infoDialog?.close();
+      openWaitlist(events.find((item) => item.id === wait.getAttribute("data-waitlist")));
+    }
+  };
+
+  listEl.addEventListener("click", onEventActionClick);
+  infoDialog?.addEventListener("click", onEventActionClick);
 
   dialog?.querySelectorAll("[data-close-booking]").forEach((btn) => {
     btn.addEventListener("click", () => dialog.close());
@@ -379,6 +442,10 @@
 
   waitDialog?.querySelectorAll("[data-close-waitlist]").forEach((btn) => {
     btn.addEventListener("click", () => waitDialog.close());
+  });
+
+  infoDialog?.querySelectorAll("[data-close-event-info]").forEach((btn) => {
+    btn.addEventListener("click", () => infoDialog.close());
   });
 
   waitForm?.addEventListener("submit", async (e) => {
