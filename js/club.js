@@ -29,17 +29,16 @@
   const eventForm = document.querySelector("[data-event-form]");
   const fld = (name) => eventForm.elements.namedItem(name);
 
+  let productImagesCache = {};
   const productImage = (colour, productId = "", productName = "") => {
-    const id = String(productId || "");
-    const name = String(productName || "").toLowerCase();
-    const tone = String(colour || "").toLowerCase();
-    if (id === "bulldogs-tee" || name.includes("tee") || !id) {
-      if (tone === "blue") return "assets/products/product_1_blue_front_cutout.png";
-      if (tone === "orange") return "assets/products/product_1_orange_front_cutout.png";
+    const tone = String(colour || "").toLowerCase() || "orange";
+    const fromDb = productImagesCache?.[tone]?.front;
+    if (fromDb) return fromDb;
+    const media = window.BULLDOGS_MEDIA?.publicMediaUrl;
+    if (media) {
+      return media(`products/product_1_${tone}_front_cutout.png`);
     }
-    if (tone === "blue") return "assets/products/product_1_blue_front_cutout.png";
-    if (tone === "orange") return "assets/products/product_1_orange_front_cutout.png";
-    return "assets/products/product_1_orange_front_cutout.png";
+    return `assets/products/product_1_${tone === "blue" ? "blue" : "orange"}_front_cutout.png`;
   };
 
   const colourLabel = (colour) => {
@@ -171,15 +170,31 @@
     }
   });
 
-  const eventPhotos = window.BULLDOGS?.eventPhotos || [];
-  const defaultCover = eventPhotos[0]?.src || "";
-  const coverAllowed = new Set(eventPhotos.map((photo) => photo.src));
+  let eventLibrary = [];
+  const defaultCover = () =>
+    eventLibrary[0]?.url ||
+    window.BULLDOGS_SITE_MEDIA?.home_event_fallback ||
+    window.BULLDOGS_MEDIA?.publicMediaUrl?.("events/events-hero.jpg") ||
+    "";
   const coverFor = (ev) => {
-    if (ev?.cover_image && coverAllowed.has(ev.cover_image)) return ev.cover_image;
-    if (!ev?.id || !eventPhotos.length) return defaultCover;
+    if (ev?.cover_image) return ev.cover_image;
+    if (!ev?.id || !eventLibrary.length) return defaultCover();
     let n = 0;
-    for (const ch of String(ev.id)) n = (n + ch.charCodeAt(0)) % eventPhotos.length;
-    return eventPhotos[n].src;
+    for (const ch of String(ev.id)) n = (n + ch.charCodeAt(0)) % eventLibrary.length;
+    return eventLibrary[n].url;
+  };
+
+  const loadEventLibrary = async () => {
+    try {
+      const { files } = await club({ action: "list_media", folder: "events" });
+      eventLibrary = (files || []).map((file) => ({
+        src: file.url,
+        url: file.url,
+        label: file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+      }));
+    } catch {
+      eventLibrary = [];
+    }
   };
 
   const payloadFromEvent = (ev) => ({
@@ -633,12 +648,19 @@
   let coverMode = "poster";
   const paintCoverPicks = (selected) => {
     if (!coverPicks) return;
-    const current = selected && coverAllowed.has(selected) ? selected : defaultCover;
+    const library = eventLibrary.length
+      ? eventLibrary
+      : selected
+        ? [{ src: selected, url: selected, label: "Current" }]
+        : [];
+    const current = selected || defaultCover();
     if (fld("cover_image")) fld("cover_image").value = current;
-    coverPicks.innerHTML = eventPhotos
+    const hasCurrent = library.some((photo) => photo.url === current || photo.src === current);
+    const picks = hasCurrent || !current ? library : [{ src: current, url: current, label: "Current" }, ...library];
+    coverPicks.innerHTML = picks
       .map(
         (photo) =>
-          `<button class="cover-pick${photo.src === current ? " is-on" : ""}" type="button" data-cover-src="${escapeHtml(photo.src)}" aria-pressed="${photo.src === current ? "true" : "false"}" aria-label="${escapeHtml(photo.label)}"><img src="${escapeHtml(photo.src)}" alt="" /><span>${escapeHtml(photo.label)}</span></button>`,
+          `<button class="cover-pick${photo.url === current || photo.src === current ? " is-on" : ""}" type="button" data-cover-src="${escapeHtml(photo.url || photo.src)}" aria-pressed="${photo.url === current || photo.src === current ? "true" : "false"}" aria-label="${escapeHtml(photo.label)}"><img src="${escapeHtml(photo.url || photo.src)}" alt="" /><span>${escapeHtml(photo.label)}</span></button>`,
       )
       .join("");
   };
@@ -650,7 +672,7 @@
   const paintCoverPreview = () => {
     const preview = eventForm?.querySelector("[data-cover-preview]");
     if (!preview) return;
-    const src = fld("cover_image")?.value || defaultCover;
+    const src = fld("cover_image")?.value || defaultCover();
     const title = fld("title")?.value.trim() || "New event";
     const summary = fld("summary")?.value.trim() || "";
     const location = fld("location")?.value.trim() || "TBC";
@@ -735,7 +757,7 @@
     eventForm.querySelector("[data-cancel-event]").hidden = true;
     eventForm.querySelector(".form-status").textContent = "";
     document.querySelector("[data-event-dialog-title]").textContent = "New event";
-    paintCoverPicks(defaultCover);
+    paintCoverPicks(defaultCover());
     paintCoverPreview();
   };
 
@@ -1031,13 +1053,17 @@
               ? new Date(person.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
               : "";
             const mail = person.email || person.booking?.email || "";
+            const remove =
+              !cancelled && person.booking_id
+                ? `<button class="btn btn--ghost btn--small" type="button" data-remove-booking="${escapeHtml(person.booking_id)}" data-remove-person="${escapeHtml(person.id)}" data-remove-event="${escapeHtml(eventId)}">Remove</button>`
+                : "";
             const action = !started
               ? arrived
-                ? `<span class="tick">In ${escapeHtml(whenIn)}</span>`
-                : ""
+                ? `<span class="tick">In ${escapeHtml(whenIn)}</span>${remove}`
+                : remove
               : arrived
-                ? `<span class="tick">In ${escapeHtml(whenIn)}</span><button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>`
-                : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(person.checkin_token || "")}" ${person.checkin_token ? "" : "disabled"}>Check in</button>`;
+                ? `<span class="tick">In ${escapeHtml(whenIn)}</span><button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>${remove}`
+                : `<button class="btn btn--accent btn--small" type="button" data-manual-check="${escapeHtml(person.checkin_token || "")}" ${person.checkin_token ? "" : "disabled"}>Check in</button>${remove}`;
             const meta = [person.attendee_date_of_birth && `DOB ${person.attendee_date_of_birth}`, mail].filter(Boolean).join(" · ");
             return `<article class="person${arrived ? " in" : ""}">
               <span class="av">${escapeHtml(initials(person.attendee_name) || "·")}</span>
@@ -1318,6 +1344,63 @@
     event.preventDefault();
   });
 
+  const removeBookingDialog = document.querySelector("[data-remove-booking-confirm]");
+  const removeBookingCopy = document.querySelector("[data-remove-booking-copy]");
+  const removeBookingForm = document.querySelector("[data-remove-booking-form]");
+  let pendingRemove = null;
+
+  const closeRemoveBooking = () => {
+    pendingRemove = null;
+    if (removeBookingDialog?.open) removeBookingDialog.close();
+  };
+
+  const openRemoveBooking = (person, eventId) => {
+    if (!removeBookingDialog || !removeBookingCopy || !person?.booking_id) return;
+    const bookingId = person.booking_id;
+    const party = paidPeople(eventId).filter((row) => row.booking_id === bookingId);
+    const names = party.map((row) => row.attendee_name || "Attendee");
+    const amount = Number(person.booking?.amount_pence || person.amount_pence || 0);
+    const money = amount > 0 ? gbp(amount) : "";
+    const placeWord = party.length === 1 ? "place" : "places";
+    const who =
+      party.length > 1
+        ? `This booking covers ${party.length} ${placeWord}: ${names.join(", ")}. All of them will be removed.`
+        : `${names[0] || "This person"} will be removed from the event.`;
+    removeBookingCopy.textContent = `${who} We'll email them and ${
+      money ? `refund ${money}` : "note that no payment needs refunding"
+    }. The ${placeWord} go back on sale.`;
+    pendingRemove = { bookingId, eventId, label: names[0] || "Booking" };
+    if (!removeBookingDialog.open) removeBookingDialog.showModal();
+  };
+
+  removeBookingDialog?.querySelector("[data-remove-booking-cancel]")?.addEventListener("click", closeRemoveBooking);
+  removeBookingDialog?.addEventListener("click", (event) => {
+    if (event.target === removeBookingDialog) closeRemoveBooking();
+  });
+  removeBookingForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitter = event.submitter;
+    const value = submitter?.value || "cancel";
+    if (value !== "ok" || !pendingRemove) {
+      closeRemoveBooking();
+      return;
+    }
+    const { bookingId, eventId, label } = pendingRemove;
+    const okBtn = removeBookingForm.querySelector("[data-remove-booking-ok]");
+    if (okBtn) okBtn.disabled = true;
+    try {
+      await club({ action: "cancel_booking", booking_id: bookingId, refund: true });
+      closeRemoveBooking();
+      await updateEventPeople(eventId);
+      paintKpis();
+      showUndo(`${label} removed`);
+    } catch (err) {
+      if (removeBookingCopy) removeBookingCopy.textContent = err.message || "Couldn't remove that booking.";
+    } finally {
+      if (okBtn) okBtn.disabled = false;
+    }
+  });
+
   eventsList?.addEventListener("click", async (event) => {
     if (event.target.closest("[data-edit-event]")) event.preventDefault();
     const begin = event.target.closest("[data-open-checkin]");
@@ -1325,6 +1408,7 @@
     const start = event.target.closest("[data-start-scan]");
     const manual = event.target.closest("[data-manual-check]");
     const undo = event.target.closest("[data-undo-checkin]");
+    const remove = event.target.closest("[data-remove-booking]");
     const eventId = begin?.dataset.openCheckin || end?.dataset.closeCheckin || event.target.closest("[data-event-item]")?.dataset.eventItem;
     if (begin && eventId) {
       openCheckins(eventId);
@@ -1354,6 +1438,12 @@
         undo.disabled = false;
         paintNote(eventId, scanCard(null, { error: err.message || "Couldn't undo that check-in" }));
       }
+      return;
+    }
+    if (remove) {
+      const removeEventId = remove.dataset.removeEvent || eventId;
+      const person = (attendanceCache[removeEventId] || []).find((row) => row.id === remove.dataset.removePerson);
+      if (person && removeEventId) openRemoveBooking(person, removeEventId);
     }
   });
 
@@ -1665,9 +1755,15 @@
     const list = items || [];
     if (!list.length) return `<span class="order-row__thumbs order-row__thumbs--empty" aria-hidden="true"></span>`;
     return `<span class="order-row__thumbs">${list
-      .slice(0, 3)
-      .map((item) => `<img src="${escapeHtml(productImage(item.colour, item.product_id, item.product_name))}" alt="" />`)
-      .join("")}${list.length > 3 ? `<span>+${list.length - 3}</span>` : ""}</span>`;
+      .map((item) => {
+        const qty = Math.max(1, Number(item.quantity || 1));
+        const src = productImage(item.colour, item.product_id, item.product_name);
+        return `<span class="order-row__thumb">
+          <img src="${escapeHtml(src)}" alt="" />
+          <b aria-label="Quantity ${qty}">x${qty}</b>
+        </span>`;
+      })
+      .join("")}</span>`;
   };
 
   const orderItemSummary = (items) => {
@@ -1902,4 +1998,212 @@
       alert(err.message);
     }
   });
+
+  const siteMediaList = document.querySelector("[data-site-media-list]");
+  const productMedia = document.querySelector("[data-product-media]");
+  const athletesMedia = document.querySelector("[data-athletes-media]");
+  const mediaUpload = window.BULLDOGS_MEDIA?.uploadMedia;
+  const mediaCard = (thumb, title, meta, actions) =>
+    `<article class="media-card">
+      <figure>${thumb ? `<img src="${escapeHtml(thumb)}" alt="" />` : `<span class="media-card__empty">No image</span>`}</figure>
+      <div class="media-card__body">
+        <h3>${escapeHtml(title)}</h3>
+        ${meta ? `<p class="muted">${meta}</p>` : ""}
+        <div class="media-card__acts">${actions}</div>
+      </div>
+    </article>`;
+
+  async function loadMediaPanel() {
+    if (!siteMediaList && !productMedia && !athletesMedia) return;
+    const settled = await Promise.allSettled([
+      club({ action: "list_site_media_admin" }),
+      club({ action: "list_athletes_admin" }),
+      club({ action: "get_product_images", product_id: "bulldogs-tee" }),
+    ]);
+    const items = settled[0].status === "fulfilled" ? settled[0].value.items || [] : null;
+    const athletes = settled[1].status === "fulfilled" ? settled[1].value.athletes || [] : null;
+    const productRes = settled[2].status === "fulfilled" ? settled[2].value : null;
+    const images = productRes?.product?.images || {};
+    productImagesCache = images;
+    if (siteMediaList) {
+      if (items) {
+        siteMediaList.innerHTML =
+          items
+            .map(
+              (item) =>
+                mediaCard(
+                  item.url,
+                  item.label || item.key,
+                  item.key,
+                  `<label class="btn btn--ghost btn--small">Replace<input type="file" accept="image/*" data-site-upload="${escapeHtml(item.key)}" hidden /></label>`,
+                ),
+            )
+            .join("") || empty("No site media slots yet.");
+      } else {
+        fail(siteMediaList, settled[0].reason || new Error("Couldn't load site photos"));
+      }
+    }
+    if (productMedia) {
+      if (productRes) {
+        const colours = ["orange", "blue"];
+        productMedia.innerHTML = `<div class="media-grid">${colours
+          .map((colour) => {
+            const shot = images?.[colour] || {};
+            return `<article class="media-card media-card--product">
+              <h3>${escapeHtml(colour.charAt(0).toUpperCase() + colour.slice(1))} print</h3>
+              <div class="media-card__pair">
+                <div>
+                  <figure>${shot.front ? `<img src="${escapeHtml(shot.front)}" alt="" />` : `<span class="media-card__empty">Front</span>`}</figure>
+                  <label class="btn btn--ghost btn--small">Front<input type="file" accept="image/*" data-product-upload="bulldogs-tee:${escapeHtml(colour)}:front" hidden /></label>
+                </div>
+                <div>
+                  <figure>${shot.back ? `<img src="${escapeHtml(shot.back)}" alt="" />` : `<span class="media-card__empty">Back</span>`}</figure>
+                  <label class="btn btn--ghost btn--small">Back<input type="file" accept="image/*" data-product-upload="bulldogs-tee:${escapeHtml(colour)}:back" hidden /></label>
+                </div>
+              </div>
+            </article>`;
+          })
+          .join("")}</div>`;
+      } else {
+        fail(productMedia, settled[2].reason || new Error("Couldn't load product photos"));
+      }
+    }
+    if (athletesMedia) {
+      if (athletes) {
+        athletesMedia.innerHTML =
+          athletes
+            .map((athlete) => {
+              const kit = athlete.kit_number != null ? `#${athlete.kit_number}` : "";
+              const home = athlete.show_on_home ? " · Home" : "";
+              return mediaCard(
+                athlete.image_url,
+                athlete.name,
+                `${escapeHtml(athlete.role || "Athlete")}${kit ? ` · ${kit}` : ""}${home}`,
+                `<label class="btn btn--ghost btn--small">Replace photo<input type="file" accept="image/*" data-athlete-upload="${escapeHtml(athlete.id)}" hidden /></label>
+               <label class="field field--check"><input type="checkbox" data-athlete-home="${escapeHtml(athlete.id)}"${athlete.show_on_home ? " checked" : ""} /><span>Show on home</span></label>`,
+              );
+            })
+            .join("") || empty("No athletes yet.");
+      } else {
+        fail(athletesMedia, settled[1].reason || new Error("Couldn't load athletes"));
+      }
+    }
+  }
+
+  const onMediaFile = async (input, work) => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !mediaUpload) return;
+    const card = input.closest(".media-card");
+    const status = card?.querySelector(".media-card__status") || card;
+    try {
+      if (status?.classList?.contains("media-card")) {
+        /* keep UI quiet */
+      }
+      await work(file);
+      await loadMediaPanel();
+    } catch (err) {
+      alert(err.message || "Upload failed");
+    }
+  };
+
+  siteMediaList?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-site-upload]");
+    if (!input) return;
+    await onMediaFile(input, async (file) => {
+      const url = await mediaUpload("site", file);
+      await club({ action: "set_site_media", key: input.dataset.siteUpload, url });
+    });
+  });
+
+  productMedia?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-product-upload]");
+    if (!input) return;
+    await onMediaFile(input, async (file) => {
+      const [productId, colour, view] = String(input.dataset.productUpload || "").split(":");
+      const url = await mediaUpload("products", file);
+      const next = JSON.parse(JSON.stringify(productImagesCache || {}));
+      if (!next[colour]) next[colour] = {};
+      next[colour][view] = url;
+      await club({ action: "set_product_images", product_id: productId, images: next });
+      productImagesCache = next;
+    });
+  });
+
+  athletesMedia?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-athlete-upload]");
+    if (!input) return;
+    await onMediaFile(input, async (file) => {
+      const url = await mediaUpload("athletes", file);
+      const athlete = (await club({ action: "list_athletes_admin" })).athletes?.find((row) => row.id === input.dataset.athleteUpload);
+      if (!athlete) throw new Error("Athlete not found");
+      await club({
+        action: "upsert_athlete",
+        id: athlete.id,
+        name: athlete.name,
+        kit_number: athlete.kit_number,
+        role: athlete.role,
+        image_url: url,
+        sort_order: athlete.sort_order,
+        is_published: athlete.is_published,
+        show_on_home: athlete.show_on_home,
+      });
+    });
+  });
+
+  athletesMedia?.addEventListener("change", async (event) => {
+    const box = event.target.closest("[data-athlete-home]");
+    if (!box || box.type !== "checkbox") return;
+    try {
+      const athlete = (await club({ action: "list_athletes_admin" })).athletes?.find((row) => row.id === box.dataset.athleteHome);
+      if (!athlete) throw new Error("Athlete not found");
+      await club({
+        action: "upsert_athlete",
+        id: athlete.id,
+        name: athlete.name,
+        kit_number: athlete.kit_number,
+        role: athlete.role,
+        image_url: athlete.image_url,
+        sort_order: athlete.sort_order,
+        is_published: athlete.is_published,
+        show_on_home: box.checked,
+      });
+    } catch (err) {
+      alert(err.message);
+      box.checked = !box.checked;
+    }
+  });
+
+  eventForm?.querySelector("[data-cover-upload]")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    const status = eventForm.querySelector("[data-cover-upload-status]");
+    if (!file || !mediaUpload) return;
+    try {
+      if (status) status.textContent = "Uploading…";
+      const url = await mediaUpload("events", file);
+      await loadEventLibrary();
+      paintCoverPicks(url);
+      paintCoverPreview();
+      syncSaveBar();
+      if (status) status.textContent = "Cover updated — save the event to keep it.";
+    } catch (err) {
+      if (status) status.textContent = err.message || "Upload failed";
+    }
+  });
+
+  const refreshProductImages = async () => {
+    try {
+      const { product } = await club({ action: "get_product_images", product_id: "bulldogs-tee" });
+      productImagesCache = product?.images || {};
+    } catch {
+      productImagesCache = {};
+    }
+  };
+
+  const bootMedia = async () => {
+    await Promise.all([loadEventLibrary(), refreshProductImages()]);
+  };
+  bootMedia();
 })();

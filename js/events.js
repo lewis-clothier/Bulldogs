@@ -8,6 +8,7 @@
   const attendeesEl = document.querySelector("[data-attendees]");
   const waitDialog = document.querySelector("[data-waitlist-dialog]");
   const waitForm = document.querySelector("[data-waitlist-form]");
+  const infoDialog = document.querySelector("[data-event-info-dialog]");
   if (!listEl || !supabaseUrl || !supabaseKey || !api) return;
 
   const money = (pence, currency = "gbp") =>
@@ -54,27 +55,30 @@
   else if (params.get("booking") === "cancelled") showBanner("Payment was cancelled. Your place was not held.", true);
 
   const spacesLabel = (event) => {
-    if (event.spaces_left == null) return "Places available";
+    if (event.spaces_left == null) return "Spaces available";
     if (event.spaces_left === 0) return "Full";
-    if (event.spaces_left === 1) return "1 place left";
-    return `${event.spaces_left} places left`;
+    if (event.spaces_left === 1) return "1 space left";
+    return `${event.spaces_left} spaces left`;
   };
+
+  const infoBtn = (event, size = "small") =>
+    `<button class="btn btn--ghost${size === "small" ? " btn--small" : ""}" type="button" data-event-info="${escapeHtml(event.id)}">More info</button>`;
 
   const actionFor = (event) => {
     if (event.is_bookable) {
-      return `<button class="btn btn--accent btn--small" type="button" data-book="${escapeHtml(event.id)}">Book</button>`;
+      return `${infoBtn(event)}<button class="btn btn--accent btn--small" type="button" data-book="${escapeHtml(event.id)}">Book</button>`;
     }
     if (event.spaces_left === 0) {
-      return `<button class="btn btn--accent btn--small" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
+      return `${infoBtn(event)}<button class="btn btn--accent btn--small" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
     }
-    return `<span class="btn btn--ghost btn--small" aria-disabled="true">Closed</span>`;
+    return `${infoBtn(event)}<span class="btn btn--ghost btn--small" aria-disabled="true">Closed</span>`;
   };
 
   const capacityBar = (event) => {
-    if (event.capacity == null || event.spaces_left == null) return `<div class="bar">Places available</div>`;
+    if (event.capacity == null || event.spaces_left == null) return `<div class="bar">Spaces available</div>`;
     const booked = event.capacity - event.spaces_left;
     const fill = event.capacity ? Math.min(100, Math.round((booked / event.capacity) * 100)) : 0;
-    return `<div class="bar" style="--bar: ${fill}%">${escapeHtml(booked)} of ${escapeHtml(event.capacity)} booked<i></i></div>`;
+    return `<div class="bar" style="--bar: ${fill}%">${escapeHtml(spacesLabel(event))}<i></i></div>`;
   };
 
   const poster = (event, photo) => {
@@ -91,7 +95,7 @@
     return `
       <article class="poster${full ? " poster--full" : ""}">
         <figure>
-          <img src="${photo}" alt="" />
+          <img src="${escapeHtml(photo)}" alt="" data-editable-media="event" data-event-id="${escapeHtml(event.id)}" />
           <div class="date"><b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b><span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span></div>
           ${tag}
         </figure>
@@ -99,19 +103,19 @@
           <h3>${escapeHtml(event.title)}</h3>
           <p class="muted">${meta}</p>
           ${capacityBar(event)}
-          <div class="poster__foot"><strong>${escapeHtml(price)}</strong>${actionFor(event)}</div>
+          <div class="poster__foot"><strong>${escapeHtml(price)}</strong><div class="poster__acts">${actionFor(event)}</div></div>
         </div>
       </article>`;
   };
 
   const featureAction = (event) => {
     if (event.is_bookable) {
-      return `<button class="btn btn--accent" type="button" data-book="${escapeHtml(event.id)}">Book now</button>`;
+      return `${infoBtn(event, "regular")}<button class="btn btn--accent" type="button" data-book="${escapeHtml(event.id)}">Book now</button>`;
     }
     if (event.spaces_left === 0) {
-      return `<button class="btn btn--accent" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
+      return `${infoBtn(event, "regular")}<button class="btn btn--accent" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
     }
-    return `<span class="btn btn--ghost" aria-disabled="true">Closed</span>`;
+    return `${infoBtn(event, "regular")}<span class="btn btn--ghost" aria-disabled="true">Closed</span>`;
   };
 
   const clock = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -135,7 +139,7 @@
     return `
       <article class="ev-feature glass${full ? " is-full" : ""}">
         <figure>
-          <img src="${photo}" alt="" />
+          <img src="${escapeHtml(photo)}" alt="" data-editable-media="event" data-event-id="${escapeHtml(event.id)}" />
           <div class="date"><b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b><span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span></div>
         </figure>
         <div class="ev-feature__body">
@@ -158,23 +162,23 @@
 
   let events = [];
 
-  const DECOR = (window.BULLDOGS?.eventPhotos || []).map((photo) => photo.src).filter(Boolean);
-  const photoPool = DECOR.length
-    ? DECOR
-    : [
-        "assets/photos/web/round2-pack.jpg",
-        "assets/photos/web/round2-herning.jpg",
-        "assets/photos/web/arena-fear.jpg",
-        "assets/photos/web/team-hero.jpg",
-        "assets/photos/web/events-hero.jpg",
-      ];
-  const allowedPhotos = new Set(photoPool);
+  const mediaUrl = (path) => window.BULLDOGS_MEDIA?.publicMediaUrl?.(path) || path;
+  const photoPool = [
+    mediaUrl("events/round2-pack.jpg"),
+    mediaUrl("events/round2-herning.jpg"),
+    mediaUrl("events/arena-fear.jpg"),
+    mediaUrl("events/team-hero.jpg"),
+    mediaUrl("events/events-hero.jpg"),
+  ];
 
   const photoFor = (event) => {
-    if (event?.cover_image && allowedPhotos.has(event.cover_image)) return event.cover_image;
+    const cover = String(event?.cover_image || "").trim();
+    if (cover && (/^https?:\/\//i.test(cover) || cover.startsWith("assets/"))) return cover;
+    const fallback = window.BULLDOGS_SITE_MEDIA?.home_event_fallback || photoPool[0];
+    if (!event?.id) return fallback;
     let n = 0;
-    for (const ch of String(event?.id || "")) n = (n + ch.charCodeAt(0)) % photoPool.length;
-    return photoPool[n];
+    for (const ch of String(event.id)) n = (n + ch.charCodeAt(0)) % photoPool.length;
+    return photoPool[n] || fallback;
   };
 
   const untilLabel = (iso) => {
@@ -357,21 +361,80 @@
     waitDialog.showModal();
   };
 
+  const multiline = (value) =>
+    escapeHtml(value)
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => `<p>${line}</p>`)
+      .join("");
+
+  const openEventInfo = (event) => {
+    if (!event || !infoDialog) return;
+    const at = (iso) => parts(iso, { hour: "2-digit", minute: "2-digit" });
+    const date = parts(event.starts_at, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    const clockTime = event.ends_at ? `${at(event.starts_at)} – ${at(event.ends_at)}` : at(event.starts_at);
+    const price = event.price_pence ? money(event.price_pence, event.currency) : "Free";
+    infoDialog.querySelector("[data-event-info-title]").textContent = event.title;
+    infoDialog.querySelector("[data-event-info-when]").textContent = `${date} · ${clockTime}`;
+    infoDialog.querySelector("[data-event-info-price]").textContent = price;
+    infoDialog.querySelector("[data-event-info-facts]").innerHTML = `
+      <div><b>${pin}Where</b><p>${escapeHtml(event.location || "TBC")}</p></div>
+      <div><b>${clock}When</b><p>${escapeHtml(date)} · ${escapeHtml(clockTime)}</p></div>
+      <div><b>${person}Who</b><p>${escapeHtml(whoFor(event.age_range))}</p></div>
+      <div><b>Places</b><p>${escapeHtml(spacesLabel(event))}</p></div>`;
+    const blocks = [];
+    if (event.summary) {
+      blocks.push(`<section><h3>Summary</h3>${multiline(event.summary)}</section>`);
+    }
+    if (event.description) {
+      blocks.push(`<section><h3>Description</h3>${multiline(event.description)}</section>`);
+    }
+    if (event.what_to_bring) {
+      blocks.push(`<section><h3>What to bring</h3>${multiline(event.what_to_bring)}</section>`);
+    }
+    if (!blocks.length) {
+      blocks.push(`<p class="muted">No extra details for this event yet.</p>`);
+    }
+    infoDialog.querySelector("[data-event-info-copy]").innerHTML = blocks.join("");
+    const acts = infoDialog.querySelector("[data-event-info-acts]");
+    if (event.is_bookable) {
+      acts.innerHTML = `<button class="btn btn--accent" type="button" data-book="${escapeHtml(event.id)}">Book now</button>`;
+    } else if (event.spaces_left === 0) {
+      acts.innerHTML = `<button class="btn btn--accent" type="button" data-waitlist="${escapeHtml(event.id)}">Join waitlist</button>`;
+    } else {
+      acts.innerHTML = `<span class="btn btn--ghost" aria-disabled="true">Closed</span>`;
+    }
+    infoDialog.showModal();
+  };
+
   const loadEvents = async () => {
     listEl.innerHTML = `<p class="muted">Loading dates…</p>`;
     events = await api.rpc("list_upcoming_events");
     renderEvents();
   };
 
-  listEl.addEventListener("click", (e) => {
+  const onEventActionClick = (e) => {
+    const info = e.target.closest("[data-event-info]");
+    if (info) {
+      openEventInfo(events.find((item) => item.id === info.getAttribute("data-event-info")));
+      return;
+    }
     const book = e.target.closest("[data-book]");
     if (book) {
+      infoDialog?.close();
       openBooking(events.find((item) => item.id === book.getAttribute("data-book")));
       return;
     }
     const wait = e.target.closest("[data-waitlist]");
-    if (wait) openWaitlist(events.find((item) => item.id === wait.getAttribute("data-waitlist")));
-  });
+    if (wait) {
+      infoDialog?.close();
+      openWaitlist(events.find((item) => item.id === wait.getAttribute("data-waitlist")));
+    }
+  };
+
+  listEl.addEventListener("click", onEventActionClick);
+  infoDialog?.addEventListener("click", onEventActionClick);
 
   dialog?.querySelectorAll("[data-close-booking]").forEach((btn) => {
     btn.addEventListener("click", () => dialog.close());
@@ -379,6 +442,10 @@
 
   waitDialog?.querySelectorAll("[data-close-waitlist]").forEach((btn) => {
     btn.addEventListener("click", () => waitDialog.close());
+  });
+
+  infoDialog?.querySelectorAll("[data-close-event-info]").forEach((btn) => {
+    btn.addEventListener("click", () => infoDialog.close());
   });
 
   waitForm?.addEventListener("submit", async (e) => {

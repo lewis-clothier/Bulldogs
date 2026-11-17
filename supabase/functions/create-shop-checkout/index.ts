@@ -64,7 +64,9 @@ Deno.serve(async (req) => {
     });
     if (error) {
       const message = error.message || "";
-      if (message.includes("out_of_stock")) return json(req, { error: "Sorry, that size/colour has sold out." }, 409);
+      if (message.includes("out_of_stock")) {
+        return json(req, { error: "Couldn't reserve that item. Please try again." }, 409);
+      }
       if (message.includes("item_unavailable") || message.includes("bag_empty")) {
         return json(req, { error: "One of the items in your bag is no longer available." }, 400);
       }

@@ -2,7 +2,7 @@ import { requireClub } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
 import { escapeHtml, formatDate, formatMoney, sendHtml } from "../_shared/email.ts";
 import { email, getSiteUrl, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
-import { sendBookingCancelled, sendClubCancelledEvent } from "../_shared/notifications.ts";
+import { sendBookingCancelled, sendClubCancelledEvent, sendRegistrationEmails } from "../_shared/notifications.ts";
 
 async function notifyEventLive(event: {
   id: string;
@@ -87,22 +87,131 @@ Deno.serve(async (req) => {
 
     if (action === "whoami") return json(req, { ok: true, email: user.email, is_admin: true });
 
+    if (action === "resend_booking_email") {
+      const bookingId = text(body.booking_id, "Booking", 80, true);
+      await sendRegistrationEmails(bookingId!);
+      return json(req, { ok: true });
+    }
+
     if (action === "list_events") {
       const { data, error } = await db.from("events").select("*").order("starts_at", { ascending: false });
       if (error) throw error;
       return json(req, { events: data });
     }
 
+    if (action === "list_media") {
+      const folder = text(body.folder, "Folder", 40) || "events";
+      const prefix = `${folder.replace(/^\/+|\/+$/g, "")}/`;
+      const { data, error } = await db.storage.from("media").list(folder.replace(/^\/+|\/+$/g, ""), {
+        limit: 200,
+        sortBy: { column: "name", order: "asc" },
+      });
+      if (error) throw error;
+      const base = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/media/`;
+      const files = (data ?? [])
+        .filter((item) => item.id && !item.name.endsWith("/"))
+        .map((item) => {
+          const path = `${prefix}${item.name}`;
+          const url = `${base}${path.split("/").map(encodeURIComponent).join("/")}`;
+          return { path, name: item.name, url };
+        });
+      return json(req, { files });
+    }
+
+    if (action === "list_site_media_admin") {
+      const { data, error } = await db.from("site_media").select("*").order("label");
+      if (error) throw error;
+      return json(req, { items: data ?? [] });
+    }
+
+    if (action === "set_site_media") {
+      const key = text(body.key, "Key", 80, true)!;
+      const url = text(body.url, "URL", 500, true)!;
+      const { error } = await db.from("site_media").update({ url, updated_at: new Date().toISOString() }).eq("key", key);
+      if (error) throw error;
+      return json(req, { ok: true });
+    }
+
+    if (action === "list_athletes_admin") {
+      const { data, error } = await db.from("athletes").select("*").order("sort_order").order("name", { ascending: true });
+      if (error) throw error;
+      return json(req, { athletes: data ?? [] });
+    }
+
+    if (action === "upsert_athlete") {
+      const row = {
+        name: text(body.name, "Name", 200, true)!,
+        kit_number: body.kit_number === null || body.kit_number === "" ? null : Number(body.kit_number),
+        role: text(body.role, "Role", 120) || "Athlete",
+        image_url: text(body.image_url, "Image", 500),
+        sort_order: Number(body.sort_order ?? 100),
+        is_published: body.is_published !== false,
+        show_on_home: body.show_on_home === true,
+        updated_at: new Date().toISOString(),
+      };
+      if (typeof body.id === "string" && body.id) {
+        const { error } = await db.from("athletes").update(row).eq("id", body.id);
+        if (error) throw error;
+        return json(req, { ok: true, id: body.id });
+      }
+      const { data, error } = await db.from("athletes").insert(row).select("id").single();
+      if (error) throw error;
+      return json(req, { ok: true, id: data.id });
+    }
+
+    if (action === "set_product_images") {
+      const productId = text(body.product_id, "Product", 80, true)!;
+      const images = body.images && typeof body.images === "object" ? body.images : null;
+      if (!images) throw new ValidationError("Images are required");
+      const { error } = await db
+        .from("products")
+        .update({ images, updated_at: new Date().toISOString() })
+        .eq("id", productId);
+      if (error) throw error;
+      return json(req, { ok: true });
+    }
+
+    if (action === "get_product_images") {
+      const productId = text(body.product_id, "Product", 80, true)!;
+      const { data, error } = await db.from("products").select("id, name, images").eq("id", productId).maybeSingle();
+      if (error) throw error;
+      return json(req, { product: data });
+    }
+
+    if (action === "set_event_cover") {
+      const id = text(body.event_id, "Event", 80, true)!;
+      const coverRaw = text(body.cover_image, "Cover image", 500, true)!;
+      const coverImage =
+        /^https?:\/\//i.test(coverRaw) || coverRaw.startsWith("assets/") || !coverRaw.includes("..")
+          ? coverRaw
+          : null;
+      if (!coverImage) throw new ValidationError("Cover image must be a URL");
+      const { error } = await db
+        .from("events")
+        .update({ cover_image: coverImage, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      return json(req, { ok: true });
+    }
+
+    if (action === "set_athlete_image") {
+      const id = text(body.athlete_id, "Athlete", 80, true)!;
+      const imageUrl = text(body.image_url, "Image", 500, true)!;
+      const { error } = await db
+        .from("athletes")
+        .update({ image_url: imageUrl, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      return json(req, { ok: true });
+    }
+
     if (action === "upsert_event") {
-      const allowedCovers = new Set([
-        "assets/photos/web/round2-pack.jpg",
-        "assets/photos/web/round2-herning.jpg",
-        "assets/photos/web/arena-fear.jpg",
-        "assets/photos/web/team-hero.jpg",
-        "assets/photos/web/events-hero.jpg",
-      ]);
-      const coverRaw = text(body.cover_image, "Cover image", 200);
-      const coverImage = coverRaw && allowedCovers.has(coverRaw) ? coverRaw : null;
+      const coverRaw = text(body.cover_image, "Cover image", 500);
+      const coverImage =
+        coverRaw &&
+        (/^https?:\/\//i.test(coverRaw) || coverRaw.startsWith("assets/") || !coverRaw.includes(".."))
+          ? coverRaw
+          : null;
       const row = {
         title: text(body.title, "Title", 200, true)!,
         slug: text(body.slug, "Slug", 80, true)!,

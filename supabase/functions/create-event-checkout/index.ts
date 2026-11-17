@@ -18,7 +18,7 @@ const reservationErrors: Record<string, [number, string]> = {
   attendee_dob_required: [400, "Each attendee needs a date of birth."],
   attendee_dob_invalid: [400, "Date of birth is not valid."],
   emergency_contact_required: [400, "Each attendee needs an emergency contact name and phone."],
-  already_booked: [409, "That person is already booked on this event."],
+  already_booked: [409, "You've already booked someone with that name and date of birth using this email on this event."],
   guardian_required: [400, "A parent or guardian must confirm for under-18s."],
 };
 
@@ -100,7 +100,21 @@ Deno.serve(async (req) => {
     }).single();
 
     if (error) {
-      const knownKey = Object.keys(reservationErrors).find((key) => (error.message || "").includes(key));
+      const message = error.message || "";
+      const already = message.match(/already_booked(?::\s*(.+))?/i);
+      if (already) {
+        const who = (already[1] || "").trim();
+        return json(
+          req,
+          {
+            error: who
+              ? `You've already booked someone called ${who} with this email on this event.`
+              : reservationErrors.already_booked[1],
+          },
+          reservationErrors.already_booked[0],
+        );
+      }
+      const knownKey = Object.keys(reservationErrors).find((key) => message.includes(key));
       const known = knownKey ? reservationErrors[knownKey] : undefined;
       if (known) return json(req, { error: known[1] }, known[0]);
       console.error("reserve_event_place failed", error);

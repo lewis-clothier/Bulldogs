@@ -75,7 +75,7 @@
               <h2>Our next event</h2>
               <div class="home-head__actions">
                 <a class="btn btn--white btn--small" href="events.html#alerts" data-alerts-open data-alerts-style="white">Turn on alerts</a>
-                <a class="btn btn--ghost btn--small" href="events.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>See all</a>
+                <a class="btn btn--ghost btn--small" href="events.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M2.5 12S6.2 6.5 12 6.5 21.5 12 21.5 12 17.8 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>All events</a>
               </div>
             </div>
           </div>
@@ -87,7 +87,7 @@
 
       <section class="home-spot">
         <div class="wrap">
-          <img src="assets/products/product_1_blue_front_cutout.png" alt="Bulldogs tee, blue chest print" />
+          <img data-site-media="home_spot" src="assets/products/product_1_blue_front_cutout.png" alt="Bulldogs tee, blue chest print" />
           <div>
             <p class="eyebrow">First drop</p>
             <h2>Wear Bulldogs</h2>
@@ -114,20 +114,13 @@
             </div>
           </div>
           <div class="rail rail--team" id="home-team">
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Lewis Bagguley.png" alt="" /><span><b>Lewis Bagguley</b><small>#1</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Joe Oldham.png" alt="" /><span><b>Joe Oldham</b><small>#4</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Peter Goldberg.png" alt="" /><span><b>Peter Goldberg</b><small>#6</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Leo Davidson.png" alt="" /><span><b>Leo Davidson</b><small>#8</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Isaac Benninson.png" alt="" /><span><b>Isaac Benninson</b><small>#9</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Will Calder.png" alt="" /><span><b>Will Calder</b><small>#10</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Ebbe Larsen.png" alt="" /><span><b>Ebbe Larsen</b><small>#11</small></span></a>
-            <a class="athlete-card" href="team.html"><img src="assets/athletes/Daan Lammertink.png" alt="" /><span><b>Daan Lammertink</b><small>#14</small></span></a>
+            <p class="muted">Loading squad…</p>
           </div>
         </div>
       </section>
 
       <section class="photo-band media-frame media-frame--bleed" aria-label="Arena atmosphere">
-        <img data-parallax src="assets/photos/web/round2-herning.jpg" alt="" />
+        <img data-parallax data-site-media="photo_band" src="assets/photos/web/round2-herning.jpg" alt="" />
         <div class="photo-band__scrub" aria-hidden="true"></div>
         <div class="photo-band__caption wrap">
           <p class="photo-band__line">Hungry by nature.</p>
@@ -193,11 +186,30 @@
       </div>
     </aside>
 
+    <dialog class="booking-dialog event-info-dialog" data-event-info-dialog aria-labelledby="home-event-info-title">
+      <button class="booking-dialog__close" type="button" data-close-event-info aria-label="Close">×</button>
+      <div class="event-info">
+        <header class="booking-dialog__head">
+          <p class="eyebrow">Event info</p>
+          <h2 id="home-event-info-title" data-event-info-title>Event</h2>
+          <p class="muted" data-event-info-when></p>
+        </header>
+        <div class="ev-facts" data-event-info-facts></div>
+        <div class="event-info__copy" data-event-info-copy></div>
+        <div class="event-info__foot">
+          <strong data-event-info-price></strong>
+          <div class="event-info__acts" data-event-info-acts></div>
+        </div>
+      </div>
+    </dialog>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/auth-ui.js"></script>
+    <script src="js/media.js"></script>
+    <script src="js/media-edit.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
     <script src="js/alerts.js"></script>

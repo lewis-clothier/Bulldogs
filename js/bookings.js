@@ -156,6 +156,61 @@
     }
   };
 
+  const cancelDialog = document.querySelector("[data-cancel-booking-confirm]");
+  const cancelCopy = document.querySelector("[data-cancel-booking-copy]");
+  const cancelForm = document.querySelector("[data-cancel-booking-form]");
+  let pendingCancelId = "";
+  let pendingCancelStatus = null;
+
+  const closeCancelDialog = () => {
+    pendingCancelId = "";
+    pendingCancelStatus = null;
+    if (cancelDialog?.open) cancelDialog.close();
+  };
+
+  const openCancelDialog = (bookingId, statusEl) => {
+    pendingCancelId = bookingId;
+    pendingCancelStatus = statusEl;
+    if (cancelCopy) {
+      cancelCopy.textContent =
+        "Cancel this booking? We’ll email you to confirm, refund your payment if one was taken, and put the place back on sale.";
+    }
+    if (cancelDialog && !cancelDialog.open) cancelDialog.showModal();
+  };
+
+  cancelDialog?.querySelector("[data-cancel-booking-dismiss]")?.addEventListener("click", closeCancelDialog);
+  cancelDialog?.addEventListener("click", (event) => {
+    if (event.target === cancelDialog) closeCancelDialog();
+  });
+  cancelForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const value = event.submitter?.value || "cancel";
+    if (value !== "ok" || !pendingCancelId) {
+      closeCancelDialog();
+      return;
+    }
+    const bookingId = pendingCancelId;
+    const status = pendingCancelStatus;
+    const okBtn = cancelForm.querySelector("[data-cancel-booking-ok]");
+    if (okBtn) okBtn.disabled = true;
+    try {
+      await api.fn("me-api", { action: "cancel_booking", booking_id: bookingId });
+      closeCancelDialog();
+      openId = bookingId;
+      const sb = await auth.whenReady();
+      const { data } = await sb.auth.getSession();
+      await load(data.session);
+    } catch (err) {
+      if (cancelCopy) cancelCopy.textContent = err.message || "Couldn't cancel that booking.";
+      if (status) {
+        status.textContent = err.message;
+        status.classList.add("is-error");
+      }
+    } finally {
+      if (okBtn) okBtn.disabled = false;
+    }
+  });
+
   root.addEventListener("click", async (event) => {
     const toggle = event.target.closest("[data-booking-toggle]");
     const cancel = event.target.closest("[data-cancel-booking]");
@@ -166,22 +221,8 @@
       if (openId) await drawCodes(root.querySelector(`[data-booking="${CSS.escape(openId)}"]`));
     }
     if (!cancel) return;
-    if (!confirm("Cancel this booking? If you're more than 24 hours out, you'll be refunded.")) return;
     const status = cancel.closest(".booking-card")?.querySelector("[data-booking-status]");
-    cancel.disabled = true;
-    try {
-      await api.fn("me-api", { action: "cancel_booking", booking_id: cancel.dataset.cancelBooking });
-      openId = cancel.dataset.cancelBooking || openId;
-      const sb = await auth.whenReady();
-      const { data } = await sb.auth.getSession();
-      await load(data.session);
-    } catch (err) {
-      cancel.disabled = false;
-      if (status) {
-        status.textContent = err.message;
-        status.classList.add("is-error");
-      }
-    }
+    openCancelDialog(cancel.dataset.cancelBooking, status);
   });
 
   auth

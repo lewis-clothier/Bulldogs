@@ -144,49 +144,46 @@
       const match = variants.find((v) => v.colour === colour && v.size === size);
       return match ? Number(match.available) : 0;
     };
-    const labelAdd = (soldOut) => {
+    const labelAdd = () => {
       if (!add) return;
-      add.disabled = soldOut;
+      add.disabled = false;
       const price = product.getAttribute("data-price") || "";
-      add.textContent = soldOut ? "Sold out" : `Add to bag · £${price}`;
+      add.textContent = `Add to bag · £${price}`;
     };
     const paintStock = (size) => {
       const note = product.querySelector("[data-stock-note]");
       if (!note || !size) return;
       const available = availableFor(size);
-      note.hidden = available <= 0;
-      note.textContent = available === 1 ? "1 in stock" : available > 1 ? `${available} in stock` : "";
+      note.hidden = false;
+      note.classList.toggle("is-late", available <= 0);
+      if (available <= 0) {
+        note.textContent = "0 in stock · Delivery will take longer (new print typically 2–3 weeks)";
+      } else if (available === 1) {
+        note.textContent = "1 in stock";
+      } else {
+        note.textContent = `${available} in stock`;
+      }
     };
     if (select) {
       [...select.options].forEach((opt) => {
         const size = opt.value || opt.textContent.trim();
-        const available = availableFor(size);
-        opt.disabled = available <= 0;
-        opt.textContent = available <= 0 ? `${size} — sold out` : size;
+        opt.disabled = false;
+        opt.textContent = size;
       });
-      if (select.selectedOptions[0]?.disabled) {
-        const first = [...select.options].find((opt) => !opt.disabled);
-        if (first) select.value = first.value;
-      }
-      if (add) add.disabled = [...select.options].every((opt) => opt.disabled);
+      if (add) add.disabled = false;
+      labelAdd();
       paintStock(select.value);
       return;
     }
     if (!sizeButtons.length || !sizeInput) return;
     sizeButtons.forEach((btn) => {
-      const available = availableFor(btn.getAttribute("data-size-option"));
-      btn.disabled = available <= 0;
-      btn.classList.toggle("is-off", available <= 0);
+      btn.disabled = false;
+      btn.classList.remove("is-off");
     });
-    const current = sizeButtons.find((btn) => btn.getAttribute("data-size-option") === sizeInput.value);
-    if (!current || current.disabled) {
-      const first = sizeButtons.find((btn) => !btn.disabled);
-      if (first) sizeInput.value = first.getAttribute("data-size-option");
-    }
     sizeButtons.forEach((btn) => {
-      btn.classList.toggle("is-on", btn.getAttribute("data-size-option") === sizeInput.value && !btn.disabled);
+      btn.classList.toggle("is-on", btn.getAttribute("data-size-option") === sizeInput.value);
     });
-    labelAdd(sizeButtons.every((btn) => btn.disabled));
+    labelAdd();
     paintStock(sizeInput.value);
   };
 
@@ -283,19 +280,32 @@
 
   const syncProductImage = (product) => {
     const colour = product.getAttribute("data-colour") || "orange";
+    const productId = product.getAttribute("data-product-id") || "bulldogs-tee";
     const frontSrc = product.getAttribute(`data-front-${colour}`);
     const backSrc = product.getAttribute(`data-back-${colour}`);
     const frontImg = product.querySelector(".product__img--front");
     const backImg = product.querySelector(".product__img--back");
     const singleImg = product.querySelector(".product__img:not(.product__img--back)");
+    const markEditable = (img, view) => {
+      if (!img) return;
+      img.setAttribute("data-editable-media", "product");
+      img.setAttribute("data-product-id", productId);
+      img.setAttribute("data-colour", colour);
+      img.setAttribute("data-view", view);
+    };
     if (frontImg && frontSrc) {
       frontImg.src = frontSrc;
       frontImg.alt = `Bulldogs Tee — ${colour} print`;
+      markEditable(frontImg, "front");
     } else if (singleImg && frontSrc) {
       singleImg.src = frontSrc;
       singleImg.alt = `Bulldogs Tee — ${colour} print`;
+      markEditable(singleImg, "front");
     }
-    if (backImg && backSrc) backImg.src = backSrc;
+    if (backImg && backSrc) {
+      backImg.src = backSrc;
+      markEditable(backImg, "back");
+    }
     if (frontSrc) product.setAttribute("data-image", frontSrc);
     const label = product.querySelector("[data-colour-label]");
     if (label) label.textContent = colour === "blue" ? "Blue" : "Orange";
@@ -549,7 +559,51 @@
         const row = catalogCache.find((item) => item.id === id);
         if (!row) return;
         product.setAttribute("data-price", String(row.price_pence / 100));
+        const images = row.images && typeof row.images === "object" ? row.images : {};
+        ["orange", "blue"].forEach((colour) => {
+          const shot = images[colour] || {};
+          if (shot.front) {
+            product.setAttribute(`data-front-${colour}`, shot.front);
+            const thumb = product.querySelector(`[data-shot="${colour}:front"] img`);
+            if (thumb) {
+              thumb.src = shot.front;
+              thumb.setAttribute("data-editable-media", "product");
+              thumb.setAttribute("data-product-id", id);
+              thumb.setAttribute("data-colour", colour);
+              thumb.setAttribute("data-view", "front");
+            }
+          }
+          if (shot.back) {
+            product.setAttribute(`data-back-${colour}`, shot.back);
+            const thumb = product.querySelector(`[data-shot="${colour}:back"] img`);
+            if (thumb) {
+              thumb.src = shot.back;
+              thumb.setAttribute("data-editable-media", "product");
+              thumb.setAttribute("data-product-id", id);
+              thumb.setAttribute("data-colour", colour);
+              thumb.setAttribute("data-view", "back");
+            }
+          }
+        });
+        const front = product.querySelector(".product__img--front");
+        const back = product.querySelector(".product__img--back");
+        const colour = product.getAttribute("data-colour") || "orange";
+        if (front) {
+          front.setAttribute("data-editable-media", "product");
+          front.setAttribute("data-product-id", id);
+          front.setAttribute("data-colour", colour);
+          front.setAttribute("data-view", "front");
+        }
+        if (back) {
+          back.setAttribute("data-editable-media", "product");
+          back.setAttribute("data-product-id", id);
+          back.setAttribute("data-colour", colour);
+          back.setAttribute("data-view", "back");
+        }
+        syncProductImage(product);
+        syncShots(product);
         applyStock(product);
+        window.BULLDOGS_MEDIA_EDIT?.refresh?.();
       });
     }).catch(() => {});
     document.addEventListener("visibilitychange", () => {
