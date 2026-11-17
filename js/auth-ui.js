@@ -475,7 +475,11 @@
     if (!panel) return;
     const name = profile?.profile?.full_name || session?.user?.user_metadata?.full_name || "";
     const email = profile?.email || session?.user?.email || "";
-    const club = profile?.is_admin ? `<a class="account-menu__item" href="club.html">Admin tools</a>` : "";
+    const editingMedia = Boolean(window.BULLDOGS_MEDIA_EDIT?.isEditing?.());
+    const club = profile?.is_admin
+      ? `<a class="account-menu__item" href="club.html">Admin tools</a>
+      <button class="account-menu__item${editingMedia ? " is-on" : ""}" type="button" data-media-edit-toggle aria-pressed="${editingMedia ? "true" : "false"}"><span data-media-edit-label>${editingMedia ? "Done editing media" : "Edit page media"}</span></button>`
+      : "";
     panel.innerHTML = `<div class="account-menu__who">
         <span class="account-menu__avatar"></span>
         <div>
@@ -501,6 +505,7 @@
       <a class="account-menu__item" href="orders.html">My Orders</a>
       ${club}
       <button class="account-menu__item account-menu__item--out" type="button" data-account-out>Sign out</button>`;
+    if (profile?.is_admin) window.BULLDOGS_MEDIA_EDIT?.setAdmin?.(true);
     panel.querySelector(".account-menu__avatar").textContent = initialsOf(name, email);
     panel.querySelector("[data-account-name]").textContent = name || "Add your name";
     panel.querySelector("[data-account-email]").textContent = email;
@@ -535,8 +540,10 @@
     try {
       const profile = await api()?.fn("me-api", { action: "profile" });
       profileCache = profile;
+      window.BULLDOGS_PROFILE = profile;
       renderUserChrome(session, profileCache);
       if (!nameFormDirty()) renderUserPanel(session, profileCache);
+      window.BULLDOGS_MEDIA_EDIT?.refresh?.();
     } catch (err) {
       const status = panel.querySelector(".form-status");
       if (status) {
@@ -551,6 +558,8 @@
     const btn = document.querySelector("[data-account-toggle]");
     if (!session) {
       profileCache = null;
+      window.BULLDOGS_PROFILE = null;
+      window.BULLDOGS_MEDIA_EDIT?.refresh?.();
       closeMenu();
       if (btn) {
         btn.innerHTML = userSvg;
@@ -567,7 +576,9 @@
         ?.fn("me-api", { action: "profile" })
         .then((profile) => {
           profileCache = profile;
+          window.BULLDOGS_PROFILE = profile;
           renderUserChrome(session, profileCache);
+          window.BULLDOGS_MEDIA_EDIT?.refresh?.();
         })
         .catch(() => renderUserChrome(session, null));
     }

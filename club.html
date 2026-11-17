@@ -199,6 +199,13 @@
                   <fieldset class="editor-group">
                     <legend>Cover image</legend>
                     <input type="hidden" name="cover_image" value="" />
+                    <div class="media-upload-row">
+                      <label class="btn btn--ghost btn--small">
+                        Upload cover
+                        <input type="file" accept="image/*" data-cover-upload hidden />
+                      </label>
+                      <p class="muted" data-cover-upload-status></p>
+                    </div>
                     <div class="cover-picks" data-cover-picks></div>
                     <div class="cover-preview-head">
                       <p class="eyebrow">Events page preview</p>
@@ -335,6 +342,7 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/auth-ui.js"></script>
+    <script src="js/media.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
     <script src="js/club.js"></script>

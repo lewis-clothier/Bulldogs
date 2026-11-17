@@ -29,17 +29,16 @@
   const eventForm = document.querySelector("[data-event-form]");
   const fld = (name) => eventForm.elements.namedItem(name);
 
+  let productImagesCache = {};
   const productImage = (colour, productId = "", productName = "") => {
-    const id = String(productId || "");
-    const name = String(productName || "").toLowerCase();
-    const tone = String(colour || "").toLowerCase();
-    if (id === "bulldogs-tee" || name.includes("tee") || !id) {
-      if (tone === "blue") return "assets/products/product_1_blue_front_cutout.png";
-      if (tone === "orange") return "assets/products/product_1_orange_front_cutout.png";
+    const tone = String(colour || "").toLowerCase() || "orange";
+    const fromDb = productImagesCache?.[tone]?.front;
+    if (fromDb) return fromDb;
+    const media = window.BULLDOGS_MEDIA?.publicMediaUrl;
+    if (media) {
+      return media(`products/product_1_${tone}_front_cutout.png`);
     }
-    if (tone === "blue") return "assets/products/product_1_blue_front_cutout.png";
-    if (tone === "orange") return "assets/products/product_1_orange_front_cutout.png";
-    return "assets/products/product_1_orange_front_cutout.png";
+    return `assets/products/product_1_${tone === "blue" ? "blue" : "orange"}_front_cutout.png`;
   };
 
   const colourLabel = (colour) => {
@@ -171,15 +170,31 @@
     }
   });
 
-  const eventPhotos = window.BULLDOGS?.eventPhotos || [];
-  const defaultCover = eventPhotos[0]?.src || "";
-  const coverAllowed = new Set(eventPhotos.map((photo) => photo.src));
+  let eventLibrary = [];
+  const defaultCover = () =>
+    eventLibrary[0]?.url ||
+    window.BULLDOGS_SITE_MEDIA?.home_event_fallback ||
+    window.BULLDOGS_MEDIA?.publicMediaUrl?.("events/events-hero.jpg") ||
+    "";
   const coverFor = (ev) => {
-    if (ev?.cover_image && coverAllowed.has(ev.cover_image)) return ev.cover_image;
-    if (!ev?.id || !eventPhotos.length) return defaultCover;
+    if (ev?.cover_image) return ev.cover_image;
+    if (!ev?.id || !eventLibrary.length) return defaultCover();
     let n = 0;
-    for (const ch of String(ev.id)) n = (n + ch.charCodeAt(0)) % eventPhotos.length;
-    return eventPhotos[n].src;
+    for (const ch of String(ev.id)) n = (n + ch.charCodeAt(0)) % eventLibrary.length;
+    return eventLibrary[n].url;
+  };
+
+  const loadEventLibrary = async () => {
+    try {
+      const { files } = await club({ action: "list_media", folder: "events" });
+      eventLibrary = (files || []).map((file) => ({
+        src: file.url,
+        url: file.url,
+        label: file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+      }));
+    } catch {
+      eventLibrary = [];
+    }
   };
 
   const payloadFromEvent = (ev) => ({
@@ -633,12 +648,19 @@
   let coverMode = "poster";
   const paintCoverPicks = (selected) => {
     if (!coverPicks) return;
-    const current = selected && coverAllowed.has(selected) ? selected : defaultCover;
+    const library = eventLibrary.length
+      ? eventLibrary
+      : selected
+        ? [{ src: selected, url: selected, label: "Current" }]
+        : [];
+    const current = selected || defaultCover();
     if (fld("cover_image")) fld("cover_image").value = current;
-    coverPicks.innerHTML = eventPhotos
+    const hasCurrent = library.some((photo) => photo.url === current || photo.src === current);
+    const picks = hasCurrent || !current ? library : [{ src: current, url: current, label: "Current" }, ...library];
+    coverPicks.innerHTML = picks
       .map(
         (photo) =>
-          `<button class="cover-pick${photo.src === current ? " is-on" : ""}" type="button" data-cover-src="${escapeHtml(photo.src)}" aria-pressed="${photo.src === current ? "true" : "false"}" aria-label="${escapeHtml(photo.label)}"><img src="${escapeHtml(photo.src)}" alt="" /><span>${escapeHtml(photo.label)}</span></button>`,
+          `<button class="cover-pick${photo.url === current || photo.src === current ? " is-on" : ""}" type="button" data-cover-src="${escapeHtml(photo.url || photo.src)}" aria-pressed="${photo.url === current || photo.src === current ? "true" : "false"}" aria-label="${escapeHtml(photo.label)}"><img src="${escapeHtml(photo.url || photo.src)}" alt="" /><span>${escapeHtml(photo.label)}</span></button>`,
       )
       .join("");
   };
@@ -650,7 +672,7 @@
   const paintCoverPreview = () => {
     const preview = eventForm?.querySelector("[data-cover-preview]");
     if (!preview) return;
-    const src = fld("cover_image")?.value || defaultCover;
+    const src = fld("cover_image")?.value || defaultCover();
     const title = fld("title")?.value.trim() || "New event";
     const summary = fld("summary")?.value.trim() || "";
     const location = fld("location")?.value.trim() || "TBC";
@@ -735,7 +757,7 @@
     eventForm.querySelector("[data-cancel-event]").hidden = true;
     eventForm.querySelector(".form-status").textContent = "";
     document.querySelector("[data-event-dialog-title]").textContent = "New event";
-    paintCoverPicks(defaultCover);
+    paintCoverPicks(defaultCover());
     paintCoverPreview();
   };
 
@@ -1976,4 +1998,212 @@
       alert(err.message);
     }
   });
+
+  const siteMediaList = document.querySelector("[data-site-media-list]");
+  const productMedia = document.querySelector("[data-product-media]");
+  const athletesMedia = document.querySelector("[data-athletes-media]");
+  const mediaUpload = window.BULLDOGS_MEDIA?.uploadMedia;
+  const mediaCard = (thumb, title, meta, actions) =>
+    `<article class="media-card">
+      <figure>${thumb ? `<img src="${escapeHtml(thumb)}" alt="" />` : `<span class="media-card__empty">No image</span>`}</figure>
+      <div class="media-card__body">
+        <h3>${escapeHtml(title)}</h3>
+        ${meta ? `<p class="muted">${meta}</p>` : ""}
+        <div class="media-card__acts">${actions}</div>
+      </div>
+    </article>`;
+
+  async function loadMediaPanel() {
+    if (!siteMediaList && !productMedia && !athletesMedia) return;
+    const settled = await Promise.allSettled([
+      club({ action: "list_site_media_admin" }),
+      club({ action: "list_athletes_admin" }),
+      club({ action: "get_product_images", product_id: "bulldogs-tee" }),
+    ]);
+    const items = settled[0].status === "fulfilled" ? settled[0].value.items || [] : null;
+    const athletes = settled[1].status === "fulfilled" ? settled[1].value.athletes || [] : null;
+    const productRes = settled[2].status === "fulfilled" ? settled[2].value : null;
+    const images = productRes?.product?.images || {};
+    productImagesCache = images;
+    if (siteMediaList) {
+      if (items) {
+        siteMediaList.innerHTML =
+          items
+            .map(
+              (item) =>
+                mediaCard(
+                  item.url,
+                  item.label || item.key,
+                  item.key,
+                  `<label class="btn btn--ghost btn--small">Replace<input type="file" accept="image/*" data-site-upload="${escapeHtml(item.key)}" hidden /></label>`,
+                ),
+            )
+            .join("") || empty("No site media slots yet.");
+      } else {
+        fail(siteMediaList, settled[0].reason || new Error("Couldn't load site photos"));
+      }
+    }
+    if (productMedia) {
+      if (productRes) {
+        const colours = ["orange", "blue"];
+        productMedia.innerHTML = `<div class="media-grid">${colours
+          .map((colour) => {
+            const shot = images?.[colour] || {};
+            return `<article class="media-card media-card--product">
+              <h3>${escapeHtml(colour.charAt(0).toUpperCase() + colour.slice(1))} print</h3>
+              <div class="media-card__pair">
+                <div>
+                  <figure>${shot.front ? `<img src="${escapeHtml(shot.front)}" alt="" />` : `<span class="media-card__empty">Front</span>`}</figure>
+                  <label class="btn btn--ghost btn--small">Front<input type="file" accept="image/*" data-product-upload="bulldogs-tee:${escapeHtml(colour)}:front" hidden /></label>
+                </div>
+                <div>
+                  <figure>${shot.back ? `<img src="${escapeHtml(shot.back)}" alt="" />` : `<span class="media-card__empty">Back</span>`}</figure>
+                  <label class="btn btn--ghost btn--small">Back<input type="file" accept="image/*" data-product-upload="bulldogs-tee:${escapeHtml(colour)}:back" hidden /></label>
+                </div>
+              </div>
+            </article>`;
+          })
+          .join("")}</div>`;
+      } else {
+        fail(productMedia, settled[2].reason || new Error("Couldn't load product photos"));
+      }
+    }
+    if (athletesMedia) {
+      if (athletes) {
+        athletesMedia.innerHTML =
+          athletes
+            .map((athlete) => {
+              const kit = athlete.kit_number != null ? `#${athlete.kit_number}` : "";
+              const home = athlete.show_on_home ? " · Home" : "";
+              return mediaCard(
+                athlete.image_url,
+                athlete.name,
+                `${escapeHtml(athlete.role || "Athlete")}${kit ? ` · ${kit}` : ""}${home}`,
+                `<label class="btn btn--ghost btn--small">Replace photo<input type="file" accept="image/*" data-athlete-upload="${escapeHtml(athlete.id)}" hidden /></label>
+               <label class="field field--check"><input type="checkbox" data-athlete-home="${escapeHtml(athlete.id)}"${athlete.show_on_home ? " checked" : ""} /><span>Show on home</span></label>`,
+              );
+            })
+            .join("") || empty("No athletes yet.");
+      } else {
+        fail(athletesMedia, settled[1].reason || new Error("Couldn't load athletes"));
+      }
+    }
+  }
+
+  const onMediaFile = async (input, work) => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !mediaUpload) return;
+    const card = input.closest(".media-card");
+    const status = card?.querySelector(".media-card__status") || card;
+    try {
+      if (status?.classList?.contains("media-card")) {
+        /* keep UI quiet */
+      }
+      await work(file);
+      await loadMediaPanel();
+    } catch (err) {
+      alert(err.message || "Upload failed");
+    }
+  };
+
+  siteMediaList?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-site-upload]");
+    if (!input) return;
+    await onMediaFile(input, async (file) => {
+      const url = await mediaUpload("site", file);
+      await club({ action: "set_site_media", key: input.dataset.siteUpload, url });
+    });
+  });
+
+  productMedia?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-product-upload]");
+    if (!input) return;
+    await onMediaFile(input, async (file) => {
+      const [productId, colour, view] = String(input.dataset.productUpload || "").split(":");
+      const url = await mediaUpload("products", file);
+      const next = JSON.parse(JSON.stringify(productImagesCache || {}));
+      if (!next[colour]) next[colour] = {};
+      next[colour][view] = url;
+      await club({ action: "set_product_images", product_id: productId, images: next });
+      productImagesCache = next;
+    });
+  });
+
+  athletesMedia?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-athlete-upload]");
+    if (!input) return;
+    await onMediaFile(input, async (file) => {
+      const url = await mediaUpload("athletes", file);
+      const athlete = (await club({ action: "list_athletes_admin" })).athletes?.find((row) => row.id === input.dataset.athleteUpload);
+      if (!athlete) throw new Error("Athlete not found");
+      await club({
+        action: "upsert_athlete",
+        id: athlete.id,
+        name: athlete.name,
+        kit_number: athlete.kit_number,
+        role: athlete.role,
+        image_url: url,
+        sort_order: athlete.sort_order,
+        is_published: athlete.is_published,
+        show_on_home: athlete.show_on_home,
+      });
+    });
+  });
+
+  athletesMedia?.addEventListener("change", async (event) => {
+    const box = event.target.closest("[data-athlete-home]");
+    if (!box || box.type !== "checkbox") return;
+    try {
+      const athlete = (await club({ action: "list_athletes_admin" })).athletes?.find((row) => row.id === box.dataset.athleteHome);
+      if (!athlete) throw new Error("Athlete not found");
+      await club({
+        action: "upsert_athlete",
+        id: athlete.id,
+        name: athlete.name,
+        kit_number: athlete.kit_number,
+        role: athlete.role,
+        image_url: athlete.image_url,
+        sort_order: athlete.sort_order,
+        is_published: athlete.is_published,
+        show_on_home: box.checked,
+      });
+    } catch (err) {
+      alert(err.message);
+      box.checked = !box.checked;
+    }
+  });
+
+  eventForm?.querySelector("[data-cover-upload]")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    const status = eventForm.querySelector("[data-cover-upload-status]");
+    if (!file || !mediaUpload) return;
+    try {
+      if (status) status.textContent = "Uploading…";
+      const url = await mediaUpload("events", file);
+      await loadEventLibrary();
+      paintCoverPicks(url);
+      paintCoverPreview();
+      syncSaveBar();
+      if (status) status.textContent = "Cover updated — save the event to keep it.";
+    } catch (err) {
+      if (status) status.textContent = err.message || "Upload failed";
+    }
+  });
+
+  const refreshProductImages = async () => {
+    try {
+      const { product } = await club({ action: "get_product_images", product_id: "bulldogs-tee" });
+      productImagesCache = product?.images || {};
+    } catch {
+      productImagesCache = {};
+    }
+  };
+
+  const bootMedia = async () => {
+    await Promise.all([loadEventLibrary(), refreshProductImages()]);
+  };
+  bootMedia();
 })();

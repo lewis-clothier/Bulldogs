@@ -43,7 +43,7 @@
 
     <main class="team-page">
       <div class="page-banner page-banner--hero page-banner--team ph">
-        <img src="assets/photos/web/team-hero.jpg" alt="" />
+        <img data-site-media="team_banner" src="assets/photos/web/team-hero.jpg" alt="" />
         <header class="page-hero page-hero--over">
           <div class="wrap">
             <div>
@@ -62,19 +62,8 @@
               <p class="eyebrow">Staff</p>
               <h2>Coaching team</h2>
             </header>
-            <div class="coaches">
-              <article class="coach glass">
-                <img src="assets/athletes/Henry Mantel.png" alt="Henry Mantel" />
-                <div><b>Henry Mantel</b><span>Head Coach</span></div>
-              </article>
-              <article class="coach glass">
-                <img src="assets/athletes/Lewis Clothier.png" alt="Lewis Clothier" />
-                <div><b>Lewis Clothier</b><span>#7 · Coach &amp; Athlete</span></div>
-              </article>
-              <article class="coach glass">
-                <img src="assets/athletes/Chanin Janse Van Rensburg.png" alt="Chanin Janse van Rensburg" />
-                <div><b>Chanin Janse van Rensburg</b><span>#5 · Coach &amp; Athlete</span></div>
-              </article>
+            <div class="coaches" data-team-coaches>
+              <p class="muted">Loading coaching team…</p>
             </div>
           </div>
 
@@ -83,20 +72,8 @@
               <p class="eyebrow">Squad</p>
               <h2>Athletes</h2>
             </header>
-            <div class="squad">
-              <article class="ath" data-num="1"><img src="assets/athletes/Lewis Bagguley.png" alt="Lewis Bagguley" /><div><b>Lewis Bagguley</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="4"><img src="assets/athletes/Joe Oldham.png" alt="Joe Oldham" /><div><b>Joe Oldham</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="6"><img src="assets/athletes/Peter Goldberg.png" alt="Peter Goldberg" /><div><b>Peter Goldberg</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="8"><img src="assets/athletes/Leo Davidson.png" alt="Leo Davidson" /><div><b>Leo Davidson</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="9"><img src="assets/athletes/Isaac Benninson.png" alt="Isaac Benninson" /><div><b>Isaac Benninson</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="10"><img src="assets/athletes/Will Calder.png" alt="Will Calder" /><div><b>Will Calder</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="11"><img src="assets/athletes/Ebbe Larsen.png" alt="Ebbe Larsen" /><div><b>Ebbe Larsen</b><span>Athlete</span></div></article>
-              <article class="ath" data-num="14"><img src="assets/athletes/Daan Lammertink.png" alt="Daan Lammertink" /><div><b>Daan Lammertink</b><span>Athlete</span></div></article>
-              <article class="ath"><img src="assets/athletes/Matthew Capes.png" alt="Matthew Capes" /><div><b>Matthew Capes</b><span>Athlete</span></div></article>
-              <a class="ath ath--join" href="events.html">
-                <img src="assets/logo.png" alt="" />
-                <div><b>Train with the pack</b><span>See what’s coming up</span></div>
-              </a>
+            <div class="squad" data-team-squad>
+              <p class="muted">Loading squad…</p>
             </div>
           </div>
         </div>
@@ -233,8 +210,11 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/auth-ui.js"></script>
+    <script src="js/media.js"></script>
+    <script src="js/media-edit.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
+    <script src="js/team.js"></script>
     <script>
       document.querySelectorAll("[data-team-rail]").forEach((btn) => {
         btn.addEventListener("click", () => {

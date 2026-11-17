@@ -36,14 +36,10 @@
   };
 
   const productImage = (item) => {
-    const id = item.product_id || "";
-    const name = String(item.product_name || "").toLowerCase();
-    const colour = String(item.colour || "").toLowerCase();
-    if (id === "bulldogs-tee" || name.includes("tee")) {
-      if (colour === "blue") return "assets/products/product_1_blue_front_cutout.png";
-      if (colour === "orange") return "assets/products/product_1_orange_front_cutout.png";
-    }
-    return "";
+    const colour = String(item.colour || "").toLowerCase() || "orange";
+    const media = window.BULLDOGS_MEDIA?.publicMediaUrl;
+    if (media) return media(`products/product_1_${colour === "blue" ? "blue" : "orange"}_front_cutout.png`);
+    return `assets/products/product_1_${colour === "blue" ? "blue" : "orange"}_front_cutout.png`;
   };
 
   let seq = 0;

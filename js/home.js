@@ -1,9 +1,17 @@
 (() => {
   const api = window.BULLDOGS_API;
+  const mediaUrl = (path) => window.BULLDOGS_MEDIA?.publicMediaUrl?.(path) || path;
 
   const rail = document.querySelector("[data-home-events]");
+  const teamRail = document.querySelector("#home-team");
   const infoDialog = document.querySelector("[data-event-info-dialog]");
   if (!api || !rail) return;
+
+  const eventPhoto = (event) => {
+    const cover = String(event?.cover_image || "").trim();
+    if (cover && (/^https?:\/\//i.test(cover) || cover.startsWith("assets/"))) return cover;
+    return window.BULLDOGS_SITE_MEDIA?.home_event_fallback || mediaUrl("events/events-hero.jpg");
+  };
 
   const escapeHtml = (value) =>
     String(value ?? "")
@@ -101,7 +109,7 @@
       <div class="home-slot">
         <article class="home-event${isNext ? " home-event--next" : ""}">
           <div class="home-event__photo">
-            <img src="assets/photos/web/events-hero.jpg" alt="" />
+            <img src="${escapeHtml(eventPhoto(event))}" alt="" data-editable-media="event" data-event-id="${escapeHtml(event.id)}" />
             <p class="home-event__date">
               <b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b>
               <span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span>
@@ -150,6 +158,19 @@
     window.location.assign(bookHref(currentEvent));
   });
 
+  const paintHomeTeam = (athletes) => {
+    if (!teamRail) return;
+    const home = (athletes || []).filter((row) => row.show_on_home && row.image_url);
+    const list = home.length ? home : (athletes || []).filter((row) => row.image_url).slice(0, 8);
+    if (!list.length) return;
+    teamRail.innerHTML = list
+      .map((athlete) => {
+        const kit = athlete.kit_number != null ? `#${athlete.kit_number}` : athlete.role || "Athlete";
+        return `<a class="athlete-card" href="team.html"><img src="${escapeHtml(athlete.image_url)}" alt="" data-editable-media="athlete" data-athlete-id="${escapeHtml(athlete.id)}" /><span><b>${escapeHtml(athlete.name)}</b><small>${escapeHtml(kit)}</small></span></a>`;
+      })
+      .join("");
+  };
+
   api
     .rpc("list_upcoming_events")
     .then((events) => {
@@ -164,4 +185,12 @@
     .catch(() => {
       rail.innerHTML = `<p class="muted">Couldn't load events right now. Refresh the page or try again later.</p>`;
     });
+
+  api
+    .rpc("list_athletes")
+    .then((athletes) => {
+      paintHomeTeam(athletes);
+      window.BULLDOGS_MEDIA_EDIT?.refresh?.();
+    })
+    .catch(() => {});
 })();

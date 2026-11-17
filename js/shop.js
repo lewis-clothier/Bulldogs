@@ -280,19 +280,32 @@
 
   const syncProductImage = (product) => {
     const colour = product.getAttribute("data-colour") || "orange";
+    const productId = product.getAttribute("data-product-id") || "bulldogs-tee";
     const frontSrc = product.getAttribute(`data-front-${colour}`);
     const backSrc = product.getAttribute(`data-back-${colour}`);
     const frontImg = product.querySelector(".product__img--front");
     const backImg = product.querySelector(".product__img--back");
     const singleImg = product.querySelector(".product__img:not(.product__img--back)");
+    const markEditable = (img, view) => {
+      if (!img) return;
+      img.setAttribute("data-editable-media", "product");
+      img.setAttribute("data-product-id", productId);
+      img.setAttribute("data-colour", colour);
+      img.setAttribute("data-view", view);
+    };
     if (frontImg && frontSrc) {
       frontImg.src = frontSrc;
       frontImg.alt = `Bulldogs Tee — ${colour} print`;
+      markEditable(frontImg, "front");
     } else if (singleImg && frontSrc) {
       singleImg.src = frontSrc;
       singleImg.alt = `Bulldogs Tee — ${colour} print`;
+      markEditable(singleImg, "front");
     }
-    if (backImg && backSrc) backImg.src = backSrc;
+    if (backImg && backSrc) {
+      backImg.src = backSrc;
+      markEditable(backImg, "back");
+    }
     if (frontSrc) product.setAttribute("data-image", frontSrc);
     const label = product.querySelector("[data-colour-label]");
     if (label) label.textContent = colour === "blue" ? "Blue" : "Orange";
@@ -546,7 +559,51 @@
         const row = catalogCache.find((item) => item.id === id);
         if (!row) return;
         product.setAttribute("data-price", String(row.price_pence / 100));
+        const images = row.images && typeof row.images === "object" ? row.images : {};
+        ["orange", "blue"].forEach((colour) => {
+          const shot = images[colour] || {};
+          if (shot.front) {
+            product.setAttribute(`data-front-${colour}`, shot.front);
+            const thumb = product.querySelector(`[data-shot="${colour}:front"] img`);
+            if (thumb) {
+              thumb.src = shot.front;
+              thumb.setAttribute("data-editable-media", "product");
+              thumb.setAttribute("data-product-id", id);
+              thumb.setAttribute("data-colour", colour);
+              thumb.setAttribute("data-view", "front");
+            }
+          }
+          if (shot.back) {
+            product.setAttribute(`data-back-${colour}`, shot.back);
+            const thumb = product.querySelector(`[data-shot="${colour}:back"] img`);
+            if (thumb) {
+              thumb.src = shot.back;
+              thumb.setAttribute("data-editable-media", "product");
+              thumb.setAttribute("data-product-id", id);
+              thumb.setAttribute("data-colour", colour);
+              thumb.setAttribute("data-view", "back");
+            }
+          }
+        });
+        const front = product.querySelector(".product__img--front");
+        const back = product.querySelector(".product__img--back");
+        const colour = product.getAttribute("data-colour") || "orange";
+        if (front) {
+          front.setAttribute("data-editable-media", "product");
+          front.setAttribute("data-product-id", id);
+          front.setAttribute("data-colour", colour);
+          front.setAttribute("data-view", "front");
+        }
+        if (back) {
+          back.setAttribute("data-editable-media", "product");
+          back.setAttribute("data-product-id", id);
+          back.setAttribute("data-colour", colour);
+          back.setAttribute("data-view", "back");
+        }
+        syncProductImage(product);
+        syncShots(product);
         applyStock(product);
+        window.BULLDOGS_MEDIA_EDIT?.refresh?.();
       });
     }).catch(() => {});
     document.addEventListener("visibilitychange", () => {

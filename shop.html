@@ -43,7 +43,7 @@
 
     <main class="shop-page">
       <div class="page-banner page-banner--hero page-banner--shop ph">
-        <img src="assets/photos/web/round2-herning.jpg" alt="" />
+        <img data-site-media="shop_banner" src="assets/photos/web/round2-herning.jpg" alt="" />
         <header class="page-hero page-hero--over">
           <div class="wrap">
             <div>
@@ -73,8 +73,8 @@
             <div class="pdp__media">
               <div class="pdp__stage">
                 <div class="product__media product__media--swap">
-                  <img class="product__img product__img--front" src="assets/products/product_1_orange_front_cutout.png" alt="Bulldogs Tee — orange print" />
-                  <img class="product__img product__img--back" src="assets/products/product_1_orange_back_cutout.png" alt="" aria-hidden="true" />
+                  <img class="product__img product__img--front" src="assets/products/product_1_orange_front_cutout.png" alt="Bulldogs Tee — orange print" data-editable-media="product" data-product-id="bulldogs-tee" data-colour="orange" data-view="front" />
+                  <img class="product__img product__img--back" src="assets/products/product_1_orange_back_cutout.png" alt="" aria-hidden="true" data-editable-media="product" data-product-id="bulldogs-tee" data-colour="orange" data-view="back" />
                 </div>
                 <div class="seg pdp__flip" role="group" aria-label="Product view">
                   <button type="button" class="is-active" data-view="front">Front</button>
@@ -82,10 +82,10 @@
                 </div>
               </div>
               <div class="thumbs">
-                <button type="button" data-shot="orange:front" aria-label="Orange print, front"><img src="assets/products/product_1_orange_front_cutout.png" alt="" /></button>
-                <button type="button" data-shot="orange:back" aria-label="Orange print, back"><img src="assets/products/product_1_orange_back_cutout.png" alt="" /></button>
-                <button type="button" data-shot="blue:front" aria-label="Blue print, front"><img src="assets/products/product_1_blue_front_cutout.png" alt="" /></button>
-                <button type="button" data-shot="blue:back" aria-label="Blue print, back"><img src="assets/products/product_1_blue_back_cutout.png" alt="" /></button>
+                <button type="button" data-shot="orange:front" aria-label="Orange print, front"><img src="assets/products/product_1_orange_front_cutout.png" alt="" data-editable-media="product" data-product-id="bulldogs-tee" data-colour="orange" data-view="front" /></button>
+                <button type="button" data-shot="orange:back" aria-label="Orange print, back"><img src="assets/products/product_1_orange_back_cutout.png" alt="" data-editable-media="product" data-product-id="bulldogs-tee" data-colour="orange" data-view="back" /></button>
+                <button type="button" data-shot="blue:front" aria-label="Blue print, front"><img src="assets/products/product_1_blue_front_cutout.png" alt="" data-editable-media="product" data-product-id="bulldogs-tee" data-colour="blue" data-view="front" /></button>
+                <button type="button" data-shot="blue:back" aria-label="Blue print, back"><img src="assets/products/product_1_blue_back_cutout.png" alt="" data-editable-media="product" data-product-id="bulldogs-tee" data-colour="blue" data-view="back" /></button>
               </div>
             </div>
             <div class="pdp__info">
@@ -208,6 +208,8 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/auth-ui.js"></script>
+    <script src="js/media.js"></script>
+    <script src="js/media-edit.js"></script>
     <script src="js/main.js"></script>
     <script src="js/shop.js"></script>
   </body>

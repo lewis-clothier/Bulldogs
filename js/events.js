@@ -55,10 +55,10 @@
   else if (params.get("booking") === "cancelled") showBanner("Payment was cancelled. Your place was not held.", true);
 
   const spacesLabel = (event) => {
-    if (event.spaces_left == null) return "Places available";
+    if (event.spaces_left == null) return "Spaces available";
     if (event.spaces_left === 0) return "Full";
-    if (event.spaces_left === 1) return "1 place left";
-    return `${event.spaces_left} places left`;
+    if (event.spaces_left === 1) return "1 space left";
+    return `${event.spaces_left} spaces left`;
   };
 
   const infoBtn = (event, size = "small") =>
@@ -75,10 +75,10 @@
   };
 
   const capacityBar = (event) => {
-    if (event.capacity == null || event.spaces_left == null) return `<div class="bar">Places available</div>`;
+    if (event.capacity == null || event.spaces_left == null) return `<div class="bar">Spaces available</div>`;
     const booked = event.capacity - event.spaces_left;
     const fill = event.capacity ? Math.min(100, Math.round((booked / event.capacity) * 100)) : 0;
-    return `<div class="bar" style="--bar: ${fill}%">${escapeHtml(booked)} of ${escapeHtml(event.capacity)} booked<i></i></div>`;
+    return `<div class="bar" style="--bar: ${fill}%">${escapeHtml(spacesLabel(event))}<i></i></div>`;
   };
 
   const poster = (event, photo) => {
@@ -95,7 +95,7 @@
     return `
       <article class="poster${full ? " poster--full" : ""}">
         <figure>
-          <img src="${photo}" alt="" />
+          <img src="${escapeHtml(photo)}" alt="" data-editable-media="event" data-event-id="${escapeHtml(event.id)}" />
           <div class="date"><b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b><span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span></div>
           ${tag}
         </figure>
@@ -139,7 +139,7 @@
     return `
       <article class="ev-feature glass${full ? " is-full" : ""}">
         <figure>
-          <img src="${photo}" alt="" />
+          <img src="${escapeHtml(photo)}" alt="" data-editable-media="event" data-event-id="${escapeHtml(event.id)}" />
           <div class="date"><b>${escapeHtml(parts(event.starts_at, { day: "2-digit" }))}</b><span>${escapeHtml(parts(event.starts_at, { month: "short" }).toUpperCase())}</span></div>
         </figure>
         <div class="ev-feature__body">
@@ -162,23 +162,23 @@
 
   let events = [];
 
-  const DECOR = (window.BULLDOGS?.eventPhotos || []).map((photo) => photo.src).filter(Boolean);
-  const photoPool = DECOR.length
-    ? DECOR
-    : [
-        "assets/photos/web/round2-pack.jpg",
-        "assets/photos/web/round2-herning.jpg",
-        "assets/photos/web/arena-fear.jpg",
-        "assets/photos/web/team-hero.jpg",
-        "assets/photos/web/events-hero.jpg",
-      ];
-  const allowedPhotos = new Set(photoPool);
+  const mediaUrl = (path) => window.BULLDOGS_MEDIA?.publicMediaUrl?.(path) || path;
+  const photoPool = [
+    mediaUrl("events/round2-pack.jpg"),
+    mediaUrl("events/round2-herning.jpg"),
+    mediaUrl("events/arena-fear.jpg"),
+    mediaUrl("events/team-hero.jpg"),
+    mediaUrl("events/events-hero.jpg"),
+  ];
 
   const photoFor = (event) => {
-    if (event?.cover_image && allowedPhotos.has(event.cover_image)) return event.cover_image;
+    const cover = String(event?.cover_image || "").trim();
+    if (cover && (/^https?:\/\//i.test(cover) || cover.startsWith("assets/"))) return cover;
+    const fallback = window.BULLDOGS_SITE_MEDIA?.home_event_fallback || photoPool[0];
+    if (!event?.id) return fallback;
     let n = 0;
-    for (const ch of String(event?.id || "")) n = (n + ch.charCodeAt(0)) % photoPool.length;
-    return photoPool[n];
+    for (const ch of String(event.id)) n = (n + ch.charCodeAt(0)) % photoPool.length;
+    return photoPool[n] || fallback;
   };
 
   const untilLabel = (iso) => {
