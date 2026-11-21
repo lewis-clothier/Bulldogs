@@ -248,8 +248,12 @@
       </div>
       <div class="field">
         <label>Medical / allergy notes</label>
-        <textarea name="medical_notes" maxlength="2000" placeholder="Anything coaches should know" aria-label="Medical notes"></textarea>
+        <textarea name="medical_notes" maxlength="2000" placeholder="Optional: anything coaches should know" aria-label="Medical notes"></textarea>
       </div>
+      <label class="field field--check">
+        <input type="checkbox" name="attendee_photo_consent" />
+        <span>Photos and video of this attendee may be used by Team Bulldogs (optional)</span>
+      </label>
     </fieldset>`;
 
   const renumber = () => {
@@ -488,7 +492,17 @@
       emergency_contact_name: block.querySelector('[name="emergency_contact_name"]').value,
       emergency_contact_phone: block.querySelector('[name="emergency_contact_phone"]').value,
       medical_notes: block.querySelector('[name="medical_notes"]').value,
+      photo_consent: block.querySelector('[name="attendee_photo_consent"]').checked,
     }));
+
+    const hasHealthNotes = attendees.some((person) => person.medical_notes.trim());
+    if (hasHealthNotes && data.get("health_consent") !== "on") {
+      const box = form.querySelector('[name="health_consent"]');
+      box.setCustomValidity("Agree to us storing the medical notes, or go back and leave them blank.");
+      box.reportValidity();
+      box.setCustomValidity("");
+      return;
+    }
 
     const minor = attendees.some((person) => {
       const dob = new Date(person.date_of_birth);
@@ -522,7 +536,7 @@
         attendees,
         newsletter_opt_in: data.get("newsletter_opt_in") === "on",
         terms_accepted: data.get("terms_accepted") === "on",
-        photo_consent: data.get("photo_consent") === "on",
+        health_consent: data.get("health_consent") === "on",
         guardian_confirmed: data.get("guardian_confirmed") === "on",
       });
       if (!payload.url) throw new Error("Couldn't start booking");

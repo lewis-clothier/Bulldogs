@@ -120,14 +120,6 @@
     if (el) el.innerHTML = `<p class="form-status is-error">${escapeHtml(err.message || "Couldn't load this.")}</p>`;
   };
 
-  const download = (text, name) => {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
   let eventsCache = [];
   let ordersCache = [];
   let attendanceCache = {};
@@ -847,15 +839,6 @@
       openEventDialog();
       return;
     }
-    const csv = event.target.closest("[data-csv-event]");
-    if (csv) {
-      try {
-        const { csv: text } = await club({ action: "attendees_csv", event_id: csv.dataset.csvEvent });
-        download(text, `${csv.dataset.csvSlug || "attendees"}.csv`);
-      } catch (err) {
-        showUndo(err.message || "Couldn't download the list");
-      }
-    }
   });
 
   fld("title").addEventListener("input", () => {
@@ -1044,11 +1027,12 @@
       ? people
           .map((person) => {
             const arrived = Boolean(person.checked_in_at);
-            const note = person.medical_notes
+            const medicalNote = person.medical_notes
               ? person.medical_notes.length > 28
                 ? `${person.medical_notes.slice(0, 28)}…`
                 : person.medical_notes
               : "";
+            const note = [person.photo_consent ? "" : "No photos", medicalNote].filter(Boolean).join(" · ");
             const whenIn = person.checked_in_at
               ? new Date(person.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
               : "";
@@ -1146,6 +1130,7 @@
     const medical = person.medical_notes
       ? `<p class="flag">${escapeHtml(person.medical_notes)}</p>`
       : `<p>No medical notes</p>`;
+    const photos = person.photo_consent === false ? `<p class="flag">No photos or video of this attendee</p>` : "";
     return `<article class="scan-card ${state.already ? "scan-card--warn" : "scan-card--ok"}">
       <p class="eyebrow">${state.already ? "Already checked in" : "Checked in"}</p>
       <h3>${escapeHtml(person.attendee_name || "Attendee")}</h3>
@@ -1155,6 +1140,7 @@
         ${person.email ? `<div><dt>Email</dt><dd>${escapeHtml(person.email)}</dd></div>` : ""}
       </dl>
       ${medical}
+      ${photos}
       ${person.id ? `<button class="btn btn--ghost btn--small" type="button" data-undo-checkin="${escapeHtml(person.id)}">Undo check-in</button>` : ""}
     </article>`;
   };
@@ -1836,11 +1822,11 @@
       order.status === "paid"
         ? `<div class="order-dialog__acts">
             <label class="field">
-              <span>Tracking or note</span>
-              <input type="text" maxlength="500" placeholder="Optional" data-note="${escapeHtml(order.id)}" value="${escapeHtml(note)}" />
+              <span>Tracking or note for the customer</span>
+              <input type="text" maxlength="500" placeholder="Optional, included in their email" data-note="${escapeHtml(order.id)}" value="${escapeHtml(note)}" />
             </label>
             <div class="order-dialog__btns">
-              <button class="btn btn--accent" type="button" data-fulfil="${escapeHtml(order.id)}">Mark fulfilled</button>
+              <button class="btn btn--accent" type="button" data-fulfil="${escapeHtml(order.id)}">Mark sent and email customer</button>
               <button class="btn btn--ghost" type="button" data-refund="${escapeHtml(order.id)}">Refund</button>
             </div>
           </div>`
@@ -1905,13 +1891,13 @@
     try {
       if (fulfil) {
         const notes = orderBody.querySelector(`[data-note="${fulfil.dataset.fulfil}"]`)?.value;
-        await club({ action: "fulfil_order", order_id: fulfil.dataset.fulfil, fulfilment_notes: notes });
+        const result = await club({ action: "fulfil_order", order_id: fulfil.dataset.fulfil, fulfilment_notes: notes });
         closeOrder();
         await loadOrders();
-        showUndo("Order marked fulfilled");
+        showUndo(result?.emailed === false ? "Order marked sent, but the email to the customer failed" : "Order marked sent and customer emailed");
       }
       if (refund) {
-        if (!confirm("Refund this order? Only do this if it hasn’t gone to print.")) return;
+        if (!confirm("Refund this order? Only do this if it hasn’t been posted.")) return;
         await club({ action: "refund_order", order_id: refund.dataset.refund });
         closeOrder();
         await loadOrders();
@@ -1925,28 +1911,13 @@
   async function loadNews() {
     if (!newsBody) return;
     try {
-      const { csv } = await club({ action: "newsletter_csv" });
-      const lines = String(csv || "")
-        .trim()
-        .split("\n")
-        .filter(Boolean);
-      const count = Math.max(0, lines.length - 1);
-      newsBody.innerHTML = `<p>${count ? `${count} subscriber${count === 1 ? "" : "s"} opted in.` : "No subscribers yet."}</p>
-        <p class="muted">Download to send from your own mailing tool. People opt in at checkout.</p>`;
-      newsBody.dataset.csv = csv;
+      const { count } = await club({ action: "newsletter_count" });
+      newsBody.innerHTML = `<p>${count ? `${count} confirmed subscriber${count === 1 ? "" : "s"}.` : "No subscribers yet."}</p>
+        <p class="muted">They get an email automatically when you publish a new event. Every email has an unsubscribe link.</p>`;
     } catch (err) {
       fail(newsBody, err);
     }
   }
-
-  document.querySelector("[data-news-csv]")?.addEventListener("click", async () => {
-    if (newsBody?.dataset.csv) {
-      download(newsBody.dataset.csv, "newsletter.csv");
-      return;
-    }
-    const { csv } = await club({ action: "newsletter_csv" });
-    download(csv, "newsletter.csv");
-  });
 
   async function loadAdmins() {
     if (!adminsList) return;

@@ -209,7 +209,7 @@
         email: new FormData(form).get("email"),
       });
       form.reset();
-      status.textContent = "You're on the list. We'll email you when a new event goes live.";
+      status.textContent = "Almost done: check your inbox and click the link to confirm.";
       paintAlerts();
     } catch (err) {
       status.textContent = unavailable(err, "Alerts aren't available yet.");

@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     if (action === "signup") {
       const address = email(body.email);
       const password = text(body.password, "Password", 72, true)!;
-      if (password.length < 6) throw new ValidationError("Password must be at least 6 characters");
+      if (password.length < 8) throw new ValidationError("Password must be at least 8 characters");
       const fullName = text(body.full_name, "Name", 200);
       let data;
       let error;

@@ -2,7 +2,14 @@ import { requireClub } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
 import { escapeHtml, formatDate, formatMoney, sendHtml } from "../_shared/email.ts";
 import { email, getSiteUrl, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
-import { sendBookingCancelled, sendClubCancelledEvent, sendRegistrationEmails } from "../_shared/notifications.ts";
+import {
+  newsletterLink,
+  sendBookingCancelled,
+  sendClubCancelledEvent,
+  sendOrderDispatched,
+  sendRegistrationEmails,
+  unsubscribeHeaders,
+} from "../_shared/notifications.ts";
 
 async function notifyEventLive(event: {
   id: string;
@@ -15,7 +22,11 @@ async function notifyEventLive(event: {
   age_range?: string | null;
 }) {
   try {
-    const { data, error } = await db.from("newsletter_subscribers").select("email").is("unsubscribed_at", null);
+    const { data, error } = await db
+      .from("newsletter_subscribers")
+      .select("email, token")
+      .not("confirmed_at", "is", null)
+      .is("unsubscribed_at", null);
     if (error || !data?.length) return;
     const when = formatDate(event.starts_at);
     const where = event.location || "";
@@ -33,6 +44,7 @@ async function notifyEventLive(event: {
         to: row.email,
         subject: `New Bulldogs event: ${event.title}`,
         idempotencyKey: `event-live/${event.id}/${row.email}/${event.starts_at}`,
+        headers: unsubscribeHeaders(row.token),
         html: `<div style="font-family:Outfit,Segoe UI,sans-serif;color:#1e1e23;line-height:1.5;max-width:36rem;">
           <p>A new Team Bulldogs event just went live.</p>
           <p style="font-size:1.25rem;margin:0 0 0.35rem;"><strong>${escapeHtml(event.title)}</strong></p>
@@ -41,6 +53,7 @@ async function notifyEventLive(event: {
           <p><a href="${escapeHtml(link)}" style="display:inline-block;background:#e4572e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:4px;">See events &amp; book</a></p>
           <p style="color:#5b6472;font-size:13px;">Or open <a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p>
           <p>Team Bulldogs</p>
+          <p style="color:#5b6472;font-size:12px;">You're getting this because you asked for Bulldogs event emails. <a href="${escapeHtml(newsletterLink("unsubscribe", row.token))}">Unsubscribe</a></p>
         </div>`,
       });
     }
@@ -269,33 +282,6 @@ Deno.serve(async (req) => {
       return json(req, { attendees: data });
     }
 
-    if (action === "attendees_csv") {
-      const eventId = text(body.event_id, "Event", 36, true)!;
-      const { data, error } = await db
-        .from("registrations")
-        .select("*")
-        .eq("event_id", eventId)
-        .in("status", ["paid", "pending"]);
-      if (error) throw error;
-      const header = "attendee,dob,booker,email,phone,emergency,emergency_phone,medical,notes,status,checked_in";
-      const lines = (data ?? []).map((row) =>
-        [
-          row.attendee_name,
-          row.attendee_date_of_birth,
-          row.full_name,
-          row.email,
-          row.phone,
-          row.emergency_contact_name,
-          row.emergency_contact_phone,
-          row.medical_notes,
-          row.notes,
-          row.status,
-          row.checked_in_at ?? "",
-        ].map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(","),
-      );
-      return json(req, { csv: [header, ...lines].join("\n") });
-    }
-
     if (action === "checkin") {
       const token = text(body.token, "Token", 80, true)!;
       const eventId = text(body.event_id, "Event", 36);
@@ -429,7 +415,14 @@ Deno.serve(async (req) => {
         fulfilled_at: new Date().toISOString(),
         fulfilment_notes: notes,
       }).eq("id", orderId);
-      return json(req, { ok: true });
+      try {
+        await sendOrderDispatched(orderId);
+      } catch (err) {
+        // The order is marked sent either way; a failed email shouldn't undo that.
+        console.error("dispatch email failed", err);
+        return json(req, { ok: true, emailed: false });
+      }
+      return json(req, { ok: true, emailed: true });
     }
 
     if (action === "refund_order") {
@@ -526,15 +519,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "newsletter_csv") {
-      const { data, error } = await db
+    if (action === "newsletter_count") {
+      // Only a count: subscriber addresses never leave the system as a list.
+      const { count, error } = await db
         .from("newsletter_subscribers")
-        .select("email, source, consented_at, unsubscribed_at")
-        .is("unsubscribed_at", null)
-        .order("consented_at", { ascending: false });
+        .select("email", { count: "exact", head: true })
+        .not("confirmed_at", "is", null)
+        .is("unsubscribed_at", null);
       if (error) throw error;
-      const csv = ["email,source,consented_at", ...(data ?? []).map((row) => `${row.email},${row.source},${row.consented_at}`)].join("\n");
-      return json(req, { csv });
+      return json(req, { count: count ?? 0 });
     }
 
     return json(req, { error: "Unknown action" }, 400);

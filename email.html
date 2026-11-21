@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Email preferences — Team Bulldogs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" href="assets/logo.png" type="image/png" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="logo" href="index.html" aria-label="Team Bulldogs home"><img class="logo__type" src="assets/type-orange.png" alt="Bulldogs" /></a>
+        <nav class="nav__links" aria-label="Primary">
+          <a href="index.html">Home</a><a href="events.html">Events</a><a href="shop.html">Shop</a><a href="team.html">AFL TEAM</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <header class="page-hero"><div class="wrap"><p class="eyebrow">Email</p><h1 data-email-title>Email preferences</h1><p data-email-body></p></div></header>
+      <section class="section"><div class="wrap prose"><p><a class="btn btn--accent" href="events.html">See events</a></p></div></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><div class="footer__bottom"><span>© 2026 Team Bulldogs · <a href="privacy.html">Privacy</a></span></div></div></footer>
+    <script>
+      (() => {
+        const messages = {
+          confirmed: ["You're on the list", "We'll email you when a new Bulldogs event goes live. Every email has an unsubscribe link."],
+          unsubscribed: ["You're unsubscribed", "You won't get any more event or merch emails from us. Booking and order emails still arrive as normal."],
+          invalid: ["Link not recognised", "That link has expired or was already used. Email bulldogs.limited@gmail.com if you need a hand."],
+          error: ["Something went wrong", "Please try the link again in a minute, or email bulldogs.limited@gmail.com."],
+        };
+        const status =
+          new URLSearchParams(location.hash.slice(1)).get("status") || new URLSearchParams(location.search).get("status");
+        const [title, body] = messages[status] || messages.invalid;
+        document.querySelector("[data-email-title]").textContent = title;
+        document.querySelector("[data-email-body]").textContent = body;
+      })();
+    </script>
+  </body>
+</html>

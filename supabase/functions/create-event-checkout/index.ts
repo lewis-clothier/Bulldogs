@@ -1,4 +1,4 @@
-import { maybeCreateAccount, getUser, reference } from "../_shared/auth.ts";
+import { getUser, reference } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
 import { formatDate } from "../_shared/email.ts";
 import { checkoutSiteUrl, email, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
@@ -12,7 +12,6 @@ const reservationErrors: Record<string, [number, string]> = {
   event_not_found: [404, "That event isn't available to book."],
   signups_closed: [409, "Signups for this event have closed."],
   event_full: [409, "Sorry, this event is full."],
-  photo_consent_required: [400, "Please confirm photo and video consent."],
   attendees_required: [400, "Add at least one attendee."],
   attendee_name_required: [400, "Each attendee needs a name."],
   attendee_dob_required: [400, "Each attendee needs a date of birth."],
@@ -57,6 +56,7 @@ function parseAttendees(value: unknown) {
       emergency_contact_phone: text(row.emergency_contact_phone, "Emergency contact phone", 40, true)!,
       medical_notes: text(row.medical_notes, "Medical notes", 2000),
       notes: text(row.notes, "Notes", 2000),
+      photo_consent: row.photo_consent === true,
     };
   });
 }
@@ -70,7 +70,6 @@ Deno.serve(async (req) => {
 
   try {
     if (body.terms_accepted !== true) throw new ValidationError("Please accept the terms to book");
-    if (body.photo_consent !== true) throw new ValidationError("Please confirm photo and video consent");
 
     const eventId = text(body.event_id, "Event", 36, true)!;
     if (!UUID.test(eventId)) throw new ValidationError("Event is not valid");
@@ -78,14 +77,15 @@ Deno.serve(async (req) => {
     const fullName = text(body.full_name, "Your name", 200, true)!;
     const bookerEmail = email(body.email);
     const signedIn = await getUser(req);
-    const password = text(body.password, "Password", 72);
-    let userId = signedIn?.id ?? null;
-    if (!userId && body.create_account === true && password) {
-      if (password.length < 6) throw new ValidationError("Password must be at least 6 characters");
-      userId = await maybeCreateAccount(bookerEmail, password, fullName);
-    }
+    // Accounts are only created through sign-up, which proves the email belongs to the person.
+    const userId = signedIn?.id ?? null;
 
     const attendees = parseAttendees(body.attendees);
+    // Medical notes are health data: only keep them with the booker's explicit agreement.
+    const hasHealthNotes = attendees.some((person) => person.medical_notes);
+    if (hasHealthNotes && body.health_consent !== true) {
+      throw new ValidationError("Please agree to us storing the medical notes, or leave them blank");
+    }
     const { data, error } = await db.rpc("reserve_event_place", {
       p_event_id: eventId,
       p_full_name: fullName,
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
       p_phone: text(body.phone, "Phone", 40),
       p_attendees: attendees,
       p_newsletter_opt_in: body.newsletter_opt_in === true,
-      p_photo_consent: true,
+      p_photo_consent: attendees.every((person) => person.photo_consent),
       p_guardian_confirmed: body.guardian_confirmed === true,
       p_user_id: userId,
       p_hold_minutes: HOLD_MINUTES,
@@ -122,6 +122,9 @@ Deno.serve(async (req) => {
     }
 
     const reservation = data as Reservation;
+    if (hasHealthNotes) {
+      await db.from("bookings").update({ health_consent_at: new Date().toISOString() }).eq("id", reservation.booking_id);
+    }
     await recordNewsletter(bookerEmail, userId, "event-checkout", body.newsletter_opt_in === true);
 
     const siteUrl = checkoutSiteUrl(req);

@@ -124,6 +124,7 @@ export async function sendHtml(message: {
   replyTo?: string;
   from?: string;
   attachments?: MailAttachment[];
+  headers?: Record<string, string>;
 }) {
   if (!resend) {
     console.warn(`RESEND_API_KEY not set; skipped html mail to ${message.to}`);
@@ -139,6 +140,7 @@ export async function sendHtml(message: {
           html: message.html,
           ...(message.replyTo && { replyTo: message.replyTo }),
           ...(message.attachments?.length ? { attachments: message.attachments } : {}),
+          ...(message.headers && { headers: message.headers }),
         },
         { idempotencyKey: message.idempotencyKey },
       );
