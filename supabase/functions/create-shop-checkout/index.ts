@@ -1,4 +1,4 @@
-import { getUser, maybeCreateAccount, reference } from "../_shared/auth.ts";
+import { getUser, reference } from "../_shared/auth.ts";
 import { db, Stripe, stripe } from "../_shared/clients.ts";
 import { checkoutSiteUrl, email, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
 import { recordNewsletter } from "../_shared/notifications.ts";
@@ -48,13 +48,9 @@ Deno.serve(async (req) => {
     const cart = parseCart(body);
     const customerEmail = email(body.email);
     const signedIn = await getUser(req);
-    const password = text(body.password, "Password", 72);
     const fullName = text(body.full_name, "Your name", 200);
-    let userId = signedIn?.id ?? null;
-    if (!userId && body.create_account === true && password) {
-      if (password.length < 6) throw new ValidationError("Password must be at least 6 characters");
-      userId = await maybeCreateAccount(customerEmail, password, fullName);
-    }
+    // Accounts are only created through sign-up, which proves the email belongs to the person.
+    const userId = signedIn?.id ?? null;
 
     const { data: orderId, error } = await db.rpc("create_shop_order", {
       p_user_id: userId,

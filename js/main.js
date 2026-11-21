@@ -1,7 +1,6 @@
 (() => {
   const toggle = document.querySelector(".nav-toggle");
   const links = document.querySelector(".nav__links");
-  const contactForm = document.querySelector("#contact-form");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const header = document.querySelector(".site-header");
 
@@ -174,72 +173,6 @@
       carousel.addEventListener("pointerup", endDrag);
       carousel.addEventListener("pointercancel", endDrag);
     }
-  }
-
-  if (contactForm) {
-    const CONTACT_EMAIL = "bulldogs.limited@gmail.com";
-    const status = contactForm.querySelector(".form-status");
-    const submitBtn = contactForm.querySelector('[type="submit"]');
-
-    contactForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const honey = contactForm.querySelector('[name="_honey"]');
-      if (honey?.value) return;
-
-      const formData = new FormData(contactForm);
-      const name = String(formData.get("name") || "").trim();
-      const email = String(formData.get("email") || "").trim();
-      const topic = String(formData.get("topic") || "Enquiry").trim();
-      const message = String(formData.get("message") || "").trim();
-
-      if (status) {
-        status.textContent = "Sending…";
-        status.classList.remove("is-error");
-      }
-      if (submitBtn) submitBtn.disabled = true;
-
-      try {
-        const res = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            topic,
-            message,
-            _subject: `Bulldogs contact — ${topic}`,
-            _template: "table",
-            _captcha: "false",
-            _honey: "",
-            replyto: email,
-          }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-        const ok = res.ok && data.success !== "false" && data.success !== false;
-
-        if (!ok) {
-          throw new Error(data.message || "Send failed");
-        }
-
-        if (status) {
-          status.textContent = "Thanks — message sent. We’ll be in touch.";
-          status.classList.remove("is-error");
-        }
-        contactForm.reset();
-      } catch {
-        if (status) {
-          status.textContent = "Couldn’t send right now. Email us at bulldogs.limited@gmail.com.";
-          status.classList.add("is-error");
-        }
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
-      }
-    });
   }
 
   const showCopiedToast = (anchor) => {

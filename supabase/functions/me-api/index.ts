@@ -45,6 +45,22 @@ Deno.serve(async (req) => {
       return json(req, { ok: true });
     }
 
+    if (action === "delete_account") {
+      // Bookings and orders are kept for the club's records (their user link is cleared);
+      // profile, saved bag and email-list sign-up go with the account.
+      await db
+        .from("newsletter_subscribers")
+        .update({ unsubscribed_at: new Date().toISOString() })
+        .eq("email", user.email);
+      await db.from("admins").delete().eq("user_id", user.id);
+      const { error } = await db.auth.admin.deleteUser(user.id);
+      if (error) {
+        console.error("delete account failed", error);
+        return json(req, { error: "Couldn't delete your account. Email the club and we'll do it for you." }, 500);
+      }
+      return json(req, { ok: true });
+    }
+
     if (action === "subscribe_alerts") {
       await recordNewsletter(user.email, user.id, "event-alerts", true);
       return json(req, { ok: true, email: user.email });

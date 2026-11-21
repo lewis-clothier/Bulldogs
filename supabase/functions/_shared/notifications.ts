@@ -2,7 +2,7 @@ import QRCode from "npm:qrcode@1.5.4";
 import { canSelfCancel, reference } from "./auth.ts";
 import { db } from "./clients.ts";
 import { clubEmail, escapeHtml, formatDate, formatMoney, fromOrders, plain, sendHtml, sendTemplate, type MailAttachment } from "./email.ts";
-import { getSiteUrl } from "./http.ts";
+import { getSiteUrl, requireEnv } from "./http.ts";
 
 type Address = {
   line1?: string | null;
@@ -125,20 +125,76 @@ export async function sendAuthEmail(to: string, actionType: string, actionLink: 
   });
 }
 
+/** Public link that confirms or cancels an email-list sign-up. Works without signing in. */
+export function newsletterLink(action: "confirm_alerts" | "unsubscribe", token: string) {
+  const base = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
+  return `${base}/functions/v1/public-booking?action=${action}&token=${encodeURIComponent(token)}`;
+}
+
+/** Headers that let mail apps show their own one-click "Unsubscribe" button. */
+export function unsubscribeHeaders(token: string): Record<string, string> {
+  return {
+    "List-Unsubscribe": `<${newsletterLink("unsubscribe", token)}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
+
+/**
+ * Signed-in people have proved they own their email, so they are subscribed straight away.
+ * Anyone else gets a confirmation email first, so nobody can sign up someone else's address.
+ */
 export async function recordNewsletter(email: string, userId: string | null, source: string, optedIn: boolean) {
   const address = email.toLowerCase();
-  if (optedIn) {
+  const now = new Date().toISOString();
+  if (!optedIn) {
+    if (userId) await db.from("profiles").update({ newsletter_opt_in: false }).eq("id", userId);
+    return;
+  }
+  if (userId) {
     await db.from("newsletter_subscribers").upsert({
       email: address,
       user_id: userId,
       source,
-      consented_at: new Date().toISOString(),
+      consented_at: now,
+      confirmed_at: now,
       unsubscribed_at: null,
     });
-    if (userId) await db.from("profiles").update({ newsletter_opt_in: true }).eq("id", userId);
+    await db.from("profiles").update({ newsletter_opt_in: true }).eq("id", userId);
     return;
   }
-  if (userId) await db.from("profiles").update({ newsletter_opt_in: false }).eq("id", userId);
+
+  const { data: existing } = await db
+    .from("newsletter_subscribers")
+    .select("token, confirmed_at, unsubscribed_at")
+    .eq("email", address)
+    .maybeSingle();
+  if (existing?.confirmed_at && !existing.unsubscribed_at) return;
+
+  let token = existing?.token as string | undefined;
+  if (!existing) {
+    const { data: created, error } = await db
+      .from("newsletter_subscribers")
+      .insert({ email: address, source, consented_at: now })
+      .select("token")
+      .single();
+    if (error) {
+      console.error("newsletter sign-up failed", error);
+      return;
+    }
+    token = created.token;
+  }
+  if (!token) return;
+  await sendHtml({
+    to: address,
+    subject: "Confirm Team Bulldogs event emails",
+    idempotencyKey: `newsletter-confirm/${token}/${now.slice(0, 10)}`,
+    html: wrap(`
+      <p>Hi,</p>
+      <p>Someone, hopefully you, asked for Team Bulldogs emails about new events and merch drops at this address.</p>
+      <p><a href="${escapeHtml(newsletterLink("confirm_alerts", token))}">Yes, send me Bulldogs emails</a></p>
+      <p>If this wasn't you, ignore this email and you won't hear from us again.</p>
+      <p>Team Bulldogs</p>`),
+  });
 }
 
 export async function sendRegistrationEmails(bookingId: string) {
@@ -324,6 +380,43 @@ export async function sendOrderEmails(orderId: string) {
       CUSTOMER_PHONE: plain(order.customer_phone),
       SHIPPING_PAID: formatMoney(order.amount_shipping_pence, order.currency),
     },
+  });
+}
+
+/** Tells the customer their order has been posted. The admin's tracking/note, if any, is included. */
+export async function sendOrderDispatched(orderId: string) {
+  const { data: order, error } = await db
+    .from("orders")
+    .select("id, customer_email, customer_name, shipping_address, fulfilment_notes, items:order_items(product_name, colour, size, quantity)")
+    .eq("id", orderId)
+    .single();
+  if (error) throw error;
+  if (!order.customer_email) return;
+
+  const items = (order.items ?? []) as { product_name: string; colour: string | null; size: string | null; quantity: number }[];
+  const lines = items
+    .map((item) => {
+      const options = [item.colour, item.size && `size ${item.size}`].filter(Boolean).join(", ");
+      return `<li>${item.quantity} × ${escapeHtml(item.product_name)}${options ? ` (${escapeHtml(options)})` : ""}</li>`;
+    })
+    .join("");
+  const address = formatAddress(order.shipping_address as Address | null);
+  const note = plain(order.fulfilment_notes);
+
+  await sendHtml({
+    to: order.customer_email,
+    from: fromOrders,
+    replyTo: clubEmail,
+    subject: `Your Bulldogs order ${reference(order.id)} is on its way`,
+    idempotencyKey: `order-dispatched/${order.id}`,
+    html: wrap(`
+      <p>Hi ${escapeHtml(plain(order.customer_name) ?? "there")},</p>
+      <p>Your order <strong>${escapeHtml(reference(order.id))}</strong> has been packed and posted.</p>
+      ${lines ? `<ul>${lines}</ul>` : ""}
+      ${address ? `<p>Sending to: ${escapeHtml(address)}</p>` : ""}
+      ${note ? `<p>Tracking or note from the club: ${escapeHtml(note)}</p>` : ""}
+      <p>If anything's wrong when it arrives, just reply to this email.</p>
+      <p>Team Bulldogs</p>`),
   });
 }
 

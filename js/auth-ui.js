@@ -131,7 +131,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true" data-eye-shut hidden><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.4 18.4 0 0 1-3.2 4.2"/><path d="M6.1 6.1C3.8 7.8 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 4.1-.8"/></svg>
               </button>
             </span>
-            <p class="field-hint">At least 6 characters.</p>
+            <p class="field-hint">New passwords need at least 8 characters.</p>
           </div>
           <button class="btn btn--accent btn--block" type="submit" data-auth-submit>Sign in</button>
           <p class="auth-or">or</p>
@@ -150,7 +150,7 @@
         <div data-auth-view="recovery" hidden>
           <div class="field">
             <label for="auth_new_password">New password</label>
-            <input id="auth_new_password" name="new_password" type="password" minlength="6" autocomplete="new-password" />
+            <input id="auth_new_password" name="new_password" type="password" minlength="8" autocomplete="new-password" />
           </div>
           <button class="btn btn--accent btn--block" type="submit">Save password</button>
         </div>
@@ -311,7 +311,7 @@
   const signUp = async ({ email, password, full_name }) => {
     const client = api();
     if (!client) throw new Error("Couldn't reach the server.");
-    if (!password || password.length < 6) throw new Error("Password must be at least 6 characters.");
+    if (!password || password.length < 8) throw new Error("Password must be at least 8 characters.");
     await client.fn("auth-api", { action: "signup", email, password, full_name: full_name || null });
   };
 
@@ -405,8 +405,8 @@
         }
         if (view === "recovery") {
           const password = String(data.get("new_password") || "");
-          if (password.length < 6) {
-            setStatus("Password must be at least 6 characters.", true);
+          if (password.length < 8) {
+            setStatus("Password must be at least 8 characters.", true);
             return;
           }
           const sb = await whenReady();
@@ -504,7 +504,8 @@
       <a class="account-menu__item" href="bookings.html">My Bookings</a>
       <a class="account-menu__item" href="orders.html">My Orders</a>
       ${club}
-      <button class="account-menu__item account-menu__item--out" type="button" data-account-out>Sign out</button>`;
+      <button class="account-menu__item account-menu__item--out" type="button" data-account-out>Sign out</button>
+      <button class="account-menu__item account-menu__item--out" type="button" data-account-delete>Delete account</button>`;
     if (profile?.is_admin) window.BULLDOGS_MEDIA_EDIT?.setAdmin?.(true);
     panel.querySelector(".account-menu__avatar").textContent = initialsOf(name, email);
     panel.querySelector("[data-account-name]").textContent = name || "Add your name";
@@ -607,6 +608,23 @@
         const sb = await whenReady();
         await sb.auth.signOut();
         closeMenu();
+      }
+      if (event.target.closest("[data-account-delete]")) {
+        event.preventDefault();
+        const ok = confirm(
+          "Delete your Team Bulldogs account?\n\nThis removes your sign-in, profile, saved bag and email sign-ups. " +
+            "Upcoming bookings and orders stay valid using the tickets and links in your emails. This can't be undone.",
+        );
+        if (!ok) return;
+        try {
+          await api().fn("me-api", { action: "delete_account" });
+          const sb = await whenReady();
+          await sb.auth.signOut();
+          closeMenu();
+          alert("Your account has been deleted.");
+        } catch (err) {
+          alert(err.message || "Couldn't delete your account. Email bulldogs.limited@gmail.com and we'll do it for you.");
+        }
       }
       if (edit) {
         event.preventDefault();

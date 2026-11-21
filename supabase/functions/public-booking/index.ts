@@ -1,7 +1,24 @@
 import { canSelfCancel } from "../_shared/auth.ts";
 import { db, stripe } from "../_shared/clients.ts";
-import { email, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
-import { sendBookingCancelled } from "../_shared/notifications.ts";
+import { email, getSiteUrl, json, preflight, readJson, text, ValidationError } from "../_shared/http.ts";
+import { recordNewsletter, sendBookingCancelled } from "../_shared/notifications.ts";
+
+/** Confirm or cancel an email-list sign-up from the link in an email, then show the result on the site. */
+async function handleListLink(action: string, token: string): Promise<Response> {
+  const done = (status: string) =>
+    new Response(null, { status: 303, headers: { Location: `${getSiteUrl()}/email.html#status=${status}` } });
+  if (!/^[0-9a-f]{48}$/.test(token)) return done("invalid");
+  const now = new Date().toISOString();
+  const update =
+    action === "confirm_alerts"
+      ? { confirmed_at: now, consented_at: now, unsubscribed_at: null }
+      : { unsubscribed_at: now };
+  const { data, error } = await db.from("newsletter_subscribers").update(update).eq("token", token).select("email, user_id");
+  if (error || !data?.length) return done("invalid");
+  const userId = data[0].user_id as string | null;
+  if (userId) await db.from("profiles").update({ newsletter_opt_in: action === "confirm_alerts" }).eq("id", userId);
+  return done(action === "confirm_alerts" ? "confirmed" : "unsubscribed");
+}
 
 function icsEscape(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
@@ -15,6 +32,17 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const early = preflight(req, "GET, POST, OPTIONS");
   if (early) return early;
+
+  // Email links (GET) and mail apps' one-click unsubscribe (POST) carry the action in the URL.
+  const listAction = url.searchParams.get("action");
+  if (listAction === "confirm_alerts" || listAction === "unsubscribe") {
+    try {
+      return await handleListLink(listAction, url.searchParams.get("token") ?? "");
+    } catch (err) {
+      console.error("list link failed", err);
+      return new Response(null, { status: 303, headers: { Location: `${getSiteUrl()}/email.html#status=error` } });
+    }
+  }
 
   try {
     if (req.method === "GET" && (url.searchParams.get("action") === "ics" || url.searchParams.get("ics"))) {
@@ -114,15 +142,9 @@ Deno.serve(async (req) => {
 
     if (action === "subscribe_alerts") {
       const address = email(body.email);
-      const { error } = await db.from("newsletter_subscribers").upsert({
-        email: address,
-        user_id: null,
-        source: "event-alerts",
-        consented_at: new Date().toISOString(),
-        unsubscribed_at: null,
-      });
-      if (error) throw new ValidationError("Couldn't save that email.");
-      return json(req, { ok: true }, 200, "GET, POST, OPTIONS");
+      // Sends a confirmation email; nothing else is sent until they click it.
+      await recordNewsletter(address, null, "event-alerts", true);
+      return json(req, { ok: true, confirm: true }, 200, "GET, POST, OPTIONS");
     }
 
     return json(req, { error: "Unknown action" }, 400, "GET, POST, OPTIONS");

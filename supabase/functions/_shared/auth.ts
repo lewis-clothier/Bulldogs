@@ -1,7 +1,19 @@
 import { db } from "./clients.ts";
 import { bearer } from "./http.ts";
 
-export type AppUser = { id: string; email: string };
+/** viaGoogle: this session was signed in with Google (not a password or email link). */
+export type AppUser = { id: string; email: string; viaGoogle: boolean };
+
+/** Sign-in methods recorded in a session token that Supabase has already verified. */
+function sessionMethods(token: string): string[] {
+  try {
+    const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), "=")));
+    return Array.isArray(claims.amr) ? claims.amr.map((entry: { method?: string }) => String(entry?.method ?? "")) : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function getUser(req: Request): Promise<AppUser | null> {
   const token = bearer(req);
@@ -9,7 +21,9 @@ export async function getUser(req: Request): Promise<AppUser | null> {
   const { data, error } = await db.auth.getUser(token);
   const email = data.user?.email?.toLowerCase();
   if (error || !data.user || !email) return null;
-  return { id: data.user.id, email };
+  const hasGoogle = (data.user.identities ?? []).some((identity) => identity.provider === "google");
+  const oauthSession = sessionMethods(token).some((method) => method === "oauth" || method === "id_token");
+  return { id: data.user.id, email, viaGoogle: hasGoogle && oauthSession };
 }
 
 export async function requireUser(req: Request): Promise<AppUser> {
@@ -22,10 +36,21 @@ export async function requireUser(req: Request): Promise<AppUser> {
   return user;
 }
 
-export async function isAdmin(user: AppUser): Promise<boolean> {
+async function adminRow(user: AppUser) {
   const { data } = await db.from("admins").select("email, user_id").eq("email", user.email).maybeSingle();
-  if (!data) return false;
-  if (data.user_id !== user.id) {
+  return data;
+}
+
+async function onAdminList(user: AppUser): Promise<boolean> {
+  return Boolean(await adminRow(user));
+}
+
+/** Admin rights need the email on the admin list AND a Google sign-in (Google handles 2-step verification). */
+export async function isAdmin(user: AppUser): Promise<boolean> {
+  if (!user.viaGoogle) return false;
+  const row = await adminRow(user);
+  if (!row) return false;
+  if (row.user_id !== user.id) {
     await db.from("admins").update({ user_id: user.id }).eq("email", user.email);
   }
   return true;
@@ -34,35 +59,12 @@ export async function isAdmin(user: AppUser): Promise<boolean> {
 export async function requireClub(req: Request): Promise<AppUser> {
   const user = await requireUser(req);
   if (!(await isAdmin(user))) {
-    const err = new Error("Club access only");
+    const listed = await onAdminList(user);
+    const err = new Error(listed ? "Club admins must sign in with Google. Sign out, then use Continue with Google." : "Club access only");
     (err as Error & { status: number }).status = 403;
     throw err;
   }
   return user;
-}
-
-export async function maybeCreateAccount(
-  email: string,
-  password: string | null,
-  fullName: string | null,
-): Promise<string | null> {
-  if (!password) return null;
-  const { data, error } = await db.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: fullName ? { full_name: fullName } : {},
-  });
-  if (error) {
-    if (/already/i.test(error.message)) {
-      const { data: existing } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      const match = existing.users.find((user) => user.email?.toLowerCase() === email);
-      return match?.id ?? null;
-    }
-    console.error("createUser failed", error);
-    return null;
-  }
-  return data.user?.id ?? null;
 }
 
 export const reference = (id: string) => id.slice(0, 8).toUpperCase();
